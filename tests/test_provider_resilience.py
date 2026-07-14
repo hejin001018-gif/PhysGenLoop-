@@ -16,6 +16,25 @@ class TimeoutVLMVerifier:
         raise TimeoutError("VLM API timeout")
 
 
+class MalformedQuestionModel:
+    def generate_json(self, **kwargs):
+        return {
+            "nodes": [
+                {
+                    "id": "O1",
+                    "category": "object",
+                    "question": "Is the ball visible?",
+                    "parent_ids": None,
+                }
+            ]
+        }
+
+
+class MalformedVLMVerifier:
+    def verify(self, request, candidate, critical_frames):
+        raise ValueError("violation_score is not numeric")
+
+
 def _state(frame, y, velocity):
     return FrameState(
         frame=frame,
@@ -67,3 +86,44 @@ def test_vlm_timeout_keeps_rule_violation_and_marks_provider_failure():
     assert report.violations
     failures = report.diagnostics["provider_failures"]
     assert any(item["stage"] == "vlm_review" for item in failures)
+
+
+def test_malformed_question_output_falls_back_to_template_graph():
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(objects=("red_ball",), expected_events=("fall",)),
+    )
+
+    artifacts = PhysicsCritic(question_model=MalformedQuestionModel()).analyze_detailed(
+        request,
+        observations=(_state(0, 10, (0, 10)), _state(1, 20, (0, 10))),
+        floor_y=100,
+    )
+
+    assert artifacts.question_graph.source == "physics_plan_template"
+    assert artifacts.report.diagnostics["provider_failures"][0]["error_type"] == "TypeError"
+
+
+def test_malformed_vlm_output_falls_back_to_rule_evidence():
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(objects=("red_ball",), expected_events=("fall",)),
+    )
+    states = (
+        _state(0, 40, (0, 100)),
+        _state(1, 55, (0, 100)),
+        _state(2, 48, (0, -100)),
+        _state(3, 38, (0, -100)),
+    )
+
+    report = PhysicsCritic(vlm_verifier=MalformedVLMVerifier()).analyze(
+        request,
+        observations=states,
+        floor_y=100,
+    )
+
+    assert report.decision == "violation"
+    assert any(
+        item["error_type"] == "ValueError"
+        for item in report.diagnostics["provider_failures"]
+    )

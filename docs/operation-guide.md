@@ -98,7 +98,7 @@ python -c "from pavg_critic import PhysicsCritic; print('import ok')"
 python -m pytest -q
 ```
 
-当前版本预期 60 个测试通过。未来增加测试后数量可能变多，判断标准是退出码 0 且没有 failed/error。
+当前版本预期 62 个测试通过。未来增加测试后数量可能变多，判断标准是退出码 0 且没有 failed/error。
 
 若失败，先保存完整 traceback，不要直接运行 API。
 

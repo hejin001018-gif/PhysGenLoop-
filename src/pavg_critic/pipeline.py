@@ -346,6 +346,8 @@ _OPTIONAL_PROVIDER_ERRORS = (
     SchemaError,
     QuestionGraphError,
     KeyError,
+    ValueError,
+    TypeError,
 )
 
 
