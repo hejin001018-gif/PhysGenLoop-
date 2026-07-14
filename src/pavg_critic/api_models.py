@@ -10,7 +10,7 @@ import json
 import os
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol
 
 
@@ -70,7 +70,7 @@ class UrllibJsonTransport:
 class OpenAIResponsesModel:
     """通过 OpenAI Responses API 生成严格 JSON Schema 输出。"""
 
-    api_key: str
+    api_key: str = field(repr=False)
     model: str
     base_url: str = "https://api.openai.com/v1"
     timeout_sec: float = 120.0
@@ -177,7 +177,7 @@ class OpenAIResponsesModel:
 class DeepSeekChatModel:
     """通过 DeepSeek 的 OpenAI-compatible Chat Completions 接口生成 JSON。"""
 
-    api_key: str
+    api_key: str = field(repr=False)
     model: str = "deepseek-chat"
     base_url: str = "https://api.deepseek.com"
     timeout_sec: float = 120.0

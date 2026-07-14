@@ -75,6 +75,18 @@ def test_openai_from_env_requires_key_and_explicit_model(monkeypatch):
         OpenAIResponsesModel.from_env()
 
 
+def test_api_keys_are_redacted_from_adapter_repr():
+    openai = OpenAIResponsesModel(
+        api_key="openai-secret", model="test-model", transport=FakeTransport({})
+    )
+    deepseek = DeepSeekChatModel(
+        api_key="deepseek-secret", transport=FakeTransport({})
+    )
+
+    assert "openai-secret" not in repr(openai)
+    assert "deepseek-secret" not in repr(deepseek)
+
+
 def test_openai_multimodal_adapter_embeds_selected_images():
     transport = FakeTransport(
         {
