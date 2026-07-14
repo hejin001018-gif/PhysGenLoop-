@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 
 import jsonschema
+import pytest
 
 from pavg_critic import CriticReport, load_config
+from pavg_critic.config import CriticConfig, EventConfig, RuleConfig, TemporalConfig
 
 
 def test_yaml_config_is_supported(tmp_path):
@@ -54,3 +56,21 @@ def test_runtime_report_matches_versioned_json_schema():
     jsonschema.validate(report, schema)
     assert report["schema_version"] == "2.0"
     assert report["decision"] == "physical"
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        CriticConfig(events=EventConfig(velocity_epsilon_px_s=0)),
+        CriticConfig(events=EventConfig(contact_tolerance_px=-1)),
+        CriticConfig(events=EventConfig(penetration_tolerance_px=-1)),
+        CriticConfig(events=EventConfig(teleport_speed_px_s=0)),
+        CriticConfig(rules=RuleConfig(contact_lookback_frames=-1)),
+        CriticConfig(rules=RuleConfig(gravity_contact_lookback_frames=-1)),
+        CriticConfig(temporal=TemporalConfig(pre_context_frames=-1)),
+        CriticConfig(temporal=TemporalConfig(post_context_frames=-1)),
+    ],
+)
+def test_invalid_event_and_window_thresholds_are_rejected(config):
+    with pytest.raises(ValueError):
+        config.validate()

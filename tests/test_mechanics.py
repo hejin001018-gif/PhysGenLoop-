@@ -160,6 +160,33 @@ def test_equal_mass_collision_conserves_image_plane_momentum():
     assert collision.is_plausible is True
 
 
+def test_collision_is_not_applicable_when_tracks_never_touch():
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(expected_events=("collision",)),
+    )
+    first = _track(
+        ((0, 0), (1, 0), (2, 0), (1, 0), (0, 0)),
+        velocities=((1, 0), (1, 0), (-1, 0), (-1, 0), (-1, 0)),
+        track_id="far-1",
+    )
+    second = _track(
+        ((104, 0), (103, 0), (102, 0), (103, 0), (104, 0)),
+        velocities=((-1, 0), (-1, 0), (1, 0), (1, 0), (1, 0)),
+        track_id="far-2",
+    )
+
+    results, _ = MechanicsEvaluator(MechanicsConfig()).evaluate(
+        request=request,
+        tracks=(first, second),
+        events=(),
+    )
+
+    collision = next(item for item in results if item.evaluator == "collision")
+    assert collision.applicability == "not_applicable"
+    assert "contact" in collision.reason.lower() or "overlap" in collision.reason.lower()
+
+
 def test_pipeline_attaches_mechanics_diagnostics():
     request = CriticRequest(
         video_path="unused.mp4",

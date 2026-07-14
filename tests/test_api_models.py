@@ -87,6 +87,12 @@ def test_api_keys_are_redacted_from_adapter_repr():
     assert "deepseek-secret" not in repr(deepseek)
 
 
+@pytest.mark.parametrize("model_type", [OpenAIResponsesModel, DeepSeekChatModel])
+def test_model_adapters_reject_insecure_base_urls(model_type):
+    with pytest.raises(ValueError, match="HTTPS"):
+        model_type(api_key="secret", model="test-model", base_url="http://example.com")
+
+
 def test_openai_multimodal_adapter_embeds_selected_images():
     transport = FakeTransport(
         {

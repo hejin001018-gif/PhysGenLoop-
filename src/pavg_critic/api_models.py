@@ -12,6 +12,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol
+from urllib.parse import urlparse
 
 
 class ModelAPIError(RuntimeError):
@@ -81,6 +82,7 @@ class OpenAIResponsesModel:
             raise ValueError("OpenAI api_key must not be empty")
         if not self.model:
             raise ValueError("OpenAI model must not be empty")
+        _validate_https_base_url(self.base_url, "OpenAI")
         self.transport = self.transport or UrllibJsonTransport()
 
     @classmethod
@@ -188,6 +190,7 @@ class DeepSeekChatModel:
             raise ValueError("DeepSeek api_key must not be empty")
         if not self.model:
             raise ValueError("DeepSeek model must not be empty")
+        _validate_https_base_url(self.base_url, "DeepSeek")
         self.transport = self.transport or UrllibJsonTransport()
 
     @classmethod
@@ -262,3 +265,11 @@ def _parse_json_text(value: Any) -> Mapping[str, Any]:
     if not isinstance(parsed, Mapping):
         raise ModelAPIError("Structured model output root must be an object")
     return parsed
+
+
+def _validate_https_base_url(value: str, provider: str) -> None:
+    """Bearer 凭据只允许发送到具有主机名的 HTTPS endpoint。"""
+
+    parsed = urlparse(value)
+    if parsed.scheme.lower() != "https" or not parsed.netloc:
+        raise ValueError(f"{provider} base_url must be an absolute HTTPS URL")

@@ -98,7 +98,7 @@ python -c "from pavg_critic import PhysicsCritic; print('import ok')"
 python -m pytest -q
 ```
 
-当前版本预期 45 个测试通过。未来增加测试后数量可能变多，判断标准是退出码 0 且没有 failed/error。
+当前版本预期 60 个测试通过。未来增加测试后数量可能变多，判断标准是退出码 0 且没有 failed/error。
 
 若失败，先保存完整 traceback，不要直接运行 API。
 
@@ -292,6 +292,7 @@ setx OPENAI_MODEL "你的模型名"
 - `.env` 已被 gitignore，但项目不会自动加载 `.env`；如自行引入 dotenv，要保持密钥不入库。
 - CI/CD 使用 GitHub Actions Secrets、系统环境变量或云端 secret manager。
 - 日志只记录 provider/model，不记录 Authorization header。
+- API `base_url` 必须为绝对 HTTPS 地址，防止 Bearer 密钥经明文 HTTP 传输。
 - 密钥一旦误提交，立即在供应商后台撤销并重新生成；仅删除 Git 文件不够。
 
 ## 7. 如何阅读检测结果
@@ -305,6 +306,7 @@ setx OPENAI_MODEL "你的模型名"
 5. `diagnostics.video_science`：五维检查表。
 6. `diagnostics.morpheus_mechanics`：适用的力学模型、NMSE/恢复系数等。
 7. `graph_evaluation` 和 `node_results`：O/A/P 问题的回答、blocked 根因与覆盖率。
+8. `diagnostics.provider_failures`：可选 API 超时/响应错误；出现时 Critic 已降级到模板、规则或无 VLM 路径。
 
 处理原则：
 

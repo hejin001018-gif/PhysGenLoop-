@@ -15,6 +15,7 @@ from typing import Iterable
 from .checklist import VideoScienceChecklistEvaluator
 from .config import CriticConfig
 from .detector import ColorBlobDetector
+from .api_models import ModelAPIError
 from .event_detector import EventDetector
 from .evidence_fusion import CoverageAwareEvidenceFusion
 from .fusion import ResultFusion
@@ -32,7 +33,8 @@ from .pqsg import HybridQuestionGraphGenerator, PQSGQuestionGraphGenerator
 from .question_executor import QuestionExecutionContext, QuestionGraphExecutor
 from .question_generator import TemplateQuestionGraphGenerator
 from .question_scoring import QuestionGraphScorer
-from .schemas import CriticArtifacts, CriticReport, CriticRequest, FrameState
+from .question_graph import QuestionGraphError
+from .schemas import CriticArtifacts, CriticReport, CriticRequest, FrameState, SchemaError
 from .temporal_localizer import TemporalLocalizer
 from .tracker import CentroidTracker
 from .trajectory import TrajectoryExtractor
@@ -85,6 +87,8 @@ class PhysicsCritic:
                 "Provide either question_graph_generator or question_model, not both"
             )
         template_generator = TemplateQuestionGraphGenerator(self.config.question_graph)
+        self.template_question_graph_generator = template_generator
+        self.question_model_enabled = question_model is not None
         if question_graph_generator is not None:
             self.question_graph_generator = question_graph_generator
         elif question_model is not None:
@@ -132,11 +136,17 @@ class PhysicsCritic:
 
         # 问题图仅依赖请求计划，可与视频解码并行；当前同步实现先生成图以便尽早发现
         # 非法外部 QG 输出。关闭图层时保持原 1.0 规则流水线行为。
-        question_graph = (
-            self.question_graph_generator.generate(request)
-            if self.config.question_graph.enabled
-            else None
-        )
+        provider_failures: list[dict[str, object]] = []
+        if self.config.question_graph.enabled:
+            try:
+                question_graph = self.question_graph_generator.generate(request)
+            except _OPTIONAL_PROVIDER_ERRORS as exc:
+                if not self.question_model_enabled:
+                    raise
+                question_graph = self.template_question_graph_generator.generate(request)
+                provider_failures.append(_provider_failure("question_graph", exc))
+        else:
+            question_graph = None
         if observations is None:
             # 视频路径会同时推断画面高度对应的地面像素坐标。
             states, inferred_floor = self._observe_video(request.video_path)
@@ -198,10 +208,18 @@ class PhysicsCritic:
         else:
             node_results = ()
 
-        reviews = {
-            index: self.vlm_verifier.verify(request, candidate, keyframes[index])
-            for index, candidate in enumerate(candidates)
-        }
+        reviews = {}
+        for index, candidate in enumerate(candidates):
+            try:
+                reviews[index] = self.vlm_verifier.verify(
+                    request, candidate, keyframes[index]
+                )
+            except _OPTIONAL_PROVIDER_ERRORS as exc:
+                reviews[index] = None
+                failure = _provider_failure("vlm_review", exc)
+                failure["candidate_index"] = index
+                failure["category"] = candidate.category
+                provider_failures.append(failure)
         report = self.fusion.fuse(candidates, keyframes, reviews)
         if question_graph is not None:
             report = self.question_scorer.enrich_report(
@@ -209,6 +227,10 @@ class PhysicsCritic:
                 question_graph,
                 node_results,
             )
+        if provider_failures:
+            diagnostics = dict(report.diagnostics)
+            diagnostics["provider_failures"] = tuple(provider_failures)
+            report = replace(report, diagnostics=diagnostics)
         if checklist_summary is not None:
             # 检查表先作为独立诊断写入；阶段 5 的覆盖感知融合再决定它对总分的权重。
             diagnostics = dict(report.diagnostics)
@@ -314,3 +336,24 @@ class PhysicsCritic:
                 "inject an ObjectDetector when constructing PhysicsCritic."
             )
         return ColorBlobDetector(self.config.detector)
+
+
+_OPTIONAL_PROVIDER_ERRORS = (
+    ModelAPIError,
+    TimeoutError,
+    ConnectionError,
+    OSError,
+    SchemaError,
+    QuestionGraphError,
+    KeyError,
+)
+
+
+def _provider_failure(stage: str, error: BaseException) -> dict[str, object]:
+    """记录可选 provider 故障，不包含请求 header、密钥或图像正文。"""
+
+    return {
+        "stage": stage,
+        "error_type": type(error).__name__,
+        "message": str(error)[:300],
+    }

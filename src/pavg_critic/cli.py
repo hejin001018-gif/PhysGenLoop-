@@ -21,7 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     """构造参数解析器；单独封装便于测试帮助信息和嵌入其他入口。"""
 
     parser = argparse.ArgumentParser(
-        prog="physics-critic",
+        prog="pavg-critic",
         description="Analyze a video or precomputed frame states for physical inconsistencies.",
     )
     parser.add_argument("--request", required=True, help="Path to a versioned request JSON file.")

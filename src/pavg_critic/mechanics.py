@@ -195,6 +195,17 @@ class MechanicsEvaluator:
         )
         if collision_index == 0 or collision_index >= len(pairs) - 1:
             return _not_applicable("collision", "No pre/post closest-approach window exists.")
+        closest = pairs[collision_index]
+        has_collision_event = any(
+            event.event_type == "collision"
+            and event.track_id in {first.track_id, second.track_id}
+            for event in events
+        )
+        if not has_collision_event and not _boxes_overlap(closest[0], closest[1]):
+            return _not_applicable(
+                "collision",
+                "The trajectories have no collision event or bounding-box contact/overlap.",
+            )
         pre = pairs[collision_index - 1]
         post = pairs[collision_index + 1]
         if any(state.velocity is None for state in pre + post):
@@ -346,3 +357,12 @@ def _same_frame_pairs(
         for state in first
         if state.visible and state.frame in second_by_frame
     ]
+
+
+def _boxes_overlap(first: FrameState, second: FrameState) -> bool:
+    """将 bbox 接触（边界相等）也视为候选碰撞门控证据。"""
+
+    return (
+        max(first.bbox[0], second.bbox[0]) <= min(first.bbox[2], second.bbox[2])
+        and max(first.bbox[1], second.bbox[1]) <= min(first.bbox[3], second.bbox[3])
+    )

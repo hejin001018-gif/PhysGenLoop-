@@ -198,6 +198,32 @@ class CriticConfig:
             raise ValueError("events.min_disappearance_frames must be >= 1")
         if self.events.min_upward_frames < 1:
             raise ValueError("events.min_upward_frames must be >= 1")
+        if self.events.velocity_epsilon_px_s <= 0:
+            raise ValueError("events.velocity_epsilon_px_s must be positive")
+        if self.events.contact_tolerance_px < 0:
+            raise ValueError("events.contact_tolerance_px must be non-negative")
+        if self.events.penetration_tolerance_px < 0:
+            raise ValueError("events.penetration_tolerance_px must be non-negative")
+        if self.events.teleport_speed_px_s <= 0:
+            raise ValueError("events.teleport_speed_px_s must be positive")
+        if self.rules.contact_lookback_frames < 0:
+            raise ValueError("rules.contact_lookback_frames must be non-negative")
+        if self.rules.gravity_contact_lookback_frames < 0:
+            raise ValueError("rules.gravity_contact_lookback_frames must be non-negative")
+        known_rules = {
+            "premature_rebound",
+            "surface_penetration",
+            "object_disappearance",
+            "reverse_gravity",
+            "teleportation",
+        }
+        unknown_rules = set(self.rules.enabled) - known_rules
+        if unknown_rules:
+            raise ValueError(f"rules.enabled contains unknown categories: {sorted(unknown_rules)}")
+        if len(set(self.rules.enabled)) != len(self.rules.enabled):
+            raise ValueError("rules.enabled must not contain duplicates")
+        if self.temporal.pre_context_frames < 0 or self.temporal.post_context_frames < 0:
+            raise ValueError("temporal context frame counts must be non-negative")
         if not 0.0 <= self.question_graph.rule_pass_confidence <= 1.0:
             raise ValueError("question_graph.rule_pass_confidence must be in [0, 1]")
         if not 0.0 <= self.checklist.pass_confidence <= 1.0:
