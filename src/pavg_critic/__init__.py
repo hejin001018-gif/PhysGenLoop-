@@ -16,12 +16,14 @@ from .schemas import (
     QuestionGraph,
     QuestionNode,
 )
+from .vlm_verifier import EvidenceGroundedVLMVerifier
 
 __all__ = [
     "CriticConfig",
     "CriticReport",
     "CriticRequest",
     "DeepSeekChatModel",
+    "EvidenceGroundedVLMVerifier",
     "FrameState",
     "HybridQuestionGraphGenerator",
     "NodeResult",

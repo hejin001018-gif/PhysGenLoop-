@@ -76,6 +76,7 @@ def test_critic_v2_example_validates():
         "node_results": [],
         "diagnostics": {},
         "model_versions": {},
+        "evidence_bundles": [],
     }
     jsonschema.validate(payload, _load("critic_output.schema.json"))
 

@@ -16,6 +16,7 @@ from .checklist import VideoScienceChecklistEvaluator
 from .config import CriticConfig
 from .detector import ColorBlobDetector
 from .event_detector import EventDetector
+from .evidence_fusion import CoverageAwareEvidenceFusion
 from .fusion import ResultFusion
 from .interfaces import (
     ObjectDetector,
@@ -74,6 +75,10 @@ class PhysicsCritic:
         self.keyframe_selector = KeyframeSelector(self.config.temporal)
         self.checklist = VideoScienceChecklistEvaluator(self.config.checklist)
         self.mechanics = MechanicsEvaluator(self.config.mechanics)
+        self.evidence_fusion = CoverageAwareEvidenceFusion(
+            self.config.fusion,
+            enabled_rules=self.config.rules.enabled,
+        )
         self.visual_evidence_extractors = tuple(visual_evidence_extractors)
         if question_graph_generator is not None and question_model is not None:
             raise ValueError(
@@ -233,6 +238,14 @@ class PhysicsCritic:
                 diagnostics=diagnostics,
                 score_breakdown=score_breakdown,
             )
+        report = self.evidence_fusion.enrich(
+            report,
+            tracks=tracks,
+            candidates=candidates,
+            reviews=reviews,
+            checklist_summary=checklist_summary,
+            mechanics_summary=mechanics_summary,
+        )
         return CriticArtifacts(
             report=report,
             tracks=tracks,

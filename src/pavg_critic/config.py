@@ -129,6 +129,12 @@ class FusionConfig:
     violation_threshold: float = 0.5
     physical_score_threshold: float = 0.6
     clean_confidence: float = 0.75
+    rule_family_weight: float = 0.35
+    pqsg_family_weight: float = 0.2
+    checklist_family_weight: float = 0.2
+    mechanics_family_weight: float = 0.2
+    vlm_family_weight: float = 0.05
+    minimum_coverage: float = 0.35
 
 
 @dataclass(frozen=True)
@@ -202,7 +208,12 @@ class CriticConfig:
             raise ValueError("mechanics.plausible_threshold must be in [0, 1]")
         if self.mechanics.contact_lookback_frames < 0:
             raise ValueError("mechanics.contact_lookback_frames must be >= 0")
-        for name in ("violation_threshold", "physical_score_threshold", "clean_confidence"):
+        for name in (
+            "violation_threshold",
+            "physical_score_threshold",
+            "clean_confidence",
+            "minimum_coverage",
+        ):
             value = getattr(self.fusion, name)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"fusion.{name} must be in [0, 1]")
@@ -210,6 +221,15 @@ class CriticConfig:
             raise ValueError("fusion weights must be non-negative")
         if self.fusion.detector_weight + self.fusion.vlm_weight == 0:
             raise ValueError("at least one fusion weight must be positive")
+        family_weights = (
+            self.fusion.rule_family_weight,
+            self.fusion.pqsg_family_weight,
+            self.fusion.checklist_family_weight,
+            self.fusion.mechanics_family_weight,
+            self.fusion.vlm_family_weight,
+        )
+        if any(value < 0 for value in family_weights) or sum(family_weights) <= 0:
+            raise ValueError("fusion family weights must be non-negative with a positive sum")
 
 
 T = TypeVar("T")

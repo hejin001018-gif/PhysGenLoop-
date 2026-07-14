@@ -29,6 +29,8 @@ CHECKLIST_DIMENSIONS = (
 CHECKLIST_STATUSES = ("pass", "fail", "unknown")
 MECHANICS_EVALUATORS = ("freefall", "projectile", "rebound", "collision")
 MECHANICS_APPLICABILITY = ("applicable", "not_applicable", "failed")
+EVIDENCE_FAMILIES = ("rules", "pqsg", "checklist", "mechanics", "vlm")
+EVIDENCE_STATUSES = ("available", "unknown", "not_applicable", "failed")
 
 # 字符串常量比 Enum 更容易与外部 JSON、Blender 脚本及不同模型 SDK 互操作。
 QUESTION_CATEGORIES = ("object", "action", "physics")
@@ -370,6 +372,40 @@ class MechanicsSummary:
 
 
 @dataclass(frozen=True)
+class EvidenceBundle:
+    """所有证据家族进入最终融合前的统一语义。
+
+    ``score`` 始终表示物理可信度（1 为可信），不再混用“违规概率”；coverage 与
+    confidence 单独保存，使融合权重和能力缺口均可审计。
+    """
+
+    family: str
+    source: str
+    status: str
+    score: float | None
+    confidence: float
+    coverage: float
+    critical_frames: tuple[int, ...] = ()
+    details: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.family not in EVIDENCE_FAMILIES:
+            raise SchemaError(f"invalid evidence family: {self.family!r}")
+        if self.status not in EVIDENCE_STATUSES:
+            raise SchemaError(f"invalid evidence status: {self.status!r}")
+        if not self.source.strip():
+            raise SchemaError("evidence source must not be empty")
+        if self.status == "available" and self.score is None:
+            raise SchemaError("available evidence requires a score")
+        if self.status != "available" and self.score is not None:
+            raise SchemaError("unavailable evidence must not contain a score")
+        if self.score is not None:
+            _score(self.score, "evidence score")
+        _score(self.confidence, "evidence confidence")
+        _score(self.coverage, "evidence coverage")
+
+
+@dataclass(frozen=True)
 class CriticRequest:
     """一次 Critic 分析请求，对应 README 中的推荐输入格式。"""
 
@@ -624,6 +660,7 @@ class CriticReport:
     score_breakdown: dict[str, float] = field(default_factory=dict)
     diagnostics: dict[str, Any] = field(default_factory=dict)
     model_versions: dict[str, str] = field(default_factory=dict)
+    evidence_bundles: tuple[EvidenceBundle, ...] = ()
     schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self) -> None:

@@ -129,6 +129,49 @@ class OpenAIResponsesModel:
         )
         return _parse_json_text(_openai_output_text(response))
 
+    def generate_json_with_images(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        image_data_urls: tuple[str, ...] | list[str],
+        schema: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        """把关键帧 data URL 与文本问题一起发送到 Responses API。"""
+
+        if not image_data_urls:
+            raise ValueError("At least one image is required for multimodal generation")
+        assert self.transport is not None
+        user_content = [{"type": "input_text", "text": user_prompt}]
+        user_content.extend(
+            {"type": "input_image", "image_url": image_url}
+            for image_url in image_data_urls
+        )
+        response = self.transport.post_json(
+            url=f"{self.base_url.rstrip('/')}/responses",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            payload={
+                "model": self.model,
+                "input": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content},
+                ],
+                "text": {
+                    "format": {
+                        "type": "json_schema",
+                        "name": "pavg_multimodal_review",
+                        "strict": True,
+                        "schema": dict(schema),
+                    }
+                },
+            },
+            timeout_sec=self.timeout_sec,
+        )
+        return _parse_json_text(_openai_output_text(response))
+
 
 @dataclass
 class DeepSeekChatModel:

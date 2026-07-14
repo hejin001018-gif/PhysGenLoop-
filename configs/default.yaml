@@ -61,3 +61,9 @@ fusion:
   violation_threshold: 0.5
   physical_score_threshold: 0.6
   clean_confidence: 0.75
+  rule_family_weight: 0.35
+  pqsg_family_weight: 0.2
+  checklist_family_weight: 0.2
+  mechanics_family_weight: 0.2
+  vlm_family_weight: 0.05
+  minimum_coverage: 0.35

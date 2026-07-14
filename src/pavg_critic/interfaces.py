@@ -57,6 +57,19 @@ class StructuredTextModel(Protocol):
     ) -> Mapping[str, Any]: ...
 
 
+class MultimodalStructuredModel(Protocol):
+    """用选定图像证据生成结构化 JSON 的多模态模型协议。"""
+
+    def generate_json_with_images(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        image_data_urls: Sequence[str],
+        schema: Mapping[str, Any],
+    ) -> Mapping[str, Any]: ...
+
+
 class VisualEvidenceExtractor(Protocol):
     """Grounding/跟踪/光流/外观模型接入五维检查表的协议。"""
 

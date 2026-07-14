@@ -73,3 +73,32 @@ def test_openai_from_env_requires_key_and_explicit_model(monkeypatch):
 
     with pytest.raises(ValueError, match="OPENAI_API_KEY"):
         OpenAIResponsesModel.from_env()
+
+
+def test_openai_multimodal_adapter_embeds_selected_images():
+    transport = FakeTransport(
+        {
+            "output": [
+                {
+                    "content": [
+                        {"type": "output_text", "text": '{"violation_score":0.7}'}
+                    ]
+                }
+            ]
+        }
+    )
+    model = OpenAIResponsesModel(
+        api_key="test-key", model="test-model", transport=transport
+    )
+
+    result = model.generate_json_with_images(
+        system_prompt="system",
+        user_prompt="inspect",
+        image_data_urls=("data:image/jpeg;base64,AAAA",),
+        schema={"type": "object"},
+    )
+
+    assert result["violation_score"] == 0.7
+    content = transport.calls[0]["payload"]["input"][1]["content"]
+    assert content[0] == {"type": "input_text", "text": "inspect"}
+    assert content[1]["type"] == "input_image"
