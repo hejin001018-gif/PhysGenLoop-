@@ -19,6 +19,14 @@ from typing import Any, Iterable, Mapping
 SCHEMA_VERSION = "2.0"
 SUPPORTED_SCHEMA_VERSIONS = frozenset({"1.0", "1.1", SCHEMA_VERSION})
 DECISIONS = ("physical", "violation", "unknown")
+CHECKLIST_DIMENSIONS = (
+    "phenomenon_congruency",
+    "correct_dynamism",
+    "spatiotemporal_continuity",
+    "immutability",
+    "interaction_realism",
+)
+CHECKLIST_STATUSES = ("pass", "fail", "unknown")
 
 # 字符串常量比 Enum 更容易与外部 JSON、Blender 脚本及不同模型 SDK 互操作。
 QUESTION_CATEGORIES = ("object", "action", "physics")
@@ -238,6 +246,77 @@ class GraphEvaluationSummary:
             _score(self.physics_plausibility_score, "physics_plausibility_score")
         _score(self.question_coverage, "question_coverage")
         _score(self.physics_coverage, "physics_coverage")
+
+
+@dataclass(frozen=True)
+class VisualEvidence:
+    """外部 CV 工具写入检查表的统一证据。
+
+    ``measurements`` 可保存光流残差、掩膜 IoU、外观相似度等后端专属数值，但判定
+    层只依赖归一化 score/confidence 和固定维度名。
+    """
+
+    dimension: str
+    source: str
+    score: float
+    confidence: float
+    critical_frames: tuple[int, ...] = ()
+    measurements: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.dimension not in CHECKLIST_DIMENSIONS:
+            raise SchemaError(f"invalid visual evidence dimension: {self.dimension!r}")
+        if not self.source.strip():
+            raise SchemaError("visual evidence source must not be empty")
+        _score(self.score, "visual evidence score")
+        _score(self.confidence, "visual evidence confidence")
+
+
+@dataclass(frozen=True)
+class ChecklistResult:
+    """一个 VideoScience 评估维度的证据化判定。"""
+
+    dimension: str
+    status: str
+    score: float | None
+    confidence: float
+    reason: str
+    critical_frames: tuple[int, ...] = ()
+    evidence_sources: tuple[str, ...] = ()
+    evidence: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.dimension not in CHECKLIST_DIMENSIONS:
+            raise SchemaError(f"invalid checklist dimension: {self.dimension!r}")
+        if self.status not in CHECKLIST_STATUSES:
+            raise SchemaError(f"invalid checklist status: {self.status!r}")
+        if self.score is not None:
+            _score(self.score, "checklist score")
+        if self.status == "unknown" and self.score is not None:
+            raise SchemaError("unknown checklist result must not have a score")
+        if self.status != "unknown" and self.score is None:
+            raise SchemaError("pass/fail checklist result requires a score")
+        _score(self.confidence, "checklist confidence")
+
+
+@dataclass(frozen=True)
+class ChecklistSummary:
+    """五维检查表的覆盖感知摘要；unknown 不作为零分参与均值。"""
+
+    score: float | None
+    coverage: float
+    passed: int
+    failed: int
+    unknown: int
+
+    def __post_init__(self) -> None:
+        if self.score is not None:
+            _score(self.score, "checklist summary score")
+        _score(self.coverage, "checklist coverage")
+        if min(self.passed, self.failed, self.unknown) < 0:
+            raise SchemaError("checklist counts must be non-negative")
+        if self.passed + self.failed + self.unknown != len(CHECKLIST_DIMENSIONS):
+            raise SchemaError("checklist counts must cover all dimensions")
 
 
 @dataclass(frozen=True)
@@ -533,6 +612,9 @@ class CriticArtifacts:
     events: tuple[Event, ...]
     question_graph: QuestionGraph | None = None
     node_results: tuple[NodeResult, ...] = ()
+    checklist_results: tuple[ChecklistResult, ...] = ()
+    checklist_summary: ChecklistSummary | None = None
+    visual_evidence: tuple[VisualEvidence, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """递归转换全部中间产物，供离线审计和可视化使用。"""

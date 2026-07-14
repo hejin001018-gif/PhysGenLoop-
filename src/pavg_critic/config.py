@@ -103,6 +103,14 @@ class QuestionGraphConfig:
 
 
 @dataclass(frozen=True)
+class ChecklistConfig:
+    """VideoScience 风格五维检查表配置。"""
+
+    enabled: bool = True
+    pass_confidence: float = 0.75
+
+
+@dataclass(frozen=True)
 class FusionConfig:
     """规则/VLM 融合权重以及最终判定阈值。"""
 
@@ -124,6 +132,7 @@ class CriticConfig:
     rules: RuleConfig = RuleConfig()
     temporal: TemporalConfig = TemporalConfig()
     question_graph: QuestionGraphConfig = QuestionGraphConfig()
+    checklist: ChecklistConfig = ChecklistConfig()
     fusion: FusionConfig = FusionConfig()
 
     @classmethod
@@ -143,6 +152,7 @@ class CriticConfig:
             rules=_section(RuleConfig, data.get("rules", {})),
             temporal=_section(TemporalConfig, data.get("temporal", {})),
             question_graph=_section(QuestionGraphConfig, data.get("question_graph", {})),
+            checklist=_section(ChecklistConfig, data.get("checklist", {})),
             fusion=_section(FusionConfig, data.get("fusion", {})),
         )
         config.validate()
@@ -172,6 +182,8 @@ class CriticConfig:
             raise ValueError("events.min_upward_frames must be >= 1")
         if not 0.0 <= self.question_graph.rule_pass_confidence <= 1.0:
             raise ValueError("question_graph.rule_pass_confidence must be in [0, 1]")
+        if not 0.0 <= self.checklist.pass_confidence <= 1.0:
+            raise ValueError("checklist.pass_confidence must be in [0, 1]")
         for name in ("violation_threshold", "physical_score_threshold", "clean_confidence"):
             value = getattr(self.fusion, name)
             if not 0.0 <= value <= 1.0:

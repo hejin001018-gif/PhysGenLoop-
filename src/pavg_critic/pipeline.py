@@ -8,9 +8,11 @@ VLM 都通过 Protocol 注入；其余确定性模块可通过配置调整阈值
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Iterable
 
+from .checklist import VideoScienceChecklistEvaluator
 from .config import CriticConfig
 from .detector import ColorBlobDetector
 from .event_detector import EventDetector
@@ -19,6 +21,7 @@ from .interfaces import (
     ObjectDetector,
     QuestionGraphGenerator,
     StructuredTextModel,
+    VisualEvidenceExtractor,
     VLMVerifier,
 )
 from .keyframe_selector import KeyframeSelector
@@ -44,6 +47,7 @@ class PhysicsCritic:
         detector: ObjectDetector | None = None,
         question_graph_generator: QuestionGraphGenerator | None = None,
         question_model: StructuredTextModel | None = None,
+        visual_evidence_extractors: Iterable[VisualEvidenceExtractor] = (),
         vlm_verifier: VLMVerifier | None = None,
     ) -> None:
         """组装一次可复用的 Critic 实例。
@@ -53,6 +57,7 @@ class PhysicsCritic:
             detector: 可选视觉前端；不注入时使用 HSV 红色目标基线。
             question_graph_generator: 可选问题图生成器；缺省时从 PhysicsPlan 生成模板图。
             question_model: 可选结构化文本模型；提供时自动把 PQSG 模型图融合进模板图。
+            visual_evidence_extractors: 可选 CV 插件；共享轨迹后输出五维检查表证据。
             vlm_verifier: 可选 Video-VLM 复核器；缺省时明确跳过 VLM。
         """
 
@@ -66,6 +71,8 @@ class PhysicsCritic:
         self.rule_engine = PhysicsRuleEngine(self.config.rules, self.config.events)
         self.localizer = TemporalLocalizer()
         self.keyframe_selector = KeyframeSelector(self.config.temporal)
+        self.checklist = VideoScienceChecklistEvaluator(self.config.checklist)
+        self.visual_evidence_extractors = tuple(visual_evidence_extractors)
         if question_graph_generator is not None and question_model is not None:
             raise ValueError(
                 "Provide either question_graph_generator or question_model, not both"
@@ -138,6 +145,23 @@ class PhysicsCritic:
         raw_candidates = self.rule_engine.evaluate(context)
         candidates = tuple(self.localizer.localize(item, events) for item in raw_candidates)
 
+        visual_evidence = tuple(
+            evidence
+            for extractor in self.visual_evidence_extractors
+            for evidence in extractor.extract(request, tracks, events)
+        )
+
+        if self.config.checklist.enabled:
+            checklist_results, checklist_summary = self.checklist.evaluate(
+                request=request,
+                tracks=tracks,
+                events=events,
+                candidates=candidates,
+                external_evidence=visual_evidence,
+            )
+        else:
+            checklist_results, checklist_summary = (), None
+
         # 用候选索引关联关键帧与 VLM 结果，支持同对象同类别出现多个异常区间。
         keyframes = {
             index: self.keyframe_selector.select(candidate, tracks)
@@ -170,12 +194,30 @@ class PhysicsCritic:
                 question_graph,
                 node_results,
             )
+        if checklist_summary is not None:
+            # 检查表先作为独立诊断写入；阶段 5 的覆盖感知融合再决定它对总分的权重。
+            diagnostics = dict(report.diagnostics)
+            diagnostics["video_science"] = {
+                "summary": checklist_summary,
+                "dimensions": checklist_results,
+            }
+            score_breakdown = dict(report.score_breakdown)
+            if checklist_summary.score is not None:
+                score_breakdown["checklist"] = checklist_summary.score
+            report = replace(
+                report,
+                diagnostics=diagnostics,
+                score_breakdown=score_breakdown,
+            )
         return CriticArtifacts(
             report=report,
             tracks=tracks,
             events=events,
             question_graph=question_graph,
             node_results=node_results,
+            checklist_results=checklist_results,
+            checklist_summary=checklist_summary,
+            visual_evidence=visual_evidence,
         )
 
     def _observe_video(self, video_path: str) -> tuple[tuple[FrameState, ...], float]:

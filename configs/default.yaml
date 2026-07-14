@@ -45,6 +45,10 @@ question_graph:
   include_generic_physics: true
   rule_pass_confidence: 0.75
 
+checklist:
+  enabled: true
+  pass_confidence: 0.75
+
 fusion:
   detector_weight: 0.7
   vlm_weight: 0.3

@@ -8,7 +8,16 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Protocol, Sequence
 
-from .schemas import CriticRequest, Detection, QuestionGraph, ViolationCandidate, VLMReview
+from .schemas import (
+    CriticRequest,
+    Detection,
+    Event,
+    QuestionGraph,
+    TrackSequence,
+    ViolationCandidate,
+    VisualEvidence,
+    VLMReview,
+)
 
 
 class ObjectDetector(Protocol):
@@ -46,6 +55,17 @@ class StructuredTextModel(Protocol):
         user_prompt: str,
         schema: Mapping[str, Any],
     ) -> Mapping[str, Any]: ...
+
+
+class VisualEvidenceExtractor(Protocol):
+    """Grounding/跟踪/光流/外观模型接入五维检查表的协议。"""
+
+    def extract(
+        self,
+        request: CriticRequest,
+        tracks: Sequence[TrackSequence],
+        events: Sequence[Event],
+    ) -> Sequence[VisualEvidence]: ...
 
 
 class VLMVerifier(Protocol):
