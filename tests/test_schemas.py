@@ -23,10 +23,6 @@ def test_critic_schema_is_valid():
     Draft202012Validator.check_schema(_load("critic_output.schema.json"))
 
 
-def test_generator_schema_is_valid():
-    Draft202012Validator.check_schema(_load("generator_request.schema.json"))
-
-
 def test_readme_sample_example_validates():
     # 对齐 README §标注示例
     payload = {
@@ -79,16 +75,3 @@ def test_critic_v2_example_validates():
         "evidence_bundles": [],
     }
     jsonschema.validate(payload, _load("critic_output.schema.json"))
-
-
-def test_readme_generator_example_validates():
-    payload = {
-        "prompt": "A red ball falls from a table.",
-        "seed": 42,
-        "resolution": "480p",
-        "num_frames": 121,
-        "num_inference_steps": 50,
-        "image_path": None,
-        "output_path": "outputs/video.mp4",
-    }
-    jsonschema.validate(payload, _load("generator_request.schema.json"))

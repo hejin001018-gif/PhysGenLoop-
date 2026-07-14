@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "description": "Frozen synthetic trajectories for deterministic critic regression only.",
+  "samples": [
+    {
+      "sample_id": "premature_rebound",
+      "label": "violation",
+      "floor_y": 100,
+      "request": {"video_path": "unused.mp4", "physics_plan": {"objects": ["red_ball"], "expected_events": ["fall"]}},
+      "observations": [
+        {"frame": 0, "timestamp_sec": 0.0, "object": "red_ball", "track_id": "ball-1", "center": [50, 40], "bbox": [45, 35, 55, 45], "velocity": [0, 100]},
+        {"frame": 1, "timestamp_sec": 0.1, "object": "red_ball", "track_id": "ball-1", "center": [50, 55], "bbox": [45, 50, 55, 60], "velocity": [0, 100]},
+        {"frame": 2, "timestamp_sec": 0.2, "object": "red_ball", "track_id": "ball-1", "center": [50, 48], "bbox": [45, 43, 55, 53], "velocity": [0, -100]},
+        {"frame": 3, "timestamp_sec": 0.3, "object": "red_ball", "track_id": "ball-1", "center": [50, 38], "bbox": [45, 33, 55, 43], "velocity": [0, -100]}
+      ]
+    },
+    {
+      "sample_id": "surface_penetration",
+      "label": "violation",
+      "floor_y": 100,
+      "request": {"video_path": "unused.mp4"},
+      "observations": [
+        {"frame": 0, "timestamp_sec": 0.0, "object": "red_ball", "track_id": "ball-1", "center": [50, 103], "bbox": [45, 98, 55, 108], "velocity": [0, 20]}
+      ]
+    },
+    {
+      "sample_id": "object_disappearance",
+      "label": "violation",
+      "floor_y": 100,
+      "request": {"video_path": "unused.mp4"},
+      "observations": [
+        {"frame": 0, "timestamp_sec": 0.0, "object": "red_ball", "track_id": "ball-1", "center": [50, 50], "bbox": [45, 45, 55, 55], "visible": true},
+        {"frame": 1, "timestamp_sec": 0.1, "object": "red_ball", "track_id": "ball-1", "center": [50, 50], "bbox": [45, 45, 55, 55], "visible": false},
+        {"frame": 2, "timestamp_sec": 0.2, "object": "red_ball", "track_id": "ball-1", "center": [50, 50], "bbox": [45, 45, 55, 55], "visible": false},
+        {"frame": 3, "timestamp_sec": 0.3, "object": "red_ball", "track_id": "ball-1", "center": [50, 50], "bbox": [45, 45, 55, 55], "visible": false}
+      ]
+    },
+    {
+      "sample_id": "reverse_gravity",
+      "label": "violation",
+      "floor_y": 100,
+      "request": {"video_path": "unused.mp4", "physics_plan": {"objects": ["red_ball"], "expected_events": ["fall"]}},
+      "observations": [
+        {"frame": 0, "timestamp_sec": 0.0, "object": "red_ball", "track_id": "ball-1", "center": [50, 70], "bbox": [45, 65, 55, 75], "velocity": [0, -100]},
+        {"frame": 1, "timestamp_sec": 0.1, "object": "red_ball", "track_id": "ball-1", "center": [50, 60], "bbox": [45, 55, 55, 65], "velocity": [0, -100]},
+        {"frame": 2, "timestamp_sec": 0.2, "object": "red_ball", "track_id": "ball-1", "center": [50, 50], "bbox": [45, 45, 55, 55], "velocity": [0, -100]}
+      ]
+    },
+    {
+      "sample_id": "teleportation",
+      "label": "violation",
+      "floor_y": 100,
+      "request": {"video_path": "unused.mp4"},
+      "observations": [
+        {"frame": 0, "timestamp_sec": 0.0, "object": "red_ball", "track_id": "ball-1", "center": [50, 50], "bbox": [45, 45, 55, 55], "velocity": [2000, 0]}
+      ]
+    },
+    {
+      "sample_id": "contact_then_rebound",
+      "label": "physical",
+      "floor_y": 100,
+      "request": {"video_path": "unused.mp4", "physics_plan": {"objects": ["red_ball"], "expected_events": ["fall", "floor_contact", "rebound"]}},
+      "observations": [
+        {"frame": 0, "timestamp_sec": 0.0, "object": "red_ball", "track_id": "ball-1", "center": [50, 85], "bbox": [45, 80, 55, 90], "velocity": [0, 100]},
+        {"frame": 1, "timestamp_sec": 0.1, "object": "red_ball", "track_id": "ball-1", "center": [50, 95], "bbox": [45, 90, 55, 100], "velocity": [0, 100]},
+        {"frame": 2, "timestamp_sec": 0.2, "object": "red_ball", "track_id": "ball-1", "center": [50, 92], "bbox": [45, 90, 55, 100], "velocity": [0, -100]},
+        {"frame": 3, "timestamp_sec": 0.3, "object": "red_ball", "track_id": "ball-1", "center": [50, 80], "bbox": [45, 75, 55, 85], "velocity": [0, -100]}
+      ]
+    }
+  ]
+}

@@ -13,6 +13,7 @@ outputs/
 data/samples/
 data/raw/
 data/cache/
+evaluation/external/
 *.mp4
 *.mkv
 *.tiff

@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "policy": "External files are evaluation-only, git-ignored, and must not be modified in place.",
+  "assets": [
+    {
+      "asset_id": "opencv_vtest",
+      "local_path": "evaluation/external/opencv_vtest.avi",
+      "source_url": "https://raw.githubusercontent.com/opencv/opencv/4.x/samples/data/vtest.avi",
+      "source_project": "OpenCV",
+      "downloaded_on": "2026-07-14",
+      "bytes": 8131690,
+      "sha256": "45cddc9490be69345cbdab64ca583be65987e864ca408038e648db99e10516cf",
+      "video_metadata": {
+        "frames": 795,
+        "fps": 10.0,
+        "width": 768,
+        "height": 576
+      },
+      "smoke_result": {
+        "purpose": "Decode and end-to-end pipeline smoke test only; not a physics benchmark score.",
+        "decision": "violation",
+        "physics_score": 0.007302,
+        "confidence": 0.99,
+        "coverage": 0.51,
+        "tracks": 83,
+        "events": 448,
+        "violations": 141,
+        "note": "The default red color-blob detector is intentionally a controlled-scene baseline and over-detects this pedestrian video."
+      }
+    },
+    {
+      "asset_id": "pqsg_official_main_snapshot",
+      "local_path": "evaluation/external/pqsg-main",
+      "archive_path": "evaluation/external/pqsg-main.zip",
+      "source_url": "https://codeload.github.com/atinpothiraj/pqsg/zip/refs/heads/main",
+      "source_project": "atinpothiraj/pqsg",
+      "downloaded_on": "2026-07-14",
+      "archive_bytes": 8109854,
+      "archive_sha256": "007a138ab7012d0116c62bd7541f427df472f78e703f406d4795e4e8f265aa1f",
+      "usage": "Read-only reference for the independent B0 output schema and tree-score semantics; not imported by PAVG runtime."
+    }
+  ]
+}
