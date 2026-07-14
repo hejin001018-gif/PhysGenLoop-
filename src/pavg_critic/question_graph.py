@@ -23,6 +23,7 @@ class QuestionGraphValidator:
     # Object→Physics 会跳过动作前置条件，Physics→Action 等反向边则破坏层级语义。
     _ALLOWED_CROSS_CATEGORY_EDGES = {
         ("object", "action"),
+        ("object", "physics"),
         ("action", "physics"),
     }
 

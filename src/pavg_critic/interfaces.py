@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Sequence
+from typing import Any, Mapping, Protocol, Sequence
 
 from .schemas import CriticRequest, Detection, QuestionGraph, ViolationCandidate, VLMReview
 
@@ -31,6 +31,21 @@ class QuestionGraphGenerator(Protocol):
     """
 
     def generate(self, request: CriticRequest) -> QuestionGraph: ...
+
+
+class StructuredTextModel(Protocol):
+    """返回符合调用方 JSON Schema 的文本模型协议。
+
+    OpenAI、DeepSeek 和测试假模型都通过这一窄接口接入，核心图算法不依赖 SDK。
+    """
+
+    def generate_json(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        schema: Mapping[str, Any],
+    ) -> Mapping[str, Any]: ...
 
 
 class VLMVerifier(Protocol):

@@ -15,9 +15,15 @@ from .config import CriticConfig
 from .detector import ColorBlobDetector
 from .event_detector import EventDetector
 from .fusion import ResultFusion
-from .interfaces import ObjectDetector, QuestionGraphGenerator, VLMVerifier
+from .interfaces import (
+    ObjectDetector,
+    QuestionGraphGenerator,
+    StructuredTextModel,
+    VLMVerifier,
+)
 from .keyframe_selector import KeyframeSelector
 from .physics_rules import PhysicsRuleEngine, RuleContext
+from .pqsg import HybridQuestionGraphGenerator, PQSGQuestionGraphGenerator
 from .question_executor import QuestionExecutionContext, QuestionGraphExecutor
 from .question_generator import TemplateQuestionGraphGenerator
 from .question_scoring import QuestionGraphScorer
@@ -37,6 +43,7 @@ class PhysicsCritic:
         *,
         detector: ObjectDetector | None = None,
         question_graph_generator: QuestionGraphGenerator | None = None,
+        question_model: StructuredTextModel | None = None,
         vlm_verifier: VLMVerifier | None = None,
     ) -> None:
         """组装一次可复用的 Critic 实例。
@@ -45,6 +52,7 @@ class PhysicsCritic:
             config: 完整配置；缺省时使用经过校验的默认值。
             detector: 可选视觉前端；不注入时使用 HSV 红色目标基线。
             question_graph_generator: 可选问题图生成器；缺省时从 PhysicsPlan 生成模板图。
+            question_model: 可选结构化文本模型；提供时自动把 PQSG 模型图融合进模板图。
             vlm_verifier: 可选 Video-VLM 复核器；缺省时明确跳过 VLM。
         """
 
@@ -58,10 +66,21 @@ class PhysicsCritic:
         self.rule_engine = PhysicsRuleEngine(self.config.rules, self.config.events)
         self.localizer = TemporalLocalizer()
         self.keyframe_selector = KeyframeSelector(self.config.temporal)
-        self.question_graph_generator = (
-            question_graph_generator
-            or TemplateQuestionGraphGenerator(self.config.question_graph)
-        )
+        if question_graph_generator is not None and question_model is not None:
+            raise ValueError(
+                "Provide either question_graph_generator or question_model, not both"
+            )
+        template_generator = TemplateQuestionGraphGenerator(self.config.question_graph)
+        if question_graph_generator is not None:
+            self.question_graph_generator = question_graph_generator
+        elif question_model is not None:
+            # PAVG 模板负责已有计划/规则覆盖；PQSG 模型只作为增量问题来源。
+            self.question_graph_generator = HybridQuestionGraphGenerator(
+                template_generator,
+                PQSGQuestionGraphGenerator(question_model),
+            )
+        else:
+            self.question_graph_generator = template_generator
         self.question_executor = QuestionGraphExecutor(
             enabled_rule_categories=self.config.rules.enabled,
             rule_pass_confidence=self.config.question_graph.rule_pass_confidence,

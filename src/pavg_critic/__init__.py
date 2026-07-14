@@ -4,8 +4,10 @@
 布局。未列入 ``__all__`` 的类仍可用于高级扩展，但不承诺在后续版本中保持导入路径。
 """
 
+from .api_models import DeepSeekChatModel, OpenAIResponsesModel
 from .config import CriticConfig, load_config
 from .pipeline import PhysicsCritic
+from .pqsg import HybridQuestionGraphGenerator, PQSGQuestionGraphGenerator
 from .schemas import (
     CriticReport,
     CriticRequest,
@@ -19,9 +21,13 @@ __all__ = [
     "CriticConfig",
     "CriticReport",
     "CriticRequest",
+    "DeepSeekChatModel",
     "FrameState",
+    "HybridQuestionGraphGenerator",
     "NodeResult",
+    "OpenAIResponsesModel",
     "PhysicsCritic",
+    "PQSGQuestionGraphGenerator",
     "QuestionGraph",
     "QuestionNode",
     "load_config",
