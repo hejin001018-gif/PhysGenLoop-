@@ -16,11 +16,6 @@ dependencies = [
 video = [
   "numpy>=1.24",
   "opencv-python>=4.9",
-  "Pillow>=10",
-]
-evaluation = [
-  "pandas>=2.0",
-  "scikit-learn>=1.3",
 ]
 test = ["pytest>=8,<9"]
 
