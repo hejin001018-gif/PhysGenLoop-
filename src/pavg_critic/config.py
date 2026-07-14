@@ -111,6 +111,16 @@ class ChecklistConfig:
 
 
 @dataclass(frozen=True)
+class MechanicsConfig:
+    """Morpheus 启发的力学评估门控和阈值。"""
+
+    enabled: bool = True
+    min_points: int = 4
+    plausible_threshold: float = 0.6
+    contact_lookback_frames: int = 2
+
+
+@dataclass(frozen=True)
 class FusionConfig:
     """规则/VLM 融合权重以及最终判定阈值。"""
 
@@ -133,6 +143,7 @@ class CriticConfig:
     temporal: TemporalConfig = TemporalConfig()
     question_graph: QuestionGraphConfig = QuestionGraphConfig()
     checklist: ChecklistConfig = ChecklistConfig()
+    mechanics: MechanicsConfig = MechanicsConfig()
     fusion: FusionConfig = FusionConfig()
 
     @classmethod
@@ -153,6 +164,7 @@ class CriticConfig:
             temporal=_section(TemporalConfig, data.get("temporal", {})),
             question_graph=_section(QuestionGraphConfig, data.get("question_graph", {})),
             checklist=_section(ChecklistConfig, data.get("checklist", {})),
+            mechanics=_section(MechanicsConfig, data.get("mechanics", {})),
             fusion=_section(FusionConfig, data.get("fusion", {})),
         )
         config.validate()
@@ -184,6 +196,12 @@ class CriticConfig:
             raise ValueError("question_graph.rule_pass_confidence must be in [0, 1]")
         if not 0.0 <= self.checklist.pass_confidence <= 1.0:
             raise ValueError("checklist.pass_confidence must be in [0, 1]")
+        if self.mechanics.min_points < 3:
+            raise ValueError("mechanics.min_points must be >= 3")
+        if not 0.0 <= self.mechanics.plausible_threshold <= 1.0:
+            raise ValueError("mechanics.plausible_threshold must be in [0, 1]")
+        if self.mechanics.contact_lookback_frames < 0:
+            raise ValueError("mechanics.contact_lookback_frames must be >= 0")
         for name in ("violation_threshold", "physical_score_threshold", "clean_confidence"):
             value = getattr(self.fusion, name)
             if not 0.0 <= value <= 1.0:

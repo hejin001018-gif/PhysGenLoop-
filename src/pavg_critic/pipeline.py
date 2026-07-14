@@ -25,6 +25,7 @@ from .interfaces import (
     VLMVerifier,
 )
 from .keyframe_selector import KeyframeSelector
+from .mechanics import MechanicsEvaluator
 from .physics_rules import PhysicsRuleEngine, RuleContext
 from .pqsg import HybridQuestionGraphGenerator, PQSGQuestionGraphGenerator
 from .question_executor import QuestionExecutionContext, QuestionGraphExecutor
@@ -72,6 +73,7 @@ class PhysicsCritic:
         self.localizer = TemporalLocalizer()
         self.keyframe_selector = KeyframeSelector(self.config.temporal)
         self.checklist = VideoScienceChecklistEvaluator(self.config.checklist)
+        self.mechanics = MechanicsEvaluator(self.config.mechanics)
         self.visual_evidence_extractors = tuple(visual_evidence_extractors)
         if question_graph_generator is not None and question_model is not None:
             raise ValueError(
@@ -141,6 +143,14 @@ class PhysicsCritic:
         # 以下阶段保持显式顺序，每个中间对象均可序列化并在 artifacts 中审计。
         tracks = self.trajectory.extract(states, floor_y=floor_y)
         events = self.event_detector.detect(tracks)
+        if self.config.mechanics.enabled:
+            mechanics_results, mechanics_summary = self.mechanics.evaluate(
+                request=request,
+                tracks=tracks,
+                events=events,
+            )
+        else:
+            mechanics_results, mechanics_summary = (), None
         context = RuleContext(request=request, tracks=tracks, events=events)
         raw_candidates = self.rule_engine.evaluate(context)
         candidates = tuple(self.localizer.localize(item, events) for item in raw_candidates)
@@ -209,6 +219,20 @@ class PhysicsCritic:
                 diagnostics=diagnostics,
                 score_breakdown=score_breakdown,
             )
+        if mechanics_summary is not None:
+            diagnostics = dict(report.diagnostics)
+            diagnostics["morpheus_mechanics"] = {
+                "summary": mechanics_summary,
+                "evaluators": mechanics_results,
+            }
+            score_breakdown = dict(report.score_breakdown)
+            if mechanics_summary.score is not None:
+                score_breakdown["mechanics"] = mechanics_summary.score
+            report = replace(
+                report,
+                diagnostics=diagnostics,
+                score_breakdown=score_breakdown,
+            )
         return CriticArtifacts(
             report=report,
             tracks=tracks,
@@ -218,6 +242,8 @@ class PhysicsCritic:
             checklist_results=checklist_results,
             checklist_summary=checklist_summary,
             visual_evidence=visual_evidence,
+            mechanics_results=mechanics_results,
+            mechanics_summary=mechanics_summary,
         )
 
     def _observe_video(self, video_path: str) -> tuple[tuple[FrameState, ...], float]:

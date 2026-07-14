@@ -27,6 +27,8 @@ CHECKLIST_DIMENSIONS = (
     "interaction_realism",
 )
 CHECKLIST_STATUSES = ("pass", "fail", "unknown")
+MECHANICS_EVALUATORS = ("freefall", "projectile", "rebound", "collision")
+MECHANICS_APPLICABILITY = ("applicable", "not_applicable", "failed")
 
 # 字符串常量比 Enum 更容易与外部 JSON、Blender 脚本及不同模型 SDK 互操作。
 QUESTION_CATEGORIES = ("object", "action", "physics")
@@ -317,6 +319,54 @@ class ChecklistSummary:
             raise SchemaError("checklist counts must be non-negative")
         if self.passed + self.failed + self.unknown != len(CHECKLIST_DIMENSIONS):
             raise SchemaError("checklist counts must cover all dimensions")
+
+
+@dataclass(frozen=True)
+class MechanicsResult:
+    """一个力学假设的门控状态、双分数与可审计指标。"""
+
+    evaluator: str
+    applicability: str
+    invariance_score: float | None
+    dynamical_score: float | None
+    score: float | None
+    is_plausible: bool | None
+    reason: str
+    critical_frames: tuple[int, ...] = ()
+    metrics: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.evaluator not in MECHANICS_EVALUATORS:
+            raise SchemaError(f"invalid mechanics evaluator: {self.evaluator!r}")
+        if self.applicability not in MECHANICS_APPLICABILITY:
+            raise SchemaError(f"invalid mechanics applicability: {self.applicability!r}")
+        scores = (self.invariance_score, self.dynamical_score, self.score)
+        if self.applicability == "applicable":
+            if any(value is None for value in scores) or self.is_plausible is None:
+                raise SchemaError("applicable mechanics result requires scores and decision")
+        elif any(value is not None for value in scores) or self.is_plausible is not None:
+            raise SchemaError("non-applicable/failed mechanics result must not contain scores")
+        for value in scores:
+            if value is not None:
+                _score(value, "mechanics score")
+
+
+@dataclass(frozen=True)
+class MechanicsSummary:
+    """只聚合适用评估器；not_applicable 不作为零分。"""
+
+    score: float | None
+    coverage: float
+    applicable: int
+    not_applicable: int
+    failed: int
+
+    def __post_init__(self) -> None:
+        if self.score is not None:
+            _score(self.score, "mechanics summary score")
+        _score(self.coverage, "mechanics summary coverage")
+        if self.applicable + self.not_applicable + self.failed != len(MECHANICS_EVALUATORS):
+            raise SchemaError("mechanics counts must cover all evaluators")
 
 
 @dataclass(frozen=True)
@@ -615,6 +665,8 @@ class CriticArtifacts:
     checklist_results: tuple[ChecklistResult, ...] = ()
     checklist_summary: ChecklistSummary | None = None
     visual_evidence: tuple[VisualEvidence, ...] = ()
+    mechanics_results: tuple[MechanicsResult, ...] = ()
+    mechanics_summary: MechanicsSummary | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """递归转换全部中间产物，供离线审计和可视化使用。"""

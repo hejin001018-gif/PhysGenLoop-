@@ -49,6 +49,12 @@ checklist:
   enabled: true
   pass_confidence: 0.75
 
+mechanics:
+  enabled: true
+  min_points: 4
+  plausible_threshold: 0.6
+  contact_lookback_frames: 2
+
 fusion:
   detector_weight: 0.7
   vlm_weight: 0.3
