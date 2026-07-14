@@ -205,14 +205,27 @@ def _section(section_type: type[T], raw: Any) -> T:
 
 
 def load_config(path: str | Path | None = None) -> CriticConfig:
-    """加载 UTF-8 JSON 配置；未传路径时返回经过相同校验的默认配置。"""
+    """加载 UTF-8 JSON/YAML 配置；未传路径时返回经过相同校验的默认配置。
+
+    YAML 使用 ``safe_load``，避免配置文件构造任意 Python 对象。无法识别的扩展名会
+    直接报错，防止一个拼错后缀的文件被意外按另一种格式解释。
+    """
 
     if path is None:
         config = CriticConfig()
         config.validate()
         return config
     config_path = Path(path)
-    data = json.loads(config_path.read_text(encoding="utf-8"))
+    text = config_path.read_text(encoding="utf-8")
+    suffix = config_path.suffix.lower()
+    if suffix == ".json":
+        data = json.loads(text)
+    elif suffix in {".yaml", ".yml"}:
+        import yaml
+
+        data = yaml.safe_load(text)
+    else:
+        raise ValueError("Critic config must use a .json, .yaml, or .yml extension")
     if not isinstance(data, Mapping):
-        raise ValueError("Critic config root must be a JSON object")
+        raise ValueError("Critic config root must be an object")
     return CriticConfig.from_dict(data)

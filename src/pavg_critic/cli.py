@@ -24,12 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
         prog="physics-critic",
         description="Analyze a video or precomputed frame states for physical inconsistencies.",
     )
-    parser.add_argument("--request", required=True, help="Path to a schema 1.0 request JSON file.")
+    parser.add_argument("--request", required=True, help="Path to a versioned request JSON file.")
     parser.add_argument(
         "--observations",
         help="Optional frame-state JSON; when present, video decoding is skipped.",
     )
-    parser.add_argument("--config", help="Optional critic JSON configuration.")
+    parser.add_argument("--config", help="Optional critic JSON or YAML configuration.")
     parser.add_argument("--floor-y", type=float, help="Support-surface y coordinate in pixels.")
     parser.add_argument("--output", help="Write JSON to this path instead of stdout.")
     parser.add_argument(

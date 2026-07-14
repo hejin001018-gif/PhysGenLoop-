@@ -1,4 +1,4 @@
-"""Physics Critic 各阶段共享的 schema 1.0 数据模型。
+"""Physics Critic 各阶段共享的 schema 2.0 数据模型。
 
 这里刻意只使用标准库 dataclass，保证 Blender 真值、离线评估脚本和在线服务都能
 在不安装深度学习依赖的情况下读取同一格式。外部输入统一通过 ``from_dict`` 进入，
@@ -15,9 +15,10 @@ from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-# 1.1 在兼容 1.0 输入的基础上增加问题图、节点结果和图评分摘要。
-SCHEMA_VERSION = "1.1"
-SUPPORTED_SCHEMA_VERSIONS = frozenset({"1.0", SCHEMA_VERSION})
+# 2.0 将问题图、覆盖率和三态决策纳入稳定报告，同时继续读取 1.x 请求/观察值。
+SCHEMA_VERSION = "2.0"
+SUPPORTED_SCHEMA_VERSIONS = frozenset({"1.0", "1.1", SCHEMA_VERSION})
+DECISIONS = ("physical", "violation", "unknown")
 
 # 字符串常量比 Enum 更容易与外部 JSON、Blender 脚本及不同模型 SDK 互操作。
 QUESTION_CATEGORIES = ("object", "action", "physics")
@@ -26,7 +27,7 @@ VERIFIER_HINTS = ("observation", "event", "rule", "hybrid")
 
 
 class SchemaError(ValueError):
-    """外部数据不符合 schema 1.0 时抛出的可识别异常。"""
+    """外部数据不符合受支持 schema 时抛出的可识别异常。"""
 
 
 def _score(value: float, name: str) -> float:
@@ -477,7 +478,11 @@ class Violation:
 
 @dataclass(frozen=True)
 class CriticReport:
-    """对外稳定的 Physics Critic 输出；1.1 起包含可选问题图诊断。"""
+    """对外稳定的 Physics Critic 输出。
+
+    ``decision`` 是 2.0 的规范判定；``is_physical`` 仅为兼容已有调用方而保留。
+    ``unknown`` 必须与 ``is_physical=False`` 配合，表示证据不足而非已经确认违规。
+    """
 
     is_physical: bool
     physics_score: float
@@ -485,12 +490,28 @@ class CriticReport:
     violations: tuple[Violation, ...] = ()
     graph_evaluation: GraphEvaluationSummary | None = None
     node_results: tuple[NodeResult, ...] = ()
+    decision: str | None = None
+    coverage: float = 1.0
+    score_breakdown: dict[str, float] = field(default_factory=dict)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
+    model_versions: dict[str, str] = field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
         _version(self.schema_version)
         _score(self.physics_score, "physics_score")
         _score(self.confidence, "confidence")
+        _score(self.coverage, "coverage")
+        decision = self.decision or ("physical" if self.is_physical else "violation")
+        if decision not in DECISIONS:
+            raise SchemaError(f"decision must be one of {DECISIONS}, got {decision!r}")
+        if decision == "physical" and not self.is_physical:
+            raise SchemaError("physical decision requires is_physical=True")
+        if decision != "physical" and self.is_physical:
+            raise SchemaError("violation/unknown decision requires is_physical=False")
+        for name, value in self.score_breakdown.items():
+            _score(value, f"score_breakdown.{name}")
+        object.__setattr__(self, "decision", decision)
 
     def to_dict(self) -> dict[str, Any]:
         """生成 JSON 兼容字典。"""
