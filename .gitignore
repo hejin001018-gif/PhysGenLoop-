@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+*.log
+
+# 大文件（README §推荐工程结构：Git 仅跟踪元数据）
+outputs/
+data/samples/
+data/raw/
+data/cache/
+*.mp4
+*.mkv
+*.tiff
+*.exr
+*.blend
+*.ckpt
+*.safetensors
+*.pt
+*.bin
+
+# 保留少量示例
+!data/samples/example_*/
+!outputs/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store

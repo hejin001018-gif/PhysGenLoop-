@@ -1,0 +1,23 @@
+# PAVG 基础依赖（首期最小集，模型侧另行安装）
+# Python >= 3.10
+
+# 数据 & schema
+jsonschema>=4.20,<5
+numpy>=1.24
+pyyaml>=6.0
+
+# 视觉基础
+opencv-python>=4.9
+Pillow>=10
+
+# 深度学习（版本按魔尊本地 CUDA 决定，requirements 不锁死）
+# torch 与 torchvision 请单独按 https://pytorch.org 安装匹配 CUDA 的版本
+
+# 评测辅助
+scikit-learn>=1.3
+pandas>=2.0
+
+# 可选：
+# kubric               # L1 引擎，建议按官方文档单独安装
+# hunyuan-video        # 生成模型，按 Tencent-Hunyuan/HunyuanVideo-1.5 单独安装
+# transformers>=4.42   # VLM

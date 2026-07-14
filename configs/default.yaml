@@ -1,0 +1,51 @@
+# PAVG 默认配置。对齐 框架骨干§三 五层结构。
+
+project:
+  name: PAVG
+  version: 0.1.0
+
+data:
+  root: data/samples
+  splits:
+    strategy: by_scene_and_seed   # README §数据来源
+    train: 0.8
+    val: 0.1
+    test: 0.1
+
+critic:
+  detector: "yolov8x"        # TODO
+  tracker: "bytetrack"       # TODO
+  vlm_same: "hunyuan-vl"     # 与生成模型同源
+  vlm_diff: "qwen2.5-vl"     # 异源双路
+  weights:
+    rule: 0.35
+    refsim: 0.25
+    vlm_same: 0.2
+    vlm_diff: 0.2
+  refsim:
+    enabled: true
+    engine: "kubric"
+
+generator:
+  backend: "hunyuan-video-1.5"
+  default_resolution: "480p"
+  default_num_frames: 121
+  default_steps: 50
+
+repair:
+  strategy_thresholds:
+    prompt_hint: 0.6
+    local_inpaint: 0.4
+    full_regen: 0.2
+  max_rounds: 2
+  best_of_k: 2
+
+evaluation:
+  benchmarks:
+    - physion_eval
+    - intphys2
+    - videophy2
+    - phygenbench
+    - physics_iq
+    - pqsg_finephyeval
+  report_separately: true      # 框架骨干§七 · 禁止单一均值
