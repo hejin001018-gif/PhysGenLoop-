@@ -12,6 +12,7 @@ from .schemas import (
     CriticRequest,
     Detection,
     Event,
+    PhysicsPlan,
     QuestionGraph,
     TrackSequence,
     ViolationCandidate,
@@ -40,6 +41,12 @@ class QuestionGraphGenerator(Protocol):
     """
 
     def generate(self, request: CriticRequest) -> QuestionGraph: ...
+
+
+class PhysicsPlanner(Protocol):
+    """把自然语言 prompt 转换为统一 PhysicsPlan 的协议。"""
+
+    def generate(self, prompt: str) -> PhysicsPlan: ...
 
 
 class StructuredTextModel(Protocol):

@@ -13,6 +13,71 @@ from pavg_critic.schemas import (
 )
 
 
+@pytest.mark.parametrize(
+    "prompt",
+    [
+        "A red ball falls from a table, hits the floor, and bounces once.",
+        "一个红球从桌子上掉落，接触地面后反弹一次。",
+    ],
+)
+def test_template_planner_builds_fall_contact_rebound_plan(prompt):
+    from pavg_critic.planner import TemplatePhysicsPlanner
+
+    plan = TemplatePhysicsPlanner().generate(prompt)
+
+    assert plan.objects == ("red_ball", "table", "floor")
+    assert plan.expected_events == (
+        "leave_support",
+        "fall",
+        "floor_contact",
+        "rebound",
+    )
+    assert {item.domain for item in plan.physics_constraints} == {
+        "gravity",
+        "contact",
+        "rebound",
+    }
+    assert plan.planner_metadata.source == "template"
+    assert plan.planner_metadata.confidence == 0.55
+
+
+def test_template_planner_empty_prompt_returns_empty_plan():
+    from pavg_critic.planner import TemplatePhysicsPlanner
+
+    plan = TemplatePhysicsPlanner().generate("")
+
+    assert plan.objects == ()
+    assert plan.expected_events == ()
+    assert plan.planner_metadata.source == "empty"
+
+
+def test_template_planner_detects_projectile():
+    from pavg_critic.planner import TemplatePhysicsPlanner
+
+    plan = TemplatePhysicsPlanner().generate("A ball is thrown through the air.")
+
+    assert "projectile" in plan.expected_events
+    assert any(item.domain == "projectile" for item in plan.physics_constraints)
+
+
+def test_template_planner_detects_collision():
+    from pavg_critic.planner import TemplatePhysicsPlanner
+
+    plan = TemplatePhysicsPlanner().generate("Two balls collide with each other.")
+
+    assert "collision" in plan.expected_events
+    assert any(item.domain == "collision" for item in plan.physics_constraints)
+
+
+def test_template_planner_does_not_invent_numeric_parameters():
+    from pavg_critic.planner import TemplatePhysicsPlanner
+
+    payload = TemplatePhysicsPlanner().generate("A ball falls.").to_dict()
+
+    assert "9.8" not in str(payload)
+    assert "mass" not in str(payload)
+
+
 def test_old_physics_plan_remains_valid():
     plan = PhysicsPlan.from_dict(
         {"objects": ["red_ball"], "expected_events": ["fall"]}
