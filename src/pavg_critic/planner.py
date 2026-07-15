@@ -433,6 +433,6 @@ def _failure_record(error: Exception) -> dict[str, object]:
     return {
         "stage": "physics_planner",
         "error_type": type(error).__name__,
-        "message": str(error),
+        "message": str(error)[:300],
         "fallback": "template_physics_planner",
     }

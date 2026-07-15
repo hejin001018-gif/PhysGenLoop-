@@ -124,6 +124,22 @@ def test_resolver_falls_back_after_timeout():
     assert resolution.provider_failure["error_type"] == "TimeoutError"
 
 
+def test_planner_failure_record_truncates_provider_message():
+    from pavg_critic.planner import (
+        ModelPhysicsPlanner,
+        PhysicsPlanResolver,
+        TemplatePhysicsPlanner,
+    )
+
+    resolution = PhysicsPlanResolver(
+        ModelPhysicsPlanner(FakePlanModel(error=TimeoutError("x" * 500))),
+        fallback=TemplatePhysicsPlanner(),
+        fallback_on_provider_error=True,
+    ).resolve(CriticRequest(video_path="unused.mp4", prompt="A ball falls."))
+
+    assert len(resolution.provider_failure["message"]) == 300
+
+
 def test_resolver_skips_model_for_complete_explicit_core():
     from pavg_critic.planner import ModelPhysicsPlanner, PhysicsPlanResolver
 
