@@ -1,0 +1,260 @@
+"""PAVG benchmark adapters backed by a shared SAM2 observation cache."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from time import perf_counter
+from typing import Callable
+
+from pavg_critic.evaluation import build_ablation_config
+from pavg_critic.pipeline import PhysicsCritic
+from pavg_critic.schemas import CriticRequest, FrameState
+
+from .contracts import BenchmarkPrediction, BenchmarkSample
+
+
+ObservationProducer = Callable[[BenchmarkSample], tuple[FrameState, ...]]
+
+
+class CachedObservationProvider:
+    def __init__(
+        self,
+        cache_dir: str | Path,
+        producer: ObservationProducer,
+    ):
+        self.cache_dir = Path(cache_dir)
+        self.producer = producer
+
+    def _path(self, sample_id: str) -> Path:
+        if (
+            not sample_id
+            or Path(sample_id).name != sample_id
+            or any(mark in sample_id for mark in ("/", "\\"))
+        ):
+            raise ValueError(
+                f"unsafe sample ID for observation cache: {sample_id!r}"
+            )
+        return self.cache_dir / f"{sample_id}.json"
+
+    def _metadata_path(self, sample_id: str) -> Path:
+        self._path(sample_id)
+        return self.cache_dir / f"{sample_id}.meta.json"
+
+    @staticmethod
+    def _total_video_frames(video_path: str) -> int | None:
+        try:
+            import cv2
+
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                return None
+            try:
+                total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            finally:
+                cap.release()
+            return total if total > 0 else None
+        except Exception:
+            return None
+
+    def _write_metadata(
+        self,
+        sample: BenchmarkSample,
+        *,
+        states: tuple[FrameState, ...] = (),
+        failure: Exception | None = None,
+    ) -> None:
+        represented_frames = sorted({state.frame for state in states})
+        tracks = {
+            state.track_id or f"object:{state.object}"
+            for state in states
+        }
+        total_frames = self._total_video_frames(sample.video_path)
+        coverage = (
+            len(represented_frames) / total_frames
+            if total_frames is not None
+            else None
+        )
+        payload = {
+            "schema_version": "1.0",
+            "sample_id": sample.sample_id,
+            "video_sha256": sample.sha256,
+            "total_video_frames": total_frames,
+            "represented_frames": represented_frames,
+            "observed_frame_count": len(represented_frames),
+            "frame_coverage": coverage,
+            "track_count": len(tracks),
+            "propagation_failure": (
+                None
+                if failure is None
+                else {
+                    "type": type(failure).__name__,
+                    "message": str(failure)[:500],
+                }
+            ),
+        }
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        path = self._metadata_path(sample.sample_id)
+        temporary = path.with_suffix(".json.tmp")
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        temporary.replace(path)
+
+    def get(self, sample: BenchmarkSample) -> tuple[FrameState, ...]:
+        path = self._path(sample.sample_id)
+        if path.is_file():
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(raw, list):
+                raise ValueError(f"invalid observation cache: {path}")
+            states = tuple(FrameState.from_dict(item) for item in raw)
+            if not states:
+                raise ValueError(f"empty observation cache: {path}")
+            if not self._metadata_path(sample.sample_id).is_file():
+                self._write_metadata(sample, states=states)
+            return states
+        try:
+            states = tuple(self.producer(sample))
+            if not states:
+                raise ValueError(
+                    f"observation provider produced no states for {sample.sample_id}"
+                )
+        except Exception as exc:
+            try:
+                self._write_metadata(sample, failure=exc)
+            except OSError:
+                pass
+            raise
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(".json.tmp")
+        temporary.write_text(
+            json.dumps(
+                [state.to_dict() for state in states],
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        temporary.replace(path)
+        self._write_metadata(sample, states=states)
+        return states
+
+
+class PAVGMethod:
+    def __init__(
+        self,
+        mode: str,
+        observations: CachedObservationProvider,
+        *,
+        model_id: str | None,
+    ):
+        if mode not in {"B1_RULE", "M1_GRAPH", "M2_CHECKLIST", "M3_MECHANICS"}:
+            raise ValueError(f"Stage A PAVG mode is not supported: {mode}")
+        self.method_id = mode
+        self.observations = observations
+        self.model_id = model_id
+
+    def evaluate(self, sample: BenchmarkSample) -> BenchmarkPrediction:
+        started = perf_counter()
+        visible_frame_count = 0
+        try:
+            states = self.observations.get(sample)
+            visible_frame_count = len({state.frame for state in states})
+            report = PhysicsCritic(build_ablation_config(self.method_id)).analyze(
+                CriticRequest(
+                    video_path=sample.video_path,
+                    prompt=sample.prompt,
+                ),
+                observations=states,
+            )
+            if report.decision not in {"physical", "violation", "unknown"}:
+                raise ValueError(f"invalid PAVG decision: {report.decision}")
+            categories = tuple(
+                sorted({item.category for item in report.violations})
+            )
+            evidence = tuple(
+                sorted(
+                    {
+                        frame
+                        for item in report.violations
+                        for frame in item.critical_frames
+                    }
+                )
+            )
+            repairs = [
+                item.repair_instruction
+                for item in report.violations
+                if item.repair_instruction
+            ]
+            return BenchmarkPrediction(
+                sample_id=sample.sample_id,
+                method_id=self.method_id,
+                model_id=self.model_id,
+                semantic_score=None,
+                physics_score=report.physics_score * 4 + 1,
+                semantic_label="unknown",
+                physics_label=report.decision,
+                confidence=report.confidence,
+                coverage=report.coverage,
+                latency_sec=perf_counter() - started,
+                visible_frame_count=visible_frame_count,
+                violation_categories=categories,
+                evidence_frames=evidence,
+                repair_instruction="; ".join(repairs) or None,
+            )
+        except Exception as exc:
+            return BenchmarkPrediction(
+                sample_id=sample.sample_id,
+                method_id=self.method_id,
+                model_id=self.model_id,
+                semantic_score=None,
+                physics_score=None,
+                semantic_label="unknown",
+                physics_label="unknown",
+                confidence=0.0,
+                coverage=0.0,
+                latency_sec=perf_counter() - started,
+                visible_frame_count=visible_frame_count,
+                failure={
+                    "type": type(exc).__name__,
+                    "message": str(exc)[:500],
+                },
+            )
+
+
+def make_sam2_observation_producer(
+    model,
+    *,
+    model_config: str,
+    checkpoint: str,
+) -> ObservationProducer:
+    """Create the required dense SAM2 frontend for Stage A PAVG methods."""
+
+    from pavg_critic.config import CriticConfig
+    from pavg_critic.sam2_detector import SAM2ObjectDetector
+
+    def produce(sample: BenchmarkSample) -> tuple[FrameState, ...]:
+        detector = SAM2ObjectDetector(
+            model,
+            sample.video_path,
+            model_cfg=model_config,
+            model_ckpt=checkpoint,
+        )
+        artifacts = PhysicsCritic(CriticConfig(), detector=detector).analyze_detailed(
+            CriticRequest(
+                video_path=sample.video_path,
+                prompt=sample.prompt,
+            )
+        )
+        states = tuple(
+            state for track in artifacts.tracks for state in track.states
+        )
+        if not states:
+            raise ValueError(
+                f"observation provider produced no states for {sample.sample_id}"
+            )
+        return states
+
+    return produce
