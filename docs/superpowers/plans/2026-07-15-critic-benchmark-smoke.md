@@ -21,7 +21,7 @@
 - Create `src/pavg_critic/benchmarking/baselines.py`: D0/D1 schema-constrained VLM judges.
 - Create `src/pavg_critic/benchmarking/metrics.py`: smoke-safe classification, ordinal and failure metrics.
 - Create `src/pavg_critic/benchmarking/runner.py`: append-only resumable paired runner.
-- Create `src/pavg_critic/benchmarking/pavg_methods.py`: B1/M3 adapters and reusable observation cache.
+- Create `src/pavg_critic/benchmarking/pavg_methods.py`: B1/M3 adapters and reusable SAM2 observation cache.
 - Create `src/pavg_critic/benchmarking/report.py`: JSON and Markdown smoke reports.
 - Create `benchmarks/prepare_videophy_manifest.py`: external CSV inspection, normalization, download and selection CLI.
 - Create `benchmarks/evaluate_video_benchmark.py`: model construction and run orchestration CLI.
@@ -1138,7 +1138,7 @@ git add src/pavg_critic/benchmarking/runner.py tests/benchmarking/test_runner.py
 git commit -m "feat: add resumable benchmark runner"
 ```
 
-### Task 7: Adapt PAVG B1 and M3 with a shared observation cache
+### Task 7: Adapt PAVG B1 and M3 with a shared SAM2 observation cache
 
 **Files:**
 - Create: `src/pavg_critic/benchmarking/pavg_methods.py`
@@ -1271,22 +1271,23 @@ class PAVGMethod:
 
 Map `report.decision` only after validating it is one of `physical`, `violation`, `unknown`.
 
-- [ ] **Step 5: Add an explicit observation-preparation command**
+- [ ] **Step 5: Add the required SAM2 observation producer**
 
-The Stage A CLI accepts `--observations-dir`. It does not invent trajectories. If a sample has no cached observations and no `--observation-provider vlm` is supplied, it writes an `ObservationUnavailable` failure record. Implement the optional producer as:
+The Stage A CLI accepts `--observations-dir`, `--sam2-config` and `--sam2-checkpoint`. It does not invent trajectories. If a sample has no cached observations and no SAM2 configuration is supplied, it writes an `ObservationUnavailable` failure record. Implement the required producer as:
 
 ```python
-def make_vlm_observation_producer(model, *, num_keyframes: int = 16):
+def make_sam2_observation_producer(model, *, model_config: str, checkpoint: str):
     from pavg_critic.config import CriticConfig
     from pavg_critic.pipeline import PhysicsCritic
+    from pavg_critic.sam2_detector import SAM2ObjectDetector
     from pavg_critic.schemas import CriticRequest
-    from pavg_critic.vlm_detector import VLMObjectDetector
 
     def produce(sample: BenchmarkSample) -> tuple[FrameState, ...]:
-        detector = VLMObjectDetector(
+        detector = SAM2ObjectDetector(
             model,
             sample.video_path,
-            num_keyframes=num_keyframes,
+            model_cfg=model_config,
+            model_ckpt=checkpoint,
         )
         artifacts = PhysicsCritic(CriticConfig(), detector=detector).analyze_detailed(
             CriticRequest(video_path=sample.video_path, prompt=sample.prompt)
@@ -1303,7 +1304,7 @@ def make_vlm_observation_producer(model, *, num_keyframes: int = 16):
     return produce
 ```
 
-The same `CachedObservationProvider` instance wraps this producer for all requested PAVG ablations, so the VLM detector is called once per sample rather than once per method.
+The same `CachedObservationProvider` instance wraps this producer for all requested PAVG ablations, so SAM2 initialization and frame propagation run once per sample rather than once per method. Cache metadata records total video frames, frames represented in observations, track count and any propagation failure. A sparse `VLMObjectDetector` producer is implemented only under the explicit method ID `F0_VLM_SPARSE` for frontend ablation runs.
 
 - [ ] **Step 6: Run PAVG adapter tests**
 
@@ -1574,7 +1575,7 @@ from pathlib import Path
 from pavg_critic.api_models import OpenAIChatModel, OpenAIResponsesModel
 from pavg_critic.benchmarking.baselines import DirectVLMJudge
 from pavg_critic.benchmarking.datasets import load_manifest
-from pavg_critic.benchmarking.pavg_methods import CachedObservationProvider, PAVGMethod, make_vlm_observation_producer
+from pavg_critic.benchmarking.pavg_methods import CachedObservationProvider, PAVGMethod, make_sam2_observation_producer
 from pavg_critic.benchmarking.report import write_smoke_report
 from pavg_critic.benchmarking.runner import BenchmarkRunner, load_predictions
 
@@ -1601,7 +1602,9 @@ def build_parser():
     parser.add_argument("--frame-count", type=int, default=16)
     parser.add_argument("--max-samples", type=int)
     parser.add_argument("--observations-dir", type=Path)
-    parser.add_argument("--observation-provider", choices=("none", "vlm"), default="none")
+    parser.add_argument("--observation-provider", choices=("none", "sam2"), default="none")
+    parser.add_argument("--sam2-config")
+    parser.add_argument("--sam2-checkpoint", type=Path)
     return parser
 
 
@@ -1630,7 +1633,7 @@ def main(argv=None) -> int:
         if args.max_samples <= 0:
             raise ValueError("--max-samples must be positive")
         samples = samples[:args.max_samples]
-    requires_model = any(item.startswith("D") for item in method_ids) or args.observation_provider == "vlm"
+    requires_model = any(item.startswith("D") for item in method_ids) or args.observation_provider == "sam2"
     model = build_benchmark_model(args.provider) if requires_model else None
     model_id = os.environ.get("BENCH_MODEL") if model is not None else None
     methods = []
@@ -1642,7 +1645,16 @@ def main(argv=None) -> int:
     if pavg_ids:
         if args.observations_dir is None:
             raise ValueError("--observations-dir is required for PAVG methods")
-        producer = make_vlm_observation_producer(model, num_keyframes=args.frame_count) if args.observation_provider == "vlm" else _unavailable_observations
+        if args.observation_provider == "sam2":
+            if not args.sam2_config or args.sam2_checkpoint is None:
+                raise ValueError("--sam2-config and --sam2-checkpoint are required for SAM2 observations")
+            producer = make_sam2_observation_producer(
+                model,
+                model_config=args.sam2_config,
+                checkpoint=str(args.sam2_checkpoint),
+            )
+        else:
+            producer = _unavailable_observations
         observations = CachedObservationProvider(args.observations_dir, producer)
         methods.extend(PAVGMethod(item, observations, model_id=model_id) for item in pavg_ids)
     by_id = {method.method_id: method for method in methods}
@@ -1734,7 +1746,7 @@ Expected: smoke manifest contains exactly 20 unique sample IDs, both physical la
 
 - [ ] **Step 4: Run deterministic PAVG smoke first**
 
-Prepare observations with the configured shared VLM frontend, then run B1/M3:
+Prepare frame-level observations with the shared SAM2.1 frontend, then run B1/M3:
 
 ```powershell
 $env:BENCH_API_KEY = $env:OPENAI_API_KEY
@@ -1747,8 +1759,10 @@ if (-not $env:BENCH_API_KEY) { throw "Set OPENAI_API_KEY in this terminal before
   --run-dir outputs/benchmarks/videophy2-smoke-gpt `
   --methods B1_RULE,M3_MECHANICS `
   --provider responses `
-  --observation-provider vlm `
-  --observations-dir evaluation/external/videophy2/observations/gpt-5.6-terra `
+  --observation-provider sam2 `
+  --sam2-config configs/sam2.1/sam2.1_hiera_b+.yaml `
+  --sam2-checkpoint evaluation/external/models/sam2.1_hiera_base_plus.pt `
+  --observations-dir evaluation/external/videophy2/observations/sam2.1-base-plus-gpt-5.6-terra `
   --max-samples 20
 ```
 
@@ -1827,7 +1841,7 @@ Stage A is complete only when:
 - D0/D1 and B1/M3 each have either a prediction or explicit failure for all 20 samples;
 - rerunning produces zero duplicate JSONL keys;
 - D0/D1 visual frame indices are identical per sample;
-- B1/M3 reuse one observation cache per sample;
+- B1/M3 reuse one SAM2 frame-level observation cache per sample;
 - summary files clearly prohibit benchmark claims;
 - the full test suite passes.
 

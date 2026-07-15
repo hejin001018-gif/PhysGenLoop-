@@ -19,6 +19,7 @@ A better video-level score alone is not sufficient to justify the loop. The fram
 
 - VideoPhy-2 as the primary in-distribution benchmark.
 - VideoPhy-1 as the out-of-distribution benchmark.
+- SAM2.1 as the required primary observation frontend for every headline PAVG method.
 - A manually audited diagnostic subset drawn from both benchmarks.
 - Direct-VLM, structured-direct-VLM, official auto-rater and PAVG ablation baselines.
 - Human-label-aligned classification, ordinal scoring, calibration, localization, cost and robustness metrics.
@@ -93,6 +94,8 @@ All methods emit the same canonical prediction record. They differ only in allow
 
 An optional `M3_ORACLE_FRONTEND` can be run only on controlled data with trusted tracks. It separates detector/tracker errors from reasoning errors and must never be mixed into the headline result.
 
+All B1-M5 headline runs consume the same cached SAM2.1 frame-level observations for a sample/model block. Sparse VLM keyframe detections are retained as `F0_VLM_SPARSE` frontend ablations only; they are not an acceptable default because missing intermediate detections can create observation gaps and break trajectory/event reasoning. `F1_SAM2` is the production frontend and must report frame coverage, track count and propagation failures.
+
 ### 4.1 Model blocks and headline baselines
 
 The first evaluation uses two matched model blocks. Results are reported within a block; a stronger model in one block is never compared against a weaker model in the other as evidence for framework improvement.
@@ -121,6 +124,8 @@ The headline claim is the within-backbone difference `M5 - D1`, supported by `M4
 - D0/D1 use uniform sampling. PAVG may choose evidence frames, but it may not exceed the same maximum number of VLM-visible frames without reporting a separate cost-unconstrained result.
 - Temperature is zero where supported. If the provider is nondeterministic, each model-based method is repeated three times and both mean and variance are reported.
 - Videos are renamed to opaque sample IDs; generator names and benchmark labels are never included in model input.
+- PAVG ablations reuse one immutable SAM2 observation cache per sample and frontend configuration. They must not rerun or change tracking between B1-M5.
+- D0/D1 do not receive SAM2 masks, tracks or event evidence; this preserves their role as direct VLM baselines.
 - Method prompts are versioned and frozen before test execution.
 - All threshold selection occurs on development data. Test execution is one-way and produces append-only prediction artifacts.
 
@@ -245,6 +250,7 @@ Evaluation functionality will be separated from production Critic code:
 - `src/pavg_critic/benchmarking/datasets.py`: manifests and VideoPhy adapters;
 - `src/pavg_critic/benchmarking/contracts.py`: normalized sample and prediction records;
 - `src/pavg_critic/benchmarking/baselines.py`: D0/D1 and external prediction adapters;
+- `src/pavg_critic/benchmarking/frontends.py`: SAM2 observation production, cache metadata and sparse-VLM frontend ablation;
 - `src/pavg_critic/benchmarking/runner.py`: resumable paired execution;
 - `src/pavg_critic/benchmarking/metrics.py`: classification, ordinal, calibration and diagnostic metrics;
 - `src/pavg_critic/benchmarking/statistics.py`: cluster bootstrap and paired tests;

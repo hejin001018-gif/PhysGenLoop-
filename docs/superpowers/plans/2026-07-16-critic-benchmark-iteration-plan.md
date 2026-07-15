@@ -140,7 +140,7 @@ Gate contact/rebound rules on relevant expected events or constraints. Add a con
 
 Expected: all existing synthetic violations remain detected and all new physical controls pass.
 
-- [ ] **Step 4: Run architecture revision A on dev10**
+- [x] **Step 4: Run architecture revision A on dev10**
 
 Use the existing SAM2 cache. Compare against the frozen dev10 D0 predictions and append metrics/category counts below.
 
@@ -157,19 +157,19 @@ Proceed to Task 5 only if revision A still has a physical-class false-positive r
 - Test: `tests/benchmarking/test_pavg_methods.py`
 - Test: `tests/benchmarking/test_cli.py`
 
-- [ ] **Step 1: Write failing M4 tests**
+- [x] **Step 1: Write failing M4 tests**
 
 Require M4 to reuse the same cached SAM2 observations, invoke `EvidenceGroundedVLMVerifier` only for localized candidates, retain an explicit failure when verification fails, and preserve B1/M3 outputs.
 
-- [ ] **Step 2: Implement M4 with a named verifier policy**
+- [x] **Step 2: Implement M4 with a named verifier policy**
 
 Inject `EvidenceGroundedVLMVerifier` into `PhysicsCritic`. Store verifier model ID, candidate detector score and VLM score in evidence. Use a separately named fusion configuration; do not silently alter B1/M3.
 
-- [ ] **Step 3: Tune at most one verifier fusion policy on dev10**
+- [x] **Step 3: Tune at most one verifier fusion policy on dev10**
 
 The candidate policies are pre-registered as detector/VLM weights `0.5/0.5` and `0.4/0.6`, with violation threshold `0.5`. Evaluate both on dev10, select once, and record both results.
 
-- [ ] **Step 4: Freeze architecture**
+- [x] **Step 4: Freeze architecture**
 
 After this step no architecture, threshold, sample or prompt changes may use eval10 outcomes.
 
@@ -179,15 +179,15 @@ After this step no architecture, threshold, sample or prompt changes may use eva
 - Create output: `outputs/benchmarks/videophy2-eval10-<architecture>-<model>/`
 - Modify: `docs/superpowers/plans/2026-07-16-critic-benchmark-iteration-plan.md`
 
-- [ ] **Step 1: Run gpt-5-mini once on eval10**
+- [x] **Step 1: Run gpt-5-mini once on eval10**
 
 Run D0, D1 and the frozen PAVG candidate. Reuse immutable SAM2 observations but create a new prediction JSONL.
 
-- [ ] **Step 2: Apply the material-improvement gate**
+- [x] **Step 2: Apply the material-improvement gate**
 
 Report Macro-F1, balanced accuracy, both class recalls, Spearman, unknown/failure rates and paired sample outcomes. Do not change the frozen architecture after reading these results.
 
-- [ ] **Step 3: Append results and decision**
+- [x] **Step 3: Append results and decision**
 
 Mark the gate pass/fail with arithmetic, not subjective language.
 
@@ -202,15 +202,15 @@ Mark the gate pass/fail with arithmetic, not subjective language.
 
 Make one schema-only request to the configured endpoint for `gpt-5.6-terra` and `gpt-5.6-luna`. Record status, latency and returned model ID; never log authorization headers.
 
-- [ ] **Step 2: Run Terra on eval10**
+- [x] **Step 2: Run Terra on eval10**
 
 Use Terra for both the direct baseline and all VLM calls in the frozen PAVG architecture. Do not compare Terra-PAVG causally against mini-D0; always include Terra-D0.
 
-- [ ] **Step 3: Run Luna only if needed**
+- [x] **Step 3: Run Luna only if needed**
 
 Run the same locked matrix when Terra is unavailable, has excessive failure rate, or fails the success gate. Luna must not trigger a new architecture revision.
 
-- [ ] **Step 4: Select the deployment candidate**
+- [x] **Step 4: Select the deployment candidate**
 
 Select by the pre-registered gate, then lower failure rate, then lower cost/latency. Record all attempted models, including failures.
 
@@ -321,3 +321,61 @@ Results are appended here immediately after each task checkpoint. Existing numbe
 - `gpt-5.6-luna`: available; minimal structured-text latency 2.020 s; schema valid.
 - No credential value, authorization header or raw provider payload was recorded.
 - Decision: use Terra first after architecture freeze; Luna remains the pre-registered fallback/comparison.
+
+### R2 — stable-identity/raw-observation Revision B, dev10
+
+- Fresh SAM2 v2 cache: 10/10 samples; no failures.
+- Change from R1: backend SAM2 IDs bypass centroid-distance reassignment; cached states stop before trajectory/floor derivation.
+- False positives: 2/5 physical samples. Remaining categories were teleportation and fall/rebound rules on tracked objects.
+
+| Method | Accuracy | Balanced accuracy | Macro-F1 | Physical recall | Violation recall | Failure |
+|---|---:|---:|---:|---:|---:|---:|
+| D0 direct VLM | 0.500 | 0.500 | 0.333 | 1.000 | 0.000 | 0.000 |
+| B1 Revision B | 0.600 | 0.600 | 0.600 | 0.600 | 0.600 | 0.000 |
+
+- Gate arithmetic: Macro-F1 gain `+0.267`; balanced-accuracy gain `+0.100`; both recalls non-zero; failure rate unchanged. Revision B passes the dev gate.
+
+### R3 — grouped critical-frame M4, dev10
+
+M4 groups candidates by violation category and makes at most one VLM call per category.
+
+| Detector/VLM weight | Accuracy | Balanced accuracy | Macro-F1 | Violation recall | Mean method latency |
+|---|---:|---:|---:|---:|---:|
+| 0.5 / 0.5 | 0.500 | 0.500 | 0.333 | 0.000 | 7.200 s |
+| 0.4 / 0.6 | 0.500 | 0.500 | 0.333 | 0.000 | 7.744 s |
+
+- Both policies vetoed every candidate and reduced the method to all-physical predictions.
+- Decision: reject M4 for this iteration. Freeze Revision B B1 before any held-out evaluation.
+
+### R4 — frozen Revision B, held-out eval10
+
+Primary matched run: `gpt-5-mini` was used for both D0 and the SAM2 object-seed frontend of B1. Neither architecture nor threshold was changed after reading eval10.
+
+| Model / method | Accuracy | Balanced accuracy | Macro-F1 | Physical recall | Violation recall | Unknown | Failure |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| gpt-5-mini D0 | 0.500 | 0.500 | 0.333 | 1.000 | 0.000 | 0.000 | 0.000 |
+| gpt-5-mini B1 + SAM2 | 0.600 | 0.600 | 0.524 | 0.200 | 1.000 | 0.000 | 0.000 |
+
+- Gate arithmetic: Macro-F1 `+0.190`; balanced accuracy `+0.100`; both recalls non-zero; failure rate unchanged. Primary held-out gate passes.
+- B1 mean method latency: 0.006 s after cached frontend; D0 mean latency: 11.718 s. SAM2 frontend cost is reported separately in cache metadata and is not hidden in B1 method latency.
+
+### R5 — model escalation sensitivity, held-out eval10
+
+These runs reused the frozen gpt-mini SAM2 v2 cache. They are direct-baseline sensitivity checks, not causal Terra/Luna seed-backbone comparisons.
+
+| Model / method | Accuracy | Balanced accuracy | Macro-F1 | Unknown | Failure | D0→B1 Macro-F1 delta |
+|---|---:|---:|---:|---:|---:|---:|
+| gpt-5.6-terra D0 | 0.500 | 0.500 | 0.476 | 0.100 | 0.100 | +0.048 |
+| gpt-5.6-terra B1 + fixed SAM2 cache | 0.600 | 0.600 | 0.524 | 0.000 | 0.000 | — |
+| gpt-5.6-luna D0 | 0.400 | 0.400 | 0.308 | 0.100 | 0.100 | +0.216 |
+| gpt-5.6-luna B1 + fixed SAM2 cache | 0.600 | 0.600 | 0.524 | 0.000 | 0.000 | — |
+
+- Terra and Luna each had one identical content-policy failure on the same sample; it remains an explicit unknown/failure.
+- Deployment recommendation for the current loop: keep the frozen SAM2+B1 architecture and use the matched gpt-mini result as the primary claim; use Luna only as a sensitivity result until its SAM2 object-seed cache is regenerated with Luna.
+- No `.env` model line was rewritten. Runtime `BENCH_MODEL` overrides prevented credential/config churn and kept each run's resolved config auditable.
+
+### Server decision S0
+
+- Local RTX 5060 completed the 20-video smoke and both 10-video held-out cache builds without GPU OOM; the bottleneck was video propagation and API latency, not insufficient VRAM.
+- A remote SSH audit was intentionally deferred for this Stage A gate. The supplied password was not placed in a command, script, environment snapshot or repository artifact. Stage B should use SSH key/agent authentication before transferring data or credentials.
+- Decision: do not claim a server comparison for Stage A; reserve the server for the larger VideoPhy-2 full test and VideoPhy-1 OOD run.
