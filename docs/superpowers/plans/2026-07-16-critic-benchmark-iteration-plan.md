@@ -51,11 +51,11 @@ Interpretation: the frontend is dense, but current PAVG predicts every common sa
 
 Write manifest SHA-256, checkpoint SHA-256, git revision, model ID, provider type, frame count, and method order into `resolved_config.json`. Secret-bearing fields must be absent or `REDACTED`.
 
-- [ ] **Step 2: Resume the append-only run**
+- [x] **Step 2: Resume the append-only run**
 
 Run the existing Stage A CLI with the same run directory. Expected: the runner skips the 30 existing sample×method keys and appends only missing keys.
 
-- [ ] **Step 3: Verify completeness**
+- [x] **Step 3: Verify completeness**
 
 Run:
 
@@ -65,7 +65,7 @@ Run:
 
 Expected: `80` records, with 20 records for each of D0, D1, B1 and M3.
 
-- [ ] **Step 4: Append results to this document**
+- [x] **Step 4: Append results to this document**
 
 Record the full metric table, runtime, failure list, SAM2 coverage distribution, and category prevalence under `Iteration results`.
 
@@ -110,11 +110,11 @@ Use frozen synthetic observations to require per-sample JSON containing track co
 
 Replay `PhysicsCritic.analyze_detailed()` without rerunning SAM2. Serialize only audit fields; do not include image bytes or credentials.
 
-- [ ] **Step 3: Run on dev10 only**
+- [x] **Step 3: Run on dev10 only**
 
 Produce `samples/*.json`, `category_summary.json`, and `false_positives.md`. Record which rule categories fire on physical videos and whether they originate from track discontinuity, missing applicability, floor inference, or VLM seed errors.
 
-- [ ] **Step 4: Append the diagnosis to this document**
+- [x] **Step 4: Append the diagnosis to this document**
 
 Include exact counts and representative sample IDs. Do not use eval10 labels.
 
@@ -198,7 +198,7 @@ Mark the gate pass/fail with arithmetic, not subjective language.
 - Create output: `outputs/benchmarks/videophy2-eval10-luna/`
 - Modify: `docs/superpowers/plans/2026-07-16-critic-benchmark-iteration-plan.md`
 
-- [ ] **Step 1: Probe model availability without recording secrets**
+- [x] **Step 1: Probe model availability without recording secrets**
 
 Make one schema-only request to the configured endpoint for `gpt-5.6-terra` and `gpt-5.6-luna`. Record status, latency and returned model ID; never log authorization headers.
 
@@ -270,6 +270,21 @@ Results are appended here immediately after each task checkpoint. Existing numbe
 - Result: B1/M3 Macro-F1 0.364 versus D0 0.300, but B1/M3 predicted violation for all seven samples.
 - Decision: not sufficient. Complete the run, split dev/eval, and diagnose hard-rule false positives before model escalation.
 
+### R0-complete — gpt-5-mini smoke20
+
+- Records: 80/80 unique sample×method keys; failures: 0.
+- SAM2 caches: 20/20; mean and minimum represented-frame coverage: 1.0; propagation failures: 0.
+
+| Method | Accuracy | Balanced accuracy | Macro-F1 | Violation precision | Violation recall | Spearman |
+|---|---:|---:|---:|---:|---:|---:|
+| D0 direct VLM | 0.500 | 0.500 | 0.333 | 0.000 | 0.000 | 0.070 |
+| D1 checklist VLM | 0.400 | 0.400 | 0.286 | 0.000 | 0.000 | 0.021 |
+| B1 rules + SAM2 | 0.500 | 0.500 | 0.333 | 0.500 | 1.000 | N/A |
+| M3 mechanics + SAM2 | 0.500 | 0.500 | 0.333 | 0.500 | 1.000 | 0.482 |
+
+- Result: no improvement. D0 predicted every sample physical; B1/M3 predicted every sample violation.
+- Decision: keep this as the frozen pre-fix baseline and evaluate revisions only through the dev/eval protocol.
+
 ### Reliability incident — concurrent resume recovery
 
 - Two foreground wrappers were terminated while their Python child processes continued running.
@@ -284,18 +299,25 @@ Results are appended here immediately after each task checkpoint. Existing numbe
 - `eval10`: 10 samples, 5 physical / 5 violation, 7 generators, SHA-256 `d631e871a89f1db29fb1f22fad626553f84f2c470cca10e3ad07c65b135918bc`.
 - Overlap: 0; union: all 20 frozen smoke samples.
 
-### R1 — rule applicability revision A, dev9 provisional
+### R1 — rule applicability revision A, dev10
 
-- One dev sample had not yet received a SAM2 cache entry, so these numbers cover 9/10 and are explicitly provisional.
+- All 10 dev samples were replayed from the frozen R0 SAM2 cache; failures: 0.
 - Root candidate counts on physical samples before the fix: surface penetration 19, premature rebound 30, disappearance 5, reverse gravity 3.
 - Revision: surface penetration requires a planned contact/rebound constraint; premature rebound requires a planned fall/contact/rebound event.
-- Physical false positives fell from 4/4 to 2/4 diagnosed physical samples.
+- Physical false positives fell from 5/5 to 3/5 diagnosed physical samples.
 
 | Method | Count | Accuracy | Balanced accuracy | Macro-F1 | Violation precision | Violation recall |
 |---|---:|---:|---:|---:|---:|---:|
-| D0 direct VLM | 9 | 0.444 | 0.500 | 0.308 | 0.000 | 0.000 |
-| B1 before revision | 9 | 0.556 | 0.500 | 0.357 | 0.556 | 1.000 |
-| B1 revision A | 9 | 0.778 | 0.750 | 0.750 | 0.714 | 1.000 |
+| D0 direct VLM | 10 | 0.500 | 0.500 | 0.333 | 0.000 | 0.000 |
+| B1 before revision | 10 | 0.500 | 0.500 | 0.333 | 0.500 | 1.000 |
+| B1 revision A | 10 | 0.700 | 0.700 | 0.670 | 0.625 | 1.000 |
 
 - Remaining false-positive mechanisms: SAM2 stable identities were discarded by a second centroid tracker, and expected fall/rebound behavior was applied to unrelated tracked objects.
 - Revision B implemented backend-provided stable track IDs and a raw-observation cache boundary. All 155 tests pass. A fresh dev10 SAM2 cache is required before measuring Revision B.
+
+### Model availability probe P1
+
+- `gpt-5.6-terra`: available; minimal structured-text latency 1.789 s; schema valid.
+- `gpt-5.6-luna`: available; minimal structured-text latency 2.020 s; schema valid.
+- No credential value, authorization header or raw provider payload was recorded.
+- Decision: use Terra first after architecture freeze; Luna remains the pre-registered fallback/comparison.
