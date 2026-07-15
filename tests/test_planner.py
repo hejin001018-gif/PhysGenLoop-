@@ -61,6 +61,7 @@ def _model_plan_payload():
                 "id": "C1",
                 "domain": "gravity",
                 "subjects": ["red_ball"],
+                "condition": None,
                 "expectation": "downward_acceleration",
             }
         ],
@@ -97,6 +98,16 @@ def test_model_planner_empty_semantics_has_zero_confidence():
     assert plan.planner_metadata.source == "empty"
     assert plan.planner_metadata.confidence == 0.0
     assert plan.planner_metadata.model == "fake-plan-model"
+
+
+def test_model_planner_rejects_properties_outside_strict_schema():
+    from pavg_critic.planner import ModelPhysicsPlanner
+
+    payload = _model_plan_payload()
+    payload["untrusted_extra"] = "ignored by loose parsers"
+
+    with pytest.raises(SchemaError, match="untrusted_extra"):
+        ModelPhysicsPlanner(FakePlanModel(payload=payload)).generate("A ball falls.")
 
 
 def test_resolver_falls_back_after_timeout():

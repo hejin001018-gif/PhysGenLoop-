@@ -10,6 +10,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from jsonschema import Draft202012Validator
+
 from .api_models import ModelAPIError
 from .interfaces import PhysicsPlanner, StructuredTextModel
 from .schemas import (
@@ -270,6 +272,13 @@ class ModelPhysicsPlanner:
     def _validate_payload_shape(payload: Mapping[str, Any]) -> None:
         if not isinstance(payload, Mapping):
             raise SchemaError("physics planner model output root must be an object")
+        error = next(Draft202012Validator(PHYSICS_PLAN_SCHEMA).iter_errors(payload), None)
+        if error is not None:
+            path = ".".join(str(item) for item in error.absolute_path)
+            location = f" at {path}" if path else ""
+            raise SchemaError(
+                f"physics planner model output violates schema{location}: {error.message}"
+            )
         required = ("objects", "expected_events", "relations", "physics_constraints")
         for key in required:
             if key not in payload:
