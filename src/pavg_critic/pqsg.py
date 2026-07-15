@@ -68,6 +68,9 @@ class PQSGQuestionGraphGenerator:
     def generate(self, request: CriticRequest) -> QuestionGraph:
         """生成并严格校验模型图；非法边、悬空引用和环路都会立即失败。"""
 
+        plan_context = request.physics_plan.to_dict()
+        # 来源、模型名和降级状态用于审计，不属于问题图的物理语义输入。
+        plan_context.pop("planner_metadata", None)
         payload = self.model.generate_json(
             system_prompt=(
                 "Generate a minimal physics scene graph as atomic yes/no questions. "
@@ -77,8 +80,7 @@ class PQSGQuestionGraphGenerator:
             user_prompt=json.dumps(
                 {
                     "prompt": request.prompt,
-                    "objects": request.physics_plan.objects,
-                    "expected_events": request.physics_plan.expected_events,
+                    **plan_context,
                 },
                 ensure_ascii=False,
             ),

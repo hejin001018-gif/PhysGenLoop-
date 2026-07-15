@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from pavg_critic.config import QuestionGraphConfig
 from pavg_critic import FrameState, PhysicsCritic
 from pavg_critic.pqsg import (
@@ -11,7 +13,14 @@ from pavg_critic.pqsg import (
 )
 from pavg_critic.question_generator import TemplateQuestionGraphGenerator
 from pavg_critic.question_graph import QuestionGraphValidator
-from pavg_critic.schemas import CriticRequest, PhysicsPlan, QuestionGraph, QuestionNode
+from pavg_critic.schemas import (
+    CriticRequest,
+    PhysicsConstraint,
+    PhysicsPlan,
+    PhysicsRelation,
+    QuestionGraph,
+    QuestionNode,
+)
 
 
 class FakeStructuredModel:
@@ -69,6 +78,39 @@ def test_pqsg_generator_parses_and_validates_model_json():
 
     assert graph.source == "pqsg_model"
     assert [node.id for node in graph.nodes] == ["O1", "P1"]
+
+
+def test_pqsg_generator_receives_relations_and_constraints():
+    model = FakeStructuredModel({"nodes": []})
+    request = CriticRequest(
+        video_path="unused.mp4",
+        prompt="A ball hits the floor.",
+        physics_plan=PhysicsPlan(
+            objects=("ball", "floor"),
+            expected_events=("floor_contact",),
+            relations=(
+                PhysicsRelation(
+                    "R1", "ball", "expected_to_collide_with", "floor"
+                ),
+            ),
+            physics_constraints=(
+                PhysicsConstraint(
+                    id="C1",
+                    domain="contact",
+                    subjects=("ball", "floor"),
+                    condition="during_contact",
+                    expectation="no_interpenetration",
+                ),
+            ),
+        ),
+    )
+
+    PQSGQuestionGraphGenerator(model).generate(request)
+
+    user_payload = json.loads(model.calls[0][1])
+    assert user_payload["relations"][0]["relation"] == "expected_to_collide_with"
+    assert user_payload["physics_constraints"][0]["domain"] == "contact"
+    assert "planner_metadata" not in user_payload
 
 
 def test_hybrid_graph_keeps_template_and_pqsg_nodes_without_id_collisions():
