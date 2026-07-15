@@ -80,6 +80,25 @@ def test_model_planner_parses_valid_structured_plan():
     assert model.calls[0]["schema"]["additionalProperties"] is False
 
 
+def test_model_planner_empty_semantics_has_zero_confidence():
+    from pavg_critic.planner import ModelPhysicsPlanner
+
+    plan = ModelPhysicsPlanner(
+        FakePlanModel(
+            payload={
+                "objects": [],
+                "expected_events": [],
+                "relations": [],
+                "physics_constraints": [],
+            }
+        )
+    ).generate("")
+
+    assert plan.planner_metadata.source == "empty"
+    assert plan.planner_metadata.confidence == 0.0
+    assert plan.planner_metadata.model == "fake-plan-model"
+
+
 def test_resolver_falls_back_after_timeout():
     from pavg_critic.planner import (
         ModelPhysicsPlanner,
@@ -464,6 +483,11 @@ def test_plan_rejects_duplicate_extension_ids():
                 PhysicsRelation("R1", "ball", "above", "ball"),
             ),
         )
+
+
+def test_plan_rejects_string_instead_of_core_array():
+    with pytest.raises(SchemaError, match="objects must be an array"):
+        PhysicsPlan.from_dict({"objects": "ball"})
 
 
 def test_planner_confidence_must_be_normalized():

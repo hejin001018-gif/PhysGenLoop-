@@ -226,6 +226,12 @@ class PhysicsPlan:
         """读取旧版或扩展版计划；缺失及 null 数组均按空集合处理。"""
 
         data = data or {}
+        objects = data.get("objects") or ()
+        events = data.get("expected_events") or ()
+        if not isinstance(objects, (list, tuple)):
+            raise SchemaError("physics plan objects must be an array")
+        if not isinstance(events, (list, tuple)):
+            raise SchemaError("physics plan expected_events must be an array")
         relations = data.get("relations") or ()
         constraints = data.get("physics_constraints") or ()
         if not all(isinstance(item, Mapping) for item in relations):
@@ -236,8 +242,8 @@ class PhysicsPlan:
         if metadata is not None and not isinstance(metadata, Mapping):
             raise SchemaError("planner_metadata must be a JSON object")
         return cls(
-            objects=_stable_strings(data.get("objects") or ()),
-            expected_events=_stable_strings(data.get("expected_events") or ()),
+            objects=_stable_strings(objects),
+            expected_events=_stable_strings(events),
             relations=tuple(PhysicsRelation.from_dict(item) for item in relations),
             physics_constraints=tuple(
                 PhysicsConstraint.from_dict(item) for item in constraints

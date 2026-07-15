@@ -252,11 +252,16 @@ class ModelPhysicsPlanner:
         )
         self._validate_payload_shape(payload)
         plan = PhysicsPlan.from_dict(payload)
-        plan = _with_metadata(
-            plan,
+        metadata = (
             PlannerMetadata(
                 source="model", confidence=0.8, fallback_used=False, model=self.model_name
-            ),
+            )
+            if _has_semantic_content(plan)
+            else PlannerMetadata(source="empty", confidence=0.0, model=self.model_name)
+        )
+        plan = _with_metadata(
+            plan,
+            metadata,
         )
         plan.validate_references()
         return plan
