@@ -48,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--run-dir", required=True, type=Path)
     parser.add_argument("--methods", required=True)
+    parser.add_argument("--env-file", type=Path)
     parser.add_argument(
         "--provider",
         choices=("responses", "chat"),
@@ -64,6 +65,30 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sam2-config")
     parser.add_argument("--sam2-checkpoint", type=Path)
     return parser
+
+
+def load_benchmark_environment(path: str | Path) -> dict[str, object]:
+    """Map project env names to BENCH_* without exposing credential values."""
+
+    try:
+        from dotenv import dotenv_values
+    except ImportError as exc:
+        raise RuntimeError("--env-file requires pavg-critic[env]") from exc
+    values = dotenv_values(path)
+    api_key = str(values.get("BENCH_API_KEY") or values.get("API_KEY") or "")
+    base_url = str(values.get("BENCH_BASE_URL") or values.get("BASE_URL") or "")
+    model = str(values.get("BENCH_MODEL") or values.get("VLM_MODEL") or "")
+    if api_key:
+        os.environ.setdefault("BENCH_API_KEY", api_key)
+    if base_url:
+        os.environ.setdefault("BENCH_BASE_URL", base_url)
+    if model:
+        os.environ.setdefault("BENCH_MODEL", model)
+    return {
+        "api_key_configured": bool(api_key),
+        "base_url_configured": bool(base_url),
+        "model": model or None,
+    }
 
 
 def build_benchmark_model(provider: str):
@@ -133,6 +158,8 @@ def _redact_config(value):
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+    if args.env_file is not None:
+        load_benchmark_environment(args.env_file)
     method_ids = parse_methods(args.methods)
     samples = tuple(
         sorted(load_manifest(args.manifest), key=lambda item: item.sample_id)
@@ -205,6 +232,13 @@ def main(argv=None) -> int:
             "frame_count": args.frame_count,
             "methods": list(method_ids),
             "observation_provider": args.observation_provider,
+            "sam2_config": args.sam2_config,
+            "sam2_checkpoint_sha256": (
+                _sha256(args.sam2_checkpoint)
+                if args.sam2_checkpoint is not None
+                and args.sam2_checkpoint.is_file()
+                else None
+            ),
             "manifest_sha256": _sha256(args.manifest),
             "git_revision": _git_revision(),
         }

@@ -3,6 +3,7 @@ import pytest
 from benchmarks.evaluate_video_benchmark import (
     build_benchmark_model,
     build_parser,
+    load_benchmark_environment,
     parse_methods,
 )
 
@@ -49,3 +50,21 @@ def test_max_samples_defaults_to_none():
         ]
     )
     assert args.max_samples is None
+
+
+def test_env_file_maps_project_names_without_returning_secrets(tmp_path, monkeypatch):
+    path = tmp_path / ".env"
+    path.write_text(
+        'API_KEY="test-secret"\nBASE_URL="https://example.test/v1"\n'
+        'VLM_MODEL="test-model"\n',
+        encoding="utf-8",
+    )
+    for name in ("BENCH_API_KEY", "BENCH_BASE_URL", "BENCH_MODEL"):
+        monkeypatch.delenv(name, raising=False)
+    snapshot = load_benchmark_environment(path)
+    assert snapshot == {
+        "api_key_configured": True,
+        "base_url_configured": True,
+        "model": "test-model",
+    }
+    assert "test-secret" not in repr(snapshot)

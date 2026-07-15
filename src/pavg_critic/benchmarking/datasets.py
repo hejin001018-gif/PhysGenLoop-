@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import ast
 import csv
 import hashlib
 import json
+import os
 import random
+from collections import Counter
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence, TypeVar
 
 from .contracts import BenchmarkSample
 
@@ -26,9 +29,11 @@ ALIASES = {
     ),
     "semantic_score": ("semantic_score", "semantic_adherence", "sa"),
     "physics_score": ("physics_score", "physical_commonsense", "pc"),
-    "generator": ("generator", "model", "video_model"),
+    "generator": ("generator", "model", "video_model", "model_name"),
     "prompt_group_id": ("prompt_group_id", "action", "action_id", "prompt_id"),
 }
+
+T = TypeVar("T")
 
 
 def _value(row: Mapping[str, str], logical_name: str) -> str:
@@ -46,6 +51,90 @@ def _score(row: Mapping[str, str], logical_name: str) -> float | None:
         if str(exc).startswith("missing"):
             return None
         raise
+
+
+def _sample_id(
+    row: Mapping[str, str],
+    *,
+    benchmark: str,
+) -> str:
+    for column in ALIASES["sample_id"]:
+        value = row.get(column)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    identity = "\0".join(
+        (
+            str(row.get("video_url") or row.get("url") or "").strip(),
+            str(row.get("caption") or row.get("prompt") or "").strip(),
+            str(row.get("model_name") or row.get("generator") or "").strip(),
+        )
+    )
+    if not identity.replace("\0", ""):
+        raise ValueError(
+            f"missing sample_id and derivation fields; available columns: {sorted(row)}"
+        )
+    digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
+    return f"{benchmark}-{digest}"
+
+
+def _source_url(row: Mapping[str, str]) -> str | None:
+    for column in ("video_url", "url"):
+        value = str(row.get(column) or "").strip()
+        if value.startswith(("http://", "https://")):
+            return value
+    return None
+
+
+def _physical_rules(row: Mapping[str, str]) -> tuple[str, ...]:
+    result: list[str] = []
+    for column in (
+        "physics_rules_followed",
+        "physics_rules_unfollowed",
+        "physics_rules_cannot_be_determined",
+        "human_violated_rules",
+    ):
+        raw = str(row.get(column) or "").strip()
+        if not raw:
+            continue
+        try:
+            parsed = ast.literal_eval(raw)
+        except (SyntaxError, ValueError) as exc:
+            raise ValueError(f"invalid {column} list: {raw[:100]}") from exc
+        values = parsed if isinstance(parsed, (list, tuple)) else (parsed,)
+        for value in values:
+            text = str(value).strip()
+            if text and text not in result:
+                result.append(text)
+    return tuple(result)
+
+
+def _take_balanced(
+    buckets: dict[tuple[str, str], list[T]],
+    *,
+    count: int,
+) -> list[T]:
+    """Balance labels first, then rotate generators within each label."""
+
+    labels = sorted({label for label, _ in buckets})
+    generators = {
+        label: sorted(generator for candidate, generator in buckets if candidate == label)
+        for label in labels
+    }
+    cursors = {label: 0 for label in labels}
+    chosen: list[T] = []
+    while len(chosen) < count and any(buckets.values()):
+        for label in labels:
+            order = generators[label]
+            for offset in range(len(order)):
+                index = (cursors[label] + offset) % len(order)
+                key = (label, order[index])
+                if buckets[key]:
+                    chosen.append(buckets[key].pop())
+                    cursors[label] = (index + 1) % len(order)
+                    break
+            if len(chosen) >= count:
+                break
+    return chosen
 
 
 def _file_sha256(path: Path) -> str:
@@ -76,7 +165,7 @@ def load_videophy_csv(
             video_path = video_path.resolve()
             result.append(
                 BenchmarkSample(
-                    sample_id=_value(row, "sample_id"),
+                    sample_id=_sample_id(row, benchmark=benchmark),
                     benchmark=benchmark,
                     split=split,
                     prompt=_value(row, "prompt"),
@@ -95,6 +184,7 @@ def load_videophy_csv(
                     ),
                     semantic_score=semantic,
                     physics_score=physics,
+                    physical_rules=_physical_rules(row),
                     raw_labels={
                         key: value
                         for key, value in row.items()
@@ -102,10 +192,18 @@ def load_videophy_csv(
                         in {
                             "sa",
                             "pc",
+                            "joint",
+                            "is_hard",
                             "semantic_adherence",
                             "physical_commonsense",
+                            "physics_rules_followed",
+                            "physics_rules_unfollowed",
+                            "physics_rules_cannot_be_determined",
+                            "human_violated_rules",
+                            "metadata_rules",
                         }
                     },
+                    source_url=_source_url(row),
                     sha256=_file_sha256(video_path),
                 )
             )
@@ -129,21 +227,157 @@ def select_smoke_samples(
     for bucket in buckets.values():
         bucket.sort(key=lambda item: item.sample_id)
         rng.shuffle(bucket)
-    chosen: list[BenchmarkSample] = []
-    keys = sorted(buckets)
-    while len(chosen) < count and any(buckets.values()):
-        for key in keys:
-            if buckets[key] and len(chosen) < count:
-                chosen.append(buckets[key].pop())
+    chosen = _take_balanced(buckets, count=count)
     return tuple(sorted(chosen, key=lambda item: item.sample_id))
 
 
+def split_diagnostic_samples(
+    samples: Sequence[BenchmarkSample],
+    *,
+    dev_count: int,
+    seed: int,
+) -> tuple[tuple[BenchmarkSample, ...], tuple[BenchmarkSample, ...]]:
+    """Create an exact, group-preserving split with label/generator balance."""
+
+    if dev_count <= 0 or dev_count >= len(samples):
+        raise ValueError("dev_count must leave at least one sample in each split")
+    ids = [item.sample_id for item in samples]
+    if len(ids) != len(set(ids)):
+        raise ValueError("duplicate sample IDs are not allowed")
+    grouped: dict[str, list[BenchmarkSample]] = {}
+    for sample in samples:
+        grouped.setdefault(sample.prompt_group_id, []).append(sample)
+    if len(grouped) > 30:
+        raise ValueError("diagnostic exact splitting supports at most 30 prompt groups")
+
+    group_ids = sorted(grouped)
+    random.Random(seed).shuffle(group_ids)
+    group_sizes = [len(grouped[group_id]) for group_id in group_ids]
+    suffix_sizes = [0] * (len(group_ids) + 1)
+    for index in range(len(group_ids) - 1, -1, -1):
+        suffix_sizes[index] = suffix_sizes[index + 1] + group_sizes[index]
+
+    label_totals = Counter(item.physics_label for item in samples)
+    generator_totals = Counter(item.generator for item in samples)
+    fraction = dev_count / len(samples)
+    target_labels = {
+        key: value * fraction for key, value in label_totals.items()
+    }
+    target_generators = {
+        key: value * fraction for key, value in generator_totals.items()
+    }
+    best: tuple[float, tuple[str, ...], tuple[str, ...]] | None = None
+
+    def consider(selected_group_ids: tuple[str, ...]) -> None:
+        nonlocal best
+        selected = [
+            item
+            for group_id in selected_group_ids
+            for item in grouped[group_id]
+        ]
+        label_counts = Counter(item.physics_label for item in selected)
+        generator_counts = Counter(item.generator for item in selected)
+        score = sum(
+            (label_counts[key] - target) ** 2 / max(target, 1.0)
+            for key, target in target_labels.items()
+        )
+        score += sum(
+            (generator_counts[key] - target) ** 2 / max(target, 1.0)
+            for key, target in target_generators.items()
+        )
+        sample_ids = tuple(sorted(item.sample_id for item in selected))
+        candidate = (score, sample_ids, tuple(sorted(selected_group_ids)))
+        if best is None or candidate < best:
+            best = candidate
+
+    def search(
+        index: int,
+        selected_count: int,
+        selected_groups: tuple[str, ...],
+    ) -> None:
+        if selected_count > dev_count:
+            return
+        if selected_count + suffix_sizes[index] < dev_count:
+            return
+        if index == len(group_ids):
+            if selected_count == dev_count:
+                consider(selected_groups)
+            return
+        group_id = group_ids[index]
+        search(
+            index + 1,
+            selected_count + group_sizes[index],
+            selected_groups + (group_id,),
+        )
+        search(index + 1, selected_count, selected_groups)
+
+    search(0, 0, ())
+    if best is None:
+        raise ValueError(
+            "cannot form an exact group-preserving diagnostic split for dev_count"
+        )
+    dev_ids = set(best[1])
+    dev = tuple(sorted((item for item in samples if item.sample_id in dev_ids), key=lambda item: item.sample_id))
+    evaluation = tuple(sorted((item for item in samples if item.sample_id not in dev_ids), key=lambda item: item.sample_id))
+    return dev, evaluation
+
+
+def write_source_smoke_csv(
+    input_csv: str | Path,
+    output_csv: str | Path,
+    *,
+    count: int,
+    seed: int,
+) -> None:
+    """Select a balanced source subset before downloading any videos."""
+
+    with Path(input_csv).open(newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle)
+        rows = list(reader)
+        fieldnames = list(reader.fieldnames or ())
+    if count <= 0 or count > len(rows):
+        raise ValueError("count must be between 1 and the number of source rows")
+    buckets: dict[tuple[str, str], list[dict[str, str]]] = {}
+    for row in rows:
+        physics = _score(row, "physics_score")
+        label = (
+            "unknown"
+            if physics is None
+            else ("physical" if physics >= 4 else "violation")
+        )
+        generator = _value(row, "generator")
+        buckets.setdefault((label, generator), []).append(row)
+    rng = random.Random(seed)
+    for bucket in buckets.values():
+        bucket.sort(key=lambda row: _sample_id(row, benchmark="videophy2"))
+        rng.shuffle(bucket)
+    chosen = _take_balanced(buckets, count=count)
+    chosen.sort(key=lambda row: _sample_id(row, benchmark="videophy2"))
+    destination = Path(output_csv)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(chosen)
+
+
 def write_manifest(samples: Iterable[BenchmarkSample], path: str | Path) -> None:
+    destination = Path(path)
+    serialized = []
+    for item in samples:
+        data = item.to_dict()
+        try:
+            data["video_path"] = os.path.relpath(
+                item.video_path,
+                start=destination.resolve().parent,
+            ).replace(os.sep, "/")
+        except ValueError:
+            data["video_path"] = item.video_path
+        serialized.append(data)
     payload = {
         "schema_version": "1.0",
-        "samples": [item.to_dict() for item in samples],
+        "samples": serialized,
     }
-    destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -152,10 +386,18 @@ def write_manifest(samples: Iterable[BenchmarkSample], path: str | Path) -> None
 
 
 def load_manifest(path: str | Path) -> tuple[BenchmarkSample, ...]:
-    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    source = Path(path)
+    raw = json.loads(source.read_text(encoding="utf-8"))
     if raw.get("schema_version") != "1.0" or not isinstance(raw.get("samples"), list):
         raise ValueError("benchmark manifest must use schema 1.0 with a samples array")
-    samples = tuple(BenchmarkSample.from_dict(item) for item in raw["samples"])
+    normalized = []
+    for item in raw["samples"]:
+        data = dict(item)
+        video_path = Path(str(data.get("video_path", "")))
+        if not video_path.is_absolute():
+            data["video_path"] = str((source.resolve().parent / video_path).resolve())
+        normalized.append(data)
+    samples = tuple(BenchmarkSample.from_dict(item) for item in normalized)
     ids = [item.sample_id for item in samples]
     if len(ids) != len(set(ids)):
         raise ValueError("benchmark manifest contains duplicate sample IDs")
@@ -187,7 +429,7 @@ def materialize_video_csv(
         fieldnames.append("local_path")
     failures: list[dict[str, str | int]] = []
     for row_index, row in enumerate(rows, start=1):
-        sample_id = _value(row, "sample_id")
+        sample_id = _sample_id(row, benchmark="videophy2")
         source = _value(row, "video_path")
         parsed = urllib.parse.urlparse(source)
         suffix = Path(parsed.path).suffix.lower() or ".mp4"

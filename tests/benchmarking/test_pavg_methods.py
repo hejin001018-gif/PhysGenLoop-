@@ -38,6 +38,7 @@ def test_cache_round_trip_avoids_producer_across_provider_instances(
     assert metadata["observed_frame_count"] == 1
     assert metadata["track_count"] == 1
     assert metadata["propagation_failure"] is None
+    assert metadata["production_latency_sec"] >= 0.0
 
     def should_not_run(ignored):
         raise AssertionError("cache was not reused")

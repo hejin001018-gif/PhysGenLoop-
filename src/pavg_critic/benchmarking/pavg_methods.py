@@ -63,6 +63,7 @@ class CachedObservationProvider:
         *,
         states: tuple[FrameState, ...] = (),
         failure: Exception | None = None,
+        production_latency_sec: float | None = None,
     ) -> None:
         represented_frames = sorted({state.frame for state in states})
         tracks = {
@@ -84,6 +85,7 @@ class CachedObservationProvider:
             "observed_frame_count": len(represented_frames),
             "frame_coverage": coverage,
             "track_count": len(tracks),
+            "production_latency_sec": production_latency_sec,
             "propagation_failure": (
                 None
                 if failure is None
@@ -112,8 +114,13 @@ class CachedObservationProvider:
             if not states:
                 raise ValueError(f"empty observation cache: {path}")
             if not self._metadata_path(sample.sample_id).is_file():
-                self._write_metadata(sample, states=states)
+                self._write_metadata(
+                    sample,
+                    states=states,
+                    production_latency_sec=None,
+                )
             return states
+        production_started = perf_counter()
         try:
             states = tuple(self.producer(sample))
             if not states:
@@ -121,8 +128,13 @@ class CachedObservationProvider:
                     f"observation provider produced no states for {sample.sample_id}"
                 )
         except Exception as exc:
+            production_latency = perf_counter() - production_started
             try:
-                self._write_metadata(sample, failure=exc)
+                self._write_metadata(
+                    sample,
+                    failure=exc,
+                    production_latency_sec=production_latency,
+                )
             except OSError:
                 pass
             raise
@@ -138,7 +150,11 @@ class CachedObservationProvider:
             encoding="utf-8",
         )
         temporary.replace(path)
-        self._write_metadata(sample, states=states)
+        self._write_metadata(
+            sample,
+            states=states,
+            production_latency_sec=perf_counter() - production_started,
+        )
         return states
 
 
@@ -157,10 +173,11 @@ class PAVGMethod:
         self.model_id = model_id
 
     def evaluate(self, sample: BenchmarkSample) -> BenchmarkPrediction:
-        started = perf_counter()
+        total_started = perf_counter()
         visible_frame_count = 0
         try:
             states = self.observations.get(sample)
+            started = perf_counter()
             visible_frame_count = len({state.frame for state in states})
             report = PhysicsCritic(build_ablation_config(self.method_id)).analyze(
                 CriticRequest(
@@ -215,7 +232,7 @@ class PAVGMethod:
                 physics_label="unknown",
                 confidence=0.0,
                 coverage=0.0,
-                latency_sec=perf_counter() - started,
+                latency_sec=perf_counter() - total_started,
                 visible_frame_count=visible_frame_count,
                 failure={
                     "type": type(exc).__name__,
@@ -242,15 +259,10 @@ def make_sam2_observation_producer(
             model_cfg=model_config,
             model_ckpt=checkpoint,
         )
-        artifacts = PhysicsCritic(CriticConfig(), detector=detector).analyze_detailed(
-            CriticRequest(
-                video_path=sample.video_path,
-                prompt=sample.prompt,
-            )
-        )
-        states = tuple(
-            state for track in artifacts.tracks for state in track.states
-        )
+        states, _ = PhysicsCritic(
+            CriticConfig(),
+            detector=detector,
+        ).observe_video(sample.video_path)
         if not states:
             raise ValueError(
                 f"observation provider produced no states for {sample.sample_id}"

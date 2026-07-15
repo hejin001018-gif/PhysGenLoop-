@@ -69,3 +69,19 @@ def test_load_predictions_round_trips_jsonl(tmp_path, prediction_factory):
     path = tmp_path / "predictions.jsonl"
     path.write_text(json.dumps(prediction.to_dict()) + "\n", encoding="utf-8")
     assert load_predictions(path) == (prediction,)
+
+
+def test_runner_rejects_duplicate_existing_keys(tmp_path, prediction_factory):
+    prediction = prediction_factory("1", "physical", 4.0)
+    line = json.dumps(prediction.to_dict()) + "\n"
+    path = tmp_path / "predictions.jsonl"
+    path.write_text(line + line, encoding="utf-8")
+    with pytest.raises(ValueError, match="duplicate prediction key"):
+        BenchmarkRunner(path).run((), ())
+
+
+def test_runner_rejects_concurrent_lock(tmp_path):
+    path = tmp_path / "predictions.jsonl"
+    path.with_suffix(".jsonl.lock").write_text("occupied", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="already running"):
+        BenchmarkRunner(path).run((), ())

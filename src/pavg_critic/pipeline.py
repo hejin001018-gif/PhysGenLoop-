@@ -313,6 +313,7 @@ class PhysicsCritic:
             report=report,
             tracks=tracks,
             events=events,
+            candidates=candidates,
             question_graph=question_graph,
             node_results=node_results,
             checklist_results=checklist_results,
@@ -322,6 +323,16 @@ class PhysicsCritic:
             mechanics_summary=mechanics_summary,
             resolved_request=resolved_request,
         )
+
+    def observe_video(self, video_path: str) -> tuple[tuple[FrameState, ...], float]:
+        """Run only decode, detection and identity tracking.
+
+        The returned states deliberately contain no derived trajectory, event or floor
+        features. Benchmark observation caches use this boundary so later ablations do
+        not inherit rule-dependent values from an earlier full critic pass.
+        """
+
+        return self._observe_video(video_path)
 
     def _observe_video(self, video_path: str) -> tuple[tuple[FrameState, ...], float]:
         """解码视频、逐帧检测并跟踪，返回原始状态和推断地面 y 坐标。"""

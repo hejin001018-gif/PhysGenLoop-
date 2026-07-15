@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Protocol, Sequence
 
@@ -30,12 +31,39 @@ class BenchmarkRunner:
         ):
             try:
                 raw = json.loads(line)
-                completed.add((str(raw["sample_id"]), str(raw["method_id"])))
+                key = (str(raw["sample_id"]), str(raw["method_id"]))
+                if key in completed:
+                    raise ValueError(
+                        f"duplicate prediction key at JSONL line {line_number}: {key}"
+                    )
+                completed.add(key)
             except (json.JSONDecodeError, KeyError, TypeError) as exc:
                 raise ValueError(
                     f"invalid prediction JSONL line {line_number}"
                 ) from exc
         return completed
+
+    @contextmanager
+    def _exclusive_lock(self):
+        lock_path = self.output_path.with_suffix(self.output_path.suffix + ".lock")
+        try:
+            descriptor = os.open(
+                lock_path,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            )
+        except FileExistsError as exc:
+            raise RuntimeError(
+                f"benchmark run is already running; lock exists: {lock_path}"
+            ) from exc
+        try:
+            os.write(descriptor, f"pid={os.getpid()}\n".encode("ascii"))
+            os.close(descriptor)
+            descriptor = -1
+            yield
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            lock_path.unlink(missing_ok=True)
 
     def run(
         self,
@@ -43,26 +71,27 @@ class BenchmarkRunner:
         methods: Sequence[BenchmarkMethod],
     ) -> tuple[BenchmarkPrediction, ...]:
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        completed = self._completed()
-        new_records: list[BenchmarkPrediction] = []
-        with self.output_path.open("a", encoding="utf-8") as handle:
-            for sample in samples:
-                for method in methods:
-                    key = (sample.sample_id, method.method_id)
-                    if key in completed:
-                        continue
-                    prediction = method.evaluate(sample)
-                    if (prediction.sample_id, prediction.method_id) != key:
-                        raise ValueError(
-                            f"method returned mismatched prediction key: {key}"
+        with self._exclusive_lock():
+            completed = self._completed()
+            new_records: list[BenchmarkPrediction] = []
+            with self.output_path.open("a", encoding="utf-8") as handle:
+                for sample in samples:
+                    for method in methods:
+                        key = (sample.sample_id, method.method_id)
+                        if key in completed:
+                            continue
+                        prediction = method.evaluate(sample)
+                        if (prediction.sample_id, prediction.method_id) != key:
+                            raise ValueError(
+                                f"method returned mismatched prediction key: {key}"
+                            )
+                        handle.write(
+                            json.dumps(prediction.to_dict(), ensure_ascii=False) + "\n"
                         )
-                    handle.write(
-                        json.dumps(prediction.to_dict(), ensure_ascii=False) + "\n"
-                    )
-                    handle.flush()
-                    os.fsync(handle.fileno())
-                    completed.add(key)
-                    new_records.append(prediction)
+                        handle.flush()
+                        os.fsync(handle.fileno())
+                        completed.add(key)
+                        new_records.append(prediction)
         return tuple(new_records)
 
 

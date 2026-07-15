@@ -627,7 +627,7 @@ class CriticRequest:
 
 @dataclass(frozen=True)
 class Detection:
-    """单帧检测结果；尚未分配跨帧 ``track_id``。"""
+    """单帧检测结果，可携带上游分配的稳定 ``track_id``。"""
 
     frame: int
     timestamp_sec: float
@@ -635,6 +635,7 @@ class Detection:
     center: tuple[float, float]
     bbox: tuple[float, float, float, float]
     confidence: float = 1.0
+    track_id: str | None = None
 
     def __post_init__(self) -> None:
         # 在数据进入跟踪器之前验证坐标，避免非法框破坏距离匹配。
@@ -647,6 +648,8 @@ class Detection:
             raise SchemaError("center and bbox must contain 2 and 4 values respectively")
         if self.bbox[2] < self.bbox[0] or self.bbox[3] < self.bbox[1]:
             raise SchemaError("bbox must use [x_min, y_min, x_max, y_max]")
+        if self.track_id is not None and not self.track_id.strip():
+            raise SchemaError("detection track_id must not be empty")
 
 
 @dataclass(frozen=True)
@@ -868,6 +871,7 @@ class CriticArtifacts:
     report: CriticReport
     tracks: tuple[TrackSequence, ...]
     events: tuple[Event, ...]
+    candidates: tuple[ViolationCandidate, ...] = ()
     question_graph: QuestionGraph | None = None
     node_results: tuple[NodeResult, ...] = ()
     checklist_results: tuple[ChecklistResult, ...] = ()

@@ -12,6 +12,8 @@ from pavg_critic.benchmarking.datasets import (
     load_videophy_csv,
     materialize_video_csv,
     select_smoke_samples,
+    split_diagnostic_samples,
+    write_source_smoke_csv,
     write_manifest,
 )
 
@@ -37,6 +39,17 @@ def main(argv=None) -> int:
     smoke_parser.add_argument("--count", required=True, type=int)
     smoke_parser.add_argument("--seed", required=True, type=int)
     smoke_parser.add_argument("--output", required=True, type=Path)
+    source_smoke_parser = commands.add_parser("source-smoke")
+    source_smoke_parser.add_argument("--csv", required=True, type=Path)
+    source_smoke_parser.add_argument("--count", required=True, type=int)
+    source_smoke_parser.add_argument("--seed", required=True, type=int)
+    source_smoke_parser.add_argument("--output-csv", required=True, type=Path)
+    split_parser = commands.add_parser("split")
+    split_parser.add_argument("--manifest", required=True, type=Path)
+    split_parser.add_argument("--dev-count", required=True, type=int)
+    split_parser.add_argument("--seed", required=True, type=int)
+    split_parser.add_argument("--dev-output", required=True, type=Path)
+    split_parser.add_argument("--eval-output", required=True, type=Path)
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -72,6 +85,23 @@ def main(argv=None) -> int:
             ),
             args.output,
         )
+        return 0
+    if args.command == "source-smoke":
+        write_source_smoke_csv(
+            args.csv,
+            args.output_csv,
+            count=args.count,
+            seed=args.seed,
+        )
+        return 0
+    if args.command == "split":
+        dev, evaluation = split_diagnostic_samples(
+            load_manifest(args.manifest),
+            dev_count=args.dev_count,
+            seed=args.seed,
+        )
+        write_manifest(dev, args.dev_output)
+        write_manifest(evaluation, args.eval_output)
         return 0
     selected = select_smoke_samples(
         load_manifest(args.manifest),
