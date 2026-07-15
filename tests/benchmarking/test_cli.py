@@ -19,6 +19,10 @@ def test_method_parser_preserves_declared_order():
     )
 
 
+def test_method_parser_accepts_grouped_m4():
+    assert parse_methods("B1_RULE,M4_VLM") == ("B1_RULE", "M4_VLM")
+
+
 def test_unknown_method_is_rejected():
     with pytest.raises(ValueError, match="unknown benchmark method"):
         parse_methods("D0_DIRECT_VLM,NOT_A_METHOD")

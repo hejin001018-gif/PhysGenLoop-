@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -65,3 +66,37 @@ def test_unsupported_pavg_mode_is_rejected(tmp_path):
     provider = CachedObservationProvider(tmp_path, lambda ignored: ())
     with pytest.raises(ValueError, match="not supported"):
         PAVGMethod("M5_FULL", provider, model_id=None)
+
+
+def test_m4_accepts_explicit_verifier_model(tmp_path):
+    provider = CachedObservationProvider(tmp_path, lambda ignored: ())
+    method = PAVGMethod(
+        "M4_VLM",
+        provider,
+        model_id="verifier-model",
+        verifier_model=object(),
+        verifier_detector_weight=0.4,
+    )
+    assert method.method_id == "M4_VLM"
+
+
+def test_m4_verifier_failure_becomes_explicit_unknown(
+    tmp_path, sample_factory, frame_state_factory
+):
+    first = frame_state_factory()
+    states = (
+        first,
+        replace(first, frame=1, timestamp_sec=0.1, visible=False),
+        replace(first, frame=2, timestamp_sec=0.2, visible=False),
+        replace(first, frame=3, timestamp_sec=0.3, visible=False),
+    )
+    sample = sample_factory(index=1, physical=False, generator="g")
+    provider = CachedObservationProvider(tmp_path, lambda ignored: states)
+    prediction = PAVGMethod(
+        "M4_VLM",
+        provider,
+        model_id="verifier-model",
+        verifier_model=object(),
+    ).evaluate(sample)
+    assert prediction.physics_label == "unknown"
+    assert prediction.failure is not None

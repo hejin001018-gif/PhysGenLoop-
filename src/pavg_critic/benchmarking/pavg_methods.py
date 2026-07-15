@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from time import perf_counter
 from typing import Callable
@@ -10,6 +11,7 @@ from typing import Callable
 from pavg_critic.evaluation import build_ablation_config
 from pavg_critic.pipeline import PhysicsCritic
 from pavg_critic.schemas import CriticRequest, FrameState
+from pavg_critic.vlm_verifier import CategoryGroupedVLMVerifier
 
 from .contracts import BenchmarkPrediction, BenchmarkSample
 
@@ -165,12 +167,33 @@ class PAVGMethod:
         observations: CachedObservationProvider,
         *,
         model_id: str | None,
+        verifier_model=None,
+        verifier_detector_weight: float = 0.4,
     ):
-        if mode not in {"B1_RULE", "M1_GRAPH", "M2_CHECKLIST", "M3_MECHANICS"}:
+        if mode not in {
+            "B1_RULE",
+            "M1_GRAPH",
+            "M2_CHECKLIST",
+            "M3_MECHANICS",
+            "M4_VLM",
+        }:
             raise ValueError(f"Stage A PAVG mode is not supported: {mode}")
+        if mode == "M4_VLM" and verifier_model is None:
+            raise ValueError("M4_VLM requires an explicit verifier model")
+        if not 0.0 <= verifier_detector_weight <= 1.0:
+            raise ValueError("verifier_detector_weight must be in [0, 1]")
         self.method_id = mode
         self.observations = observations
         self.model_id = model_id
+        self.verifier_detector_weight = verifier_detector_weight
+        self.verifier = (
+            CategoryGroupedVLMVerifier(
+                verifier_model,
+                model_name=model_id or "benchmark-verifier",
+            )
+            if mode == "M4_VLM"
+            else None
+        )
 
     def evaluate(self, sample: BenchmarkSample) -> BenchmarkPrediction:
         total_started = perf_counter()
@@ -179,13 +202,32 @@ class PAVGMethod:
             states = self.observations.get(sample)
             started = perf_counter()
             visible_frame_count = len({state.frame for state in states})
-            report = PhysicsCritic(build_ablation_config(self.method_id)).analyze(
+            config = build_ablation_config(self.method_id)
+            if self.method_id == "M4_VLM":
+                config = replace(
+                    config,
+                    fusion=replace(
+                        config.fusion,
+                        detector_weight=self.verifier_detector_weight,
+                        vlm_weight=1.0 - self.verifier_detector_weight,
+                    ),
+                )
+            report = PhysicsCritic(
+                config,
+                vlm_verifier=self.verifier,
+            ).analyze(
                 CriticRequest(
                     video_path=sample.video_path,
                     prompt=sample.prompt,
                 ),
                 observations=states,
             )
+            provider_failures = report.diagnostics.get("provider_failures", ())
+            if self.method_id == "M4_VLM" and any(
+                str(item.get("stage", "")).startswith("vlm_review")
+                for item in provider_failures
+            ):
+                raise RuntimeError("M4 grouped VLM verification failed")
             if report.decision not in {"physical", "violation", "unknown"}:
                 raise ValueError(f"invalid PAVG decision: {report.decision}")
             categories = tuple(

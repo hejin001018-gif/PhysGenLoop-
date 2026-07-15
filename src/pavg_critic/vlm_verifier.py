@@ -10,7 +10,7 @@ from __future__ import annotations
 import base64
 import json
 from pathlib import Path
-from typing import Protocol, Sequence
+from typing import Mapping, Protocol, Sequence
 
 from .interfaces import MultimodalStructuredModel
 from .schemas import CriticRequest, ViolationCandidate, VLMReview
@@ -100,6 +100,80 @@ class EvidenceGroundedVLMVerifier:
             repair_instruction=str(payload["repair_instruction"]),
             model=self.model_name,
         )
+
+
+class CategoryGroupedVLMVerifier(EvidenceGroundedVLMVerifier):
+    """Review all candidates with at most one multimodal call per category."""
+
+    def verify_many(
+        self,
+        request: CriticRequest,
+        candidates: Sequence[ViolationCandidate],
+        keyframes: Mapping[int, Sequence[int]],
+    ) -> dict[int, VLMReview | None]:
+        groups: dict[str, list[int]] = {}
+        for index, candidate in enumerate(candidates):
+            groups.setdefault(candidate.category, []).append(index)
+        reviews: dict[int, VLMReview | None] = {}
+        for category in sorted(groups):
+            indices = groups[category]
+            representative = max(
+                indices,
+                key=lambda index: (candidates[index].detector_score, -index),
+            )
+            frames = tuple(
+                dict.fromkeys(int(frame) for frame in keyframes.get(representative, ()))
+            )
+            if not frames:
+                for index in indices:
+                    reviews[index] = None
+                continue
+            images = self.frame_loader.load(request.video_path, frames)
+            if not images:
+                for index in indices:
+                    reviews[index] = None
+                continue
+            payload = self.model.generate_json_with_images(
+                system_prompt=(
+                    "You are verifying one category of a proposed physics-video "
+                    "violation. Use only the chronological keyframes and the video "
+                    "prompt. Reject detector/tracking artifacts and events explicitly "
+                    "expected by the prompt. Return one score for whether this category "
+                    "is a real physical violation in the video."
+                ),
+                user_prompt=json.dumps(
+                    {
+                        "video_prompt": request.prompt,
+                        "category": category,
+                        "representative_critical_frames": frames,
+                        "candidates": [
+                            {
+                                "object": candidates[index].object,
+                                "reason": candidates[index].reason,
+                                "detector_score": candidates[index].detector_score,
+                                "start_frame": candidates[index].start_frame,
+                                "end_frame": candidates[index].end_frame,
+                            }
+                            for index in sorted(
+                                indices,
+                                key=lambda item: -candidates[item].detector_score,
+                            )[:5]
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                image_data_urls=images,
+                schema=self._OUTPUT_SCHEMA,
+            )
+            review = VLMReview(
+                score=float(payload["violation_score"]),
+                reason=str(payload["reason"]),
+                repair_instruction=str(payload["repair_instruction"]),
+                model=self.model_name,
+            )
+            for index in indices:
+                reviews[index] = review
+        return reviews
 
 
 class OpenCVFrameDataUrlLoader:

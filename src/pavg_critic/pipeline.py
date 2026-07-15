@@ -242,17 +242,30 @@ class PhysicsCritic:
             node_results = ()
 
         reviews = {}
-        for index, candidate in enumerate(candidates):
+        verify_many = getattr(self.vlm_verifier, "verify_many", None)
+        if callable(verify_many) and candidates:
             try:
-                reviews[index] = self.vlm_verifier.verify(
-                    request, candidate, keyframes[index]
+                batch_reviews = verify_many(request, candidates, keyframes)
+                reviews.update(
+                    {index: batch_reviews.get(index) for index in range(len(candidates))}
                 )
             except _OPTIONAL_PROVIDER_ERRORS as exc:
-                reviews[index] = None
-                failure = _provider_failure("vlm_review", exc)
-                failure["candidate_index"] = index
-                failure["category"] = candidate.category
+                reviews.update({index: None for index in range(len(candidates))})
+                failure = _provider_failure("vlm_review_batch", exc)
+                failure["candidate_count"] = len(candidates)
                 provider_failures.append(failure)
+        else:
+            for index, candidate in enumerate(candidates):
+                try:
+                    reviews[index] = self.vlm_verifier.verify(
+                        request, candidate, keyframes[index]
+                    )
+                except _OPTIONAL_PROVIDER_ERRORS as exc:
+                    reviews[index] = None
+                    failure = _provider_failure("vlm_review", exc)
+                    failure["candidate_index"] = index
+                    failure["category"] = candidate.category
+                    provider_failures.append(failure)
         report = self.fusion.fuse(candidates, keyframes, reviews)
         if question_graph is not None:
             report = self.question_scorer.enrich_report(

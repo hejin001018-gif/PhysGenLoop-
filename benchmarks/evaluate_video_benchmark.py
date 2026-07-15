@@ -28,6 +28,7 @@ ALLOWED_METHODS = (
     "M1_GRAPH",
     "M2_CHECKLIST",
     "M3_MECHANICS",
+    "M4_VLM",
 )
 
 
@@ -64,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--sam2-config")
     parser.add_argument("--sam2-checkpoint", type=Path)
+    parser.add_argument("--m4-detector-weight", type=float, default=0.4)
     return parser
 
 
@@ -173,6 +175,7 @@ def main(argv=None) -> int:
 
     requires_model = (
         any(item.startswith("D") for item in method_ids)
+        or "M4_VLM" in method_ids
         or args.observation_provider == "sam2"
     )
     model = build_benchmark_model(args.provider) if requires_model else None
@@ -199,7 +202,8 @@ def main(argv=None) -> int:
     pavg_ids = [
         item
         for item in method_ids
-        if item in {"B1_RULE", "M1_GRAPH", "M2_CHECKLIST", "M3_MECHANICS"}
+        if item
+        in {"B1_RULE", "M1_GRAPH", "M2_CHECKLIST", "M3_MECHANICS", "M4_VLM"}
     ]
     if pavg_ids:
         if args.observations_dir is None:
@@ -219,7 +223,14 @@ def main(argv=None) -> int:
             producer = _unavailable_observations
         observations = CachedObservationProvider(args.observations_dir, producer)
         methods.extend(
-            PAVGMethod(item, observations, model_id=model_id) for item in pavg_ids
+            PAVGMethod(
+                item,
+                observations,
+                model_id=model_id,
+                verifier_model=model if item == "M4_VLM" else None,
+                verifier_detector_weight=args.m4_detector_weight,
+            )
+            for item in pavg_ids
         )
     by_id = {method.method_id: method for method in methods}
     ordered_methods = tuple(by_id[item] for item in method_ids)
@@ -232,6 +243,7 @@ def main(argv=None) -> int:
             "frame_count": args.frame_count,
             "methods": list(method_ids),
             "observation_provider": args.observation_provider,
+            "m4_detector_weight": args.m4_detector_weight,
             "sam2_config": args.sam2_config,
             "sam2_checkpoint_sha256": (
                 _sha256(args.sam2_checkpoint)
