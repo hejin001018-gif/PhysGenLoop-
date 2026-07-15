@@ -87,22 +87,185 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
+def _stable_strings(values: Iterable[Any]) -> tuple[str, ...]:
+    """清理字符串列表，并按首次出现顺序去重。"""
+
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        value = str(raw).strip()
+        if not value:
+            raise SchemaError("physics plan string values must not be empty")
+        if value not in seen:
+            seen.add(value)
+            result.append(value)
+    return tuple(result)
+
+
+@dataclass(frozen=True)
+class PhysicsRelation:
+    """PhysicsPlan 中两个对象之间的具名物理关系。"""
+
+    id: str
+    subject: str
+    relation: str
+    object: str
+
+    def __post_init__(self) -> None:
+        for name in ("id", "subject", "relation", "object"):
+            value = str(getattr(self, name)).strip()
+            if not value:
+                raise SchemaError("physics relation fields must not be empty")
+            object.__setattr__(self, name, value)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "PhysicsRelation":
+        try:
+            return cls(
+                id=str(data["id"]),
+                subject=str(data["subject"]),
+                relation=str(data["relation"]),
+                object=str(data["object"]),
+            )
+        except KeyError as exc:
+            raise SchemaError(f"physics relation is missing {exc.args[0]!r}") from exc
+
+
+@dataclass(frozen=True)
+class PhysicsConstraint:
+    """待验证的物理约束；只表达语义，不猜测数值参数。"""
+
+    id: str
+    domain: str
+    subjects: tuple[str, ...]
+    expectation: str
+    condition: str | None = None
+
+    def __post_init__(self) -> None:
+        for name in ("id", "domain", "expectation"):
+            value = str(getattr(self, name)).strip()
+            if not value:
+                raise SchemaError("physics constraint id/domain/expectation must not be empty")
+            object.__setattr__(self, name, value)
+        object.__setattr__(self, "subjects", _stable_strings(self.subjects))
+        if not self.subjects:
+            raise SchemaError("physics constraint requires non-empty subjects")
+        if self.condition is not None:
+            condition = str(self.condition).strip()
+            object.__setattr__(self, "condition", condition or None)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "PhysicsConstraint":
+        try:
+            return cls(
+                id=str(data["id"]),
+                domain=str(data["domain"]),
+                subjects=tuple(data.get("subjects") or ()),
+                expectation=str(data["expectation"]),
+                condition=(None if data.get("condition") is None else str(data["condition"])),
+            )
+        except KeyError as exc:
+            raise SchemaError(f"physics constraint is missing {exc.args[0]!r}") from exc
+
+
+@dataclass(frozen=True)
+class PlannerMetadata:
+    """系统分配的 PhysicsPlan 来源与降级审计信息。"""
+
+    source: str = "empty"
+    confidence: float = 0.0
+    fallback_used: bool = False
+    model: str | None = None
+
+    def __post_init__(self) -> None:
+        allowed = {"explicit", "template", "model", "merged", "template_fallback", "empty"}
+        if self.source not in allowed:
+            raise SchemaError(f"invalid planner source: {self.source!r}")
+        object.__setattr__(self, "confidence", _score(self.confidence, "planner confidence"))
+        if self.model is not None:
+            model = str(self.model).strip()
+            object.__setattr__(self, "model", model or None)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> "PlannerMetadata":
+        data = data or {}
+        return cls(
+            source=str(data.get("source", "empty")),
+            confidence=float(data.get("confidence", 0.0)),
+            fallback_used=bool(data.get("fallback_used", False)),
+            model=None if data.get("model") is None else str(data["model"]),
+        )
+
+
 @dataclass(frozen=True)
 class PhysicsPlan:
-    """Planner 提供的对象集合与预期事件顺序。"""
+    """Planner 输出的对象、事件、关系、约束及可审计来源。"""
 
     objects: tuple[str, ...] = ()
     expected_events: tuple[str, ...] = ()
+    relations: tuple[PhysicsRelation, ...] = ()
+    physics_constraints: tuple[PhysicsConstraint, ...] = ()
+    planner_metadata: PlannerMetadata = PlannerMetadata()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "objects", _stable_strings(self.objects))
+        object.__setattr__(self, "expected_events", _stable_strings(self.expected_events))
+        self._validate_unique_ids(self.relations, "physics relation")
+        self._validate_unique_ids(self.physics_constraints, "physics constraint")
+
+    @staticmethod
+    def _validate_unique_ids(items: Iterable[Any], label: str) -> None:
+        seen: set[str] = set()
+        for item in items:
+            if item.id in seen:
+                raise SchemaError(f"duplicate {label} id: {item.id!r}")
+            seen.add(item.id)
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any] | None) -> "PhysicsPlan":
-        """允许计划缺省，以便 Critic 也能处理没有 Planner 的独立视频。"""
+        """读取旧版或扩展版计划；缺失及 null 数组均按空集合处理。"""
 
         data = data or {}
+        relations = data.get("relations") or ()
+        constraints = data.get("physics_constraints") or ()
+        if not all(isinstance(item, Mapping) for item in relations):
+            raise SchemaError("physics plan relations must contain JSON objects")
+        if not all(isinstance(item, Mapping) for item in constraints):
+            raise SchemaError("physics plan physics_constraints must contain JSON objects")
+        metadata = data.get("planner_metadata")
+        if metadata is not None and not isinstance(metadata, Mapping):
+            raise SchemaError("planner_metadata must be a JSON object")
         return cls(
-            objects=tuple(str(item) for item in data.get("objects", ())),
-            expected_events=tuple(str(item) for item in data.get("expected_events", ())),
+            objects=_stable_strings(data.get("objects") or ()),
+            expected_events=_stable_strings(data.get("expected_events") or ()),
+            relations=tuple(PhysicsRelation.from_dict(item) for item in relations),
+            physics_constraints=tuple(
+                PhysicsConstraint.from_dict(item) for item in constraints
+            ),
+            planner_metadata=PlannerMetadata.from_dict(metadata),
         )
+
+    def validate_references(self) -> None:
+        """确保关系与约束只引用计划对象，避免下游静默丢失目标。"""
+
+        known = set(self.objects)
+        for relation in self.relations:
+            unknown = {relation.subject, relation.object} - known
+            if unknown:
+                raise SchemaError(
+                    f"physics relation {relation.id!r} references unknown objects: "
+                    f"{sorted(unknown)}"
+                )
+        for constraint in self.physics_constraints:
+            unknown = set(constraint.subjects) - known
+            if unknown:
+                raise SchemaError(
+                    f"physics constraint {constraint.id!r} references unknown objects: "
+                    f"{sorted(unknown)}"
+                )
+
+    def to_dict(self) -> dict[str, Any]:
+        return _jsonable(self)
 
 
 @dataclass(frozen=True)
@@ -420,6 +583,8 @@ class CriticRequest:
         _version(self.schema_version)
         if not self.video_path:
             raise SchemaError("video_path must not be empty")
+        # 用户显式提供的扩展字段必须立即合法；模型输出的错误则由 Planner 边界降级处理。
+        self.physics_plan.validate_references()
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "CriticRequest":
