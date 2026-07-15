@@ -90,7 +90,7 @@ Add `split_diagnostic_manifest(samples, dev_count, seed)` that groups by `prompt
 
 Expected: disjoint IDs, union equal to smoke20, portable POSIX video paths, and 10 samples per file.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 Commit only the adapter, tests, CLI change and the two manifests.
 
@@ -243,19 +243,19 @@ Run unit tests and the three-frame SAM2 propagation test remotely before benchma
 - Modify: `README.md`
 - Modify: `docs/superpowers/plans/2026-07-16-critic-benchmark-iteration-plan.md`
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 Run `.\.venv\Scripts\python.exe -m pytest -q`. Expected: all tests pass.
 
-- [ ] **Step 2: Audit artifacts**
+- [x] **Step 2: Audit artifacts**
 
 Verify every run has resolved config, predictions JSONL, summary JSON/Markdown, no duplicate sample×method keys, exact manifest alignment and no secret-shaped strings.
 
-- [ ] **Step 3: Write the final comparison**
+- [x] **Step 3: Write the final comparison**
 
 Include matched tables, confidence limitations, category-level diagnosis, runtime/cost, server decision and the exact next loop recommendation.
 
-- [ ] **Step 4: Commit documentation and manifests**
+- [x] **Step 4: Commit documentation and manifests**
 
 Commit only project code, tests, portable manifests and documentation. Keep videos, model weights, credentials and raw API payloads git-ignored.
 
