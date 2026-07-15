@@ -250,7 +250,7 @@ Evaluation functionality will be separated from production Critic code:
 - `src/pavg_critic/benchmarking/datasets.py`: manifests and VideoPhy adapters;
 - `src/pavg_critic/benchmarking/contracts.py`: normalized sample and prediction records;
 - `src/pavg_critic/benchmarking/baselines.py`: D0/D1 and external prediction adapters;
-- `src/pavg_critic/benchmarking/frontends.py`: SAM2 observation production, cache metadata and sparse-VLM frontend ablation;
+- `src/pavg_critic/benchmarking/pavg_methods.py`: SAM2 observation production, cache metadata and PAVG method adapters;
 - `src/pavg_critic/benchmarking/runner.py`: resumable paired execution;
 - `src/pavg_critic/benchmarking/metrics.py`: classification, ordinal, calibration and diagnostic metrics;
 - `src/pavg_critic/benchmarking/statistics.py`: cluster bootstrap and paired tests;

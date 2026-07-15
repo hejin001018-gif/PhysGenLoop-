@@ -17,6 +17,11 @@ video = [
   "numpy>=1.24",
   "opencv-python>=4.9",
 ]
+env = ["python-dotenv>=1.0"]
+# Meta's official SAM2 is installed from its pinned source tree; this extra only
+# provides the compatible runtime tensors and never pulls the unrelated PyPI
+# package named ``sam2``.
+sam2 = ["torch>=2.5.1", "torchvision>=0.20.1", "numpy>=1.24"]
 test = ["pytest>=8,<9"]
 
 [project.scripts]
