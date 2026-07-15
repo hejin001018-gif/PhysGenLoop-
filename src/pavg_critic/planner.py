@@ -8,12 +8,17 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import Any, Mapping
 
+from .api_models import ModelAPIError
+from .interfaces import PhysicsPlanner, StructuredTextModel
 from .schemas import (
+    CriticRequest,
     PhysicsConstraint,
     PhysicsPlan,
     PhysicsRelation,
     PlannerMetadata,
+    SchemaError,
 )
 
 
@@ -184,3 +189,245 @@ class TemplatePhysicsPlanner:
                 "during_free_flight",
             )
         return tuple(constraints)
+
+
+PHYSICS_PLAN_SCHEMA: dict[str, Any] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["objects", "expected_events", "relations", "physics_constraints"],
+    "properties": {
+        "objects": {"type": "array", "items": {"type": "string"}},
+        "expected_events": {"type": "array", "items": {"type": "string"}},
+        "relations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["id", "subject", "relation", "object"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "subject": {"type": "string"},
+                    "relation": {"type": "string"},
+                    "object": {"type": "string"},
+                },
+            },
+        },
+        "physics_constraints": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["id", "domain", "subjects", "condition", "expectation"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "domain": {"type": "string"},
+                    "subjects": {"type": "array", "items": {"type": "string"}},
+                    "condition": {"type": ["string", "null"]},
+                    "expectation": {"type": "string"},
+                },
+            },
+        },
+    },
+}
+
+
+class ModelPhysicsPlanner:
+    """通过现有结构化文本模型生成 PhysicsPlan，并在边界执行严格校验。"""
+
+    def __init__(self, model: StructuredTextModel):
+        self.model = model
+        self.model_name = str(getattr(model, "model", type(model).__name__))
+
+    def generate(self, prompt: str) -> PhysicsPlan:
+        payload = self.model.generate_json(
+            system_prompt=(
+                "Convert the video-generation prompt into a conservative physics plan. "
+                "Use stable snake_case identifiers. Include only objects and qualitative "
+                "events/constraints supported by the prompt. Never invent masses, speeds, "
+                "gravity constants, dimensions, coefficients, or other numeric parameters."
+            ),
+            user_prompt=str(prompt or ""),
+            schema=PHYSICS_PLAN_SCHEMA,
+        )
+        self._validate_payload_shape(payload)
+        plan = PhysicsPlan.from_dict(payload)
+        plan = _with_metadata(
+            plan,
+            PlannerMetadata(
+                source="model", confidence=0.8, fallback_used=False, model=self.model_name
+            ),
+        )
+        plan.validate_references()
+        return plan
+
+    @staticmethod
+    def _validate_payload_shape(payload: Mapping[str, Any]) -> None:
+        if not isinstance(payload, Mapping):
+            raise SchemaError("physics planner model output root must be an object")
+        required = ("objects", "expected_events", "relations", "physics_constraints")
+        for key in required:
+            if key not in payload:
+                raise SchemaError(f"physics planner model output is missing {key!r}")
+            if not isinstance(payload[key], (list, tuple)):
+                raise SchemaError(f"physics planner field {key!r} must be an array")
+
+
+@dataclass(frozen=True)
+class PhysicsPlanResolution:
+    """解析后的计划以及可选的模型失败审计记录。"""
+
+    plan: PhysicsPlan
+    provider_failure: dict[str, object] | None = None
+
+
+_PROVIDER_ERRORS = (
+    ModelAPIError,
+    TimeoutError,
+    ConnectionError,
+    OSError,
+    SchemaError,
+    KeyError,
+    ValueError,
+    TypeError,
+)
+
+
+class PhysicsPlanResolver:
+    """执行显式计划优先、空字段补全和模型失败降级。"""
+
+    def __init__(
+        self,
+        planner: PhysicsPlanner,
+        fallback: PhysicsPlanner | None = None,
+        fallback_on_provider_error: bool = False,
+    ):
+        if fallback_on_provider_error and fallback is None:
+            raise ValueError("fallback planner is required when provider fallback is enabled")
+        self.planner = planner
+        self.fallback = fallback
+        self.fallback_on_provider_error = fallback_on_provider_error
+
+    def resolve(self, request: CriticRequest) -> PhysicsPlanResolution:
+        explicit = request.physics_plan
+        explicit.validate_references()
+        if explicit.objects and explicit.expected_events:
+            return PhysicsPlanResolution(
+                _with_metadata(
+                    explicit,
+                    PlannerMetadata(source="explicit", confidence=1.0),
+                )
+            )
+
+        try:
+            generated = self.planner.generate(request.prompt)
+        except _PROVIDER_ERRORS as error:
+            if not self.fallback_on_provider_error:
+                raise
+            assert self.fallback is not None
+            fallback_plan = self.fallback.generate(request.prompt)
+            model_name = getattr(self.planner, "model_name", None)
+            generated = _with_metadata(
+                fallback_plan,
+                PlannerMetadata(
+                    source="template_fallback",
+                    confidence=0.4,
+                    fallback_used=True,
+                    model=None if model_name is None else str(model_name),
+                ),
+            )
+            return PhysicsPlanResolution(
+                plan=_merge_plans(explicit, generated),
+                provider_failure=_failure_record(error),
+            )
+
+        return PhysicsPlanResolution(plan=_merge_plans(explicit, generated))
+
+
+def _with_metadata(plan: PhysicsPlan, metadata: PlannerMetadata) -> PhysicsPlan:
+    return PhysicsPlan(
+        objects=plan.objects,
+        expected_events=plan.expected_events,
+        relations=plan.relations,
+        physics_constraints=plan.physics_constraints,
+        planner_metadata=metadata,
+    )
+
+
+def _merge_plans(explicit: PhysicsPlan, generated: PhysicsPlan) -> PhysicsPlan:
+    """按字段合并，显式非空字段和同 ID 扩展始终优先。"""
+
+    objects = explicit.objects or generated.objects
+    events = explicit.expected_events or generated.expected_events
+    known = set(objects)
+    generated_relations = tuple(
+        item
+        for item in generated.relations
+        if item.subject in known and item.object in known
+    )
+    generated_constraints = tuple(
+        item
+        for item in generated.physics_constraints
+        if set(item.subjects).issubset(known)
+    )
+    relations = _merge_extensions(generated_relations, explicit.relations)
+    constraints = _merge_extensions(
+        generated_constraints, explicit.physics_constraints
+    )
+
+    explicit_has_content = _has_semantic_content(explicit)
+    generated_contributed = bool(
+        (not explicit.objects and generated.objects)
+        or (not explicit.expected_events and generated.expected_events)
+        or generated_relations
+        or generated_constraints
+    )
+    if not explicit_has_content:
+        metadata = generated.planner_metadata
+    elif generated_contributed:
+        metadata = PlannerMetadata(
+            source="merged",
+            confidence=generated.planner_metadata.confidence,
+            fallback_used=generated.planner_metadata.fallback_used,
+            model=generated.planner_metadata.model,
+        )
+    else:
+        metadata = PlannerMetadata(source="explicit", confidence=1.0)
+
+    result = PhysicsPlan(
+        objects=objects,
+        expected_events=events,
+        relations=relations,
+        physics_constraints=constraints,
+        planner_metadata=metadata,
+    )
+    result.validate_references()
+    return result
+
+
+def _merge_extensions(generated: tuple[Any, ...], explicit: tuple[Any, ...]) -> tuple[Any, ...]:
+    """保持生成顺序；显式同 ID 项替换生成项，显式新项追加到末尾。"""
+
+    explicit_by_id = {item.id: item for item in explicit}
+    result = [explicit_by_id.get(item.id, item) for item in generated]
+    generated_ids = {item.id for item in generated}
+    result.extend(item for item in explicit if item.id not in generated_ids)
+    return tuple(result)
+
+
+def _has_semantic_content(plan: PhysicsPlan) -> bool:
+    return bool(
+        plan.objects
+        or plan.expected_events
+        or plan.relations
+        or plan.physics_constraints
+    )
+
+
+def _failure_record(error: Exception) -> dict[str, object]:
+    return {
+        "stage": "physics_planner",
+        "error_type": type(error).__name__,
+        "message": str(error),
+        "fallback": "template_physics_planner",
+    }

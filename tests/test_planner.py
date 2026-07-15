@@ -5,12 +5,215 @@ from __future__ import annotations
 import pytest
 
 from pavg_critic.schemas import (
+    CriticRequest,
     PhysicsConstraint,
     PhysicsPlan,
     PhysicsRelation,
     PlannerMetadata,
     SchemaError,
 )
+
+
+class FakePlanModel:
+    model = "fake-plan-model"
+
+    def __init__(self, payload=None, error=None):
+        self.payload = payload
+        self.error = error
+        self.calls = []
+
+    def generate_json(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.error:
+            raise self.error
+        return self.payload
+
+
+def _model_plan_payload():
+    return {
+        "objects": ["red_ball", "floor"],
+        "expected_events": ["fall", "floor_contact"],
+        "relations": [
+            {
+                "id": "R1",
+                "subject": "red_ball",
+                "relation": "expected_to_collide_with",
+                "object": "floor",
+            }
+        ],
+        "physics_constraints": [
+            {
+                "id": "C1",
+                "domain": "gravity",
+                "subjects": ["red_ball"],
+                "expectation": "downward_acceleration",
+            }
+        ],
+    }
+
+
+def test_model_planner_parses_valid_structured_plan():
+    from pavg_critic.planner import ModelPhysicsPlanner
+
+    model = FakePlanModel(payload=_model_plan_payload())
+    plan = ModelPhysicsPlanner(model).generate("A red ball falls to the floor.")
+
+    assert plan.objects == ("red_ball", "floor")
+    assert plan.planner_metadata.source == "model"
+    assert plan.planner_metadata.confidence == 0.8
+    assert plan.planner_metadata.model == "fake-plan-model"
+    assert model.calls[0]["schema"]["additionalProperties"] is False
+
+
+def test_resolver_falls_back_after_timeout():
+    from pavg_critic.planner import (
+        ModelPhysicsPlanner,
+        PhysicsPlanResolver,
+        TemplatePhysicsPlanner,
+    )
+
+    model = FakePlanModel(error=TimeoutError("planner timeout"))
+    resolver = PhysicsPlanResolver(
+        planner=ModelPhysicsPlanner(model),
+        fallback=TemplatePhysicsPlanner(),
+        fallback_on_provider_error=True,
+    )
+
+    resolution = resolver.resolve(
+        CriticRequest(video_path="unused.mp4", prompt="A red ball falls.")
+    )
+
+    assert resolution.plan.planner_metadata.source == "template_fallback"
+    assert resolution.plan.planner_metadata.confidence == 0.4
+    assert resolution.plan.planner_metadata.fallback_used is True
+    assert resolution.provider_failure["stage"] == "physics_planner"
+    assert resolution.provider_failure["error_type"] == "TimeoutError"
+
+
+def test_resolver_skips_model_for_complete_explicit_core():
+    from pavg_critic.planner import ModelPhysicsPlanner, PhysicsPlanResolver
+
+    model = FakePlanModel(error=AssertionError("model must not be called"))
+    resolver = PhysicsPlanResolver(ModelPhysicsPlanner(model))
+    request = CriticRequest(
+        video_path="unused.mp4",
+        prompt="ignored",
+        physics_plan=PhysicsPlan(
+            objects=("custom_ball",), expected_events=("custom_motion",)
+        ),
+    )
+
+    resolution = resolver.resolve(request)
+
+    assert model.calls == []
+    assert resolution.plan.objects == ("custom_ball",)
+    assert resolution.plan.planner_metadata.source == "explicit"
+
+
+def test_resolver_fills_only_empty_core_and_explicit_extension_id_wins():
+    from pavg_critic.planner import ModelPhysicsPlanner, PhysicsPlanResolver
+
+    payload = _model_plan_payload()
+    payload["objects"] = ["custom_ball", "floor"]
+    payload["relations"][0]["subject"] = "custom_ball"
+    payload["physics_constraints"][0]["subjects"] = ["custom_ball"]
+    model = FakePlanModel(payload=payload)
+    explicit = PhysicsPlan(
+        objects=("custom_ball", "floor"),
+        relations=(
+            PhysicsRelation("R1", "custom_ball", "initially_above", "floor"),
+        ),
+    )
+
+    resolution = PhysicsPlanResolver(ModelPhysicsPlanner(model)).resolve(
+        CriticRequest(
+            video_path="unused.mp4",
+            prompt="A red ball falls to the floor.",
+            physics_plan=explicit,
+        )
+    )
+
+    assert resolution.plan.objects == ("custom_ball", "floor")
+    assert resolution.plan.expected_events == ("fall", "floor_contact")
+    assert resolution.plan.relations[0].relation == "initially_above"
+    assert resolution.plan.planner_metadata.source == "merged"
+
+
+def test_resolver_filters_generated_extensions_for_discarded_objects():
+    from pavg_critic.planner import ModelPhysicsPlanner, PhysicsPlanResolver
+
+    resolution = PhysicsPlanResolver(
+        ModelPhysicsPlanner(FakePlanModel(payload=_model_plan_payload()))
+    ).resolve(
+        CriticRequest(
+            video_path="unused.mp4",
+            prompt="A red ball falls.",
+            physics_plan=PhysicsPlan(objects=("custom_ball", "floor")),
+        )
+    )
+
+    assert resolution.plan.objects == ("custom_ball", "floor")
+    assert resolution.plan.relations == ()
+    assert resolution.plan.physics_constraints == ()
+
+
+def test_invalid_model_references_trigger_template_fallback():
+    from pavg_critic.planner import (
+        ModelPhysicsPlanner,
+        PhysicsPlanResolver,
+        TemplatePhysicsPlanner,
+    )
+
+    payload = _model_plan_payload()
+    payload["objects"] = ["red_ball"]
+    resolver = PhysicsPlanResolver(
+        ModelPhysicsPlanner(FakePlanModel(payload=payload)),
+        fallback=TemplatePhysicsPlanner(),
+        fallback_on_provider_error=True,
+    )
+
+    resolution = resolver.resolve(
+        CriticRequest(video_path="unused.mp4", prompt="A red ball falls.")
+    )
+
+    assert resolution.plan.planner_metadata.source == "template_fallback"
+    assert resolution.provider_failure["error_type"] == "SchemaError"
+
+
+def test_null_model_arrays_trigger_template_fallback():
+    from pavg_critic.planner import (
+        ModelPhysicsPlanner,
+        PhysicsPlanResolver,
+        TemplatePhysicsPlanner,
+    )
+
+    payload = _model_plan_payload()
+    payload["relations"] = None
+    resolution = PhysicsPlanResolver(
+        ModelPhysicsPlanner(FakePlanModel(payload=payload)),
+        fallback=TemplatePhysicsPlanner(),
+        fallback_on_provider_error=True,
+    ).resolve(CriticRequest(video_path="unused.mp4", prompt="A ball falls."))
+
+    assert resolution.plan.planner_metadata.source == "template_fallback"
+    assert resolution.provider_failure["error_type"] == "SchemaError"
+
+
+def test_invalid_explicit_plan_is_not_silently_repaired():
+    invalid = PhysicsPlan(
+        objects=("ball",),
+        physics_constraints=(
+            PhysicsConstraint(
+                id="C1",
+                domain="contact",
+                subjects=("ball", "floor"),
+                expectation="no_interpenetration",
+            ),
+        ),
+    )
+
+    with pytest.raises(SchemaError, match="floor"):
+        CriticRequest(video_path="unused.mp4", physics_plan=invalid)
 
 
 @pytest.mark.parametrize(
