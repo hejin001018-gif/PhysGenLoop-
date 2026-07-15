@@ -80,4 +80,5 @@ def test_sam2_uses_jpeg_folder_and_squeezes_mask_channel(tmp_path, monkeypatch):
     assert observed["config"] == "configs/sam2.1/sam2.1_hiera_b+.yaml"
     assert len(detector.detect(None, 0, 0.0)) == 1
     assert len(detector.detect(None, 2, 0.2)) == 1
+    assert detector.detect(None, 0, 0.0)[0].track_id == "sam2:0"
     assert detector.detect(None, 0, 0.0)[0].bbox == (10.0, 20.0, 29.0, 39.0)

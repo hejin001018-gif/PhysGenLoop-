@@ -18,7 +18,7 @@
       "sample_id": "surface_penetration",
       "label": "violation",
       "floor_y": 100,
-      "request": {"video_path": "unused.mp4"},
+      "request": {"video_path": "unused.mp4", "physics_plan": {"objects": ["red_ball", "floor"], "expected_events": ["floor_contact"]}},
       "observations": [
         {"frame": 0, "timestamp_sec": 0.0, "object": "red_ball", "track_id": "ball-1", "center": [50, 103], "bbox": [45, 98, 55, 108], "velocity": [0, 20]}
       ]

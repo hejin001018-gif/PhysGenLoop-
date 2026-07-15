@@ -236,6 +236,7 @@ class SAM2ObjectDetector:
                         center=center,
                         bbox=bbox,
                         confidence=0.85,
+                        track_id=f"sam2:{obj_id_int}",
                     )
                     frame_dets.append(detection)
                 if frame_dets:

@@ -63,6 +63,10 @@ class PhysicsRuleEngine:
     def _premature_rebound(self, context: RuleContext) -> list[ViolationCandidate]:
         """识别没有近期地面接触作为前因的速度反转。"""
 
+        expected = set(context.request.physics_plan.expected_events)
+        if not expected.intersection({"fall", "floor_contact", "rebound"}):
+            return []
+
         result: list[ViolationCandidate] = []
         for rebound in _events(context.events, "rebound"):
             contacts = _events(context.events, "floor_contact", rebound.track_id)
@@ -102,6 +106,14 @@ class PhysicsRuleEngine:
 
     def _surface_penetration(self, context: RuleContext) -> list[ViolationCandidate]:
         """把超过容忍深度的地面穿透事件转换成实体性违规。"""
+
+        plan = context.request.physics_plan
+        expects_contact = bool(
+            set(plan.expected_events).intersection({"floor_contact", "rebound"})
+            or any(item.domain == "contact" for item in plan.physics_constraints)
+        )
+        if not expects_contact:
+            return []
 
         result: list[ViolationCandidate] = []
         for event in _events(context.events, "surface_penetration"):

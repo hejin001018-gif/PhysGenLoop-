@@ -92,11 +92,37 @@ class CentroidTracker:
         assignments: dict[str, int] = {}
         available = set(range(len(detections)))
 
+        # 跟踪型后端已经维护的稳定身份优先于二次质心匹配。
+        explicit_ids: set[str] = set()
+        for index, detection in enumerate(detections):
+            if detection.track_id is None:
+                continue
+            if detection.track_id in explicit_ids:
+                raise ValueError(
+                    "duplicate explicit detection track_id in one frame: "
+                    f"{detection.track_id}"
+                )
+            explicit_ids.add(detection.track_id)
+            if detection.track_id in active:
+                track = active[detection.track_id]
+                if track.object != detection.object:
+                    raise ValueError(
+                        f"explicit track_id {detection.track_id!r} changed object "
+                        f"from {track.object!r} to {detection.object!r}"
+                    )
+                assignments[detection.track_id] = index
+                available.remove(index)
+
         # 枚举同类别轨迹-检测组合。不同类别绝不匹配，避免身份在类别间跳变。
         candidates: list[tuple[float, str, int]] = []
         for track_id, track in active.items():
             for index, detection in enumerate(detections):
-                if detection.object == track.object:
+                if (
+                    track_id not in assignments
+                    and index in available
+                    and detection.track_id is None
+                    and detection.object == track.object
+                ):
                     candidates.append((dist(track.center, detection.center), track_id, index))
         # 全局按距离从小到大贪心选择一对一匹配；每个检测和轨迹最多使用一次。
         for distance, track_id, index in sorted(candidates):
@@ -141,8 +167,13 @@ class CentroidTracker:
         # 尚未被任何已有轨迹认领的检测会启动新身份。
         for index in sorted(available):
             detection = detections[index]
-            track_id = f"{detection.object}:{next_id}"
-            next_id += 1
+            if detection.track_id is None:
+                track_id = f"{detection.object}:{next_id}"
+                next_id += 1
+            else:
+                track_id = detection.track_id
+            if track_id in active:
+                raise ValueError(f"detection track_id collision: {track_id!r}")
             active[track_id] = _ActiveTrack(
                 track_id=track_id,
                 object=detection.object,

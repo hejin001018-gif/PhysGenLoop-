@@ -63,7 +63,7 @@ def _critic() -> PhysicsCritic:
         (
             "surface_penetration",
             (_state(0, 103, velocity=(0, 20), bottom=108),),
-            (),
+            ("floor_contact",),
         ),
         (
             "object_disappearance",
@@ -119,3 +119,36 @@ def test_contact_then_rebound_remains_physical():
 
     assert report.is_physical is True
     assert report.violations == ()
+
+
+def test_unplanned_motion_reversal_is_not_a_rebound_violation():
+    states = (
+        _state(0, 40, velocity=(0, 100)),
+        _state(1, 55, velocity=(0, 100)),
+        _state(2, 48, velocity=(0, -100)),
+        _state(3, 38, velocity=(0, -100)),
+    )
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(objects=("red_ball",), expected_events=()),
+    )
+
+    report = _critic().analyze(request, observations=states, floor_y=100)
+
+    assert "premature_rebound" not in {
+        item.category for item in report.violations
+    }
+
+
+def test_unplanned_floor_geometry_is_not_surface_penetration_evidence():
+    states = (_state(0, 103, velocity=(0, 20), bottom=108),)
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(objects=("red_ball",), expected_events=()),
+    )
+
+    report = _critic().analyze(request, observations=states, floor_y=100)
+
+    assert "surface_penetration" not in {
+        item.category for item in report.violations
+    }
