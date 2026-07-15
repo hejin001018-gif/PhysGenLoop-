@@ -7,12 +7,17 @@
 from .api_models import DeepSeekChatModel, OpenAIResponsesModel
 from .config import CriticConfig, load_config
 from .pipeline import PhysicsCritic
+from .planner import ModelPhysicsPlanner, PhysicsPlanResolver, TemplatePhysicsPlanner
 from .pqsg import HybridQuestionGraphGenerator, PQSGQuestionGraphGenerator
 from .schemas import (
     CriticReport,
     CriticRequest,
     FrameState,
     NodeResult,
+    PhysicsConstraint,
+    PhysicsPlan,
+    PhysicsRelation,
+    PlannerMetadata,
     QuestionGraph,
     QuestionNode,
 )
@@ -28,10 +33,17 @@ __all__ = [
     "HybridQuestionGraphGenerator",
     "NodeResult",
     "OpenAIResponsesModel",
+    "ModelPhysicsPlanner",
+    "PhysicsConstraint",
     "PhysicsCritic",
+    "PhysicsPlan",
+    "PhysicsPlanResolver",
+    "PhysicsRelation",
+    "PlannerMetadata",
     "PQSGQuestionGraphGenerator",
     "QuestionGraph",
     "QuestionNode",
+    "TemplatePhysicsPlanner",
     "load_config",
 ]
 

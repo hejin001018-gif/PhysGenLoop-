@@ -120,6 +120,12 @@ def test_two_pass_qa_separates_reasoning_from_forced_answer():
 def test_physics_critic_automatically_builds_hybrid_graph_when_model_is_injected():
     model = FakeStructuredModel(
         {
+            "objects": ["red_ball"],
+            "expected_events": ["fall"],
+            "relations": [],
+            "physics_constraints": [],
+        },
+        {
             "nodes": [
                 {
                     "id": "O1",
@@ -148,3 +154,4 @@ def test_physics_critic_automatically_builds_hybrid_graph_when_model_is_injected
     assert artifacts.question_graph is not None
     assert artifacts.question_graph.source == "pavg_hybrid_template_pqsg"
     assert any(result.node_id == "Q_O1" for result in artifacts.node_results)
+    assert len(model.calls) == 2

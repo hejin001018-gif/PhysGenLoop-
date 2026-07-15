@@ -869,6 +869,7 @@ class CriticArtifacts:
     visual_evidence: tuple[VisualEvidence, ...] = ()
     mechanics_results: tuple[MechanicsResult, ...] = ()
     mechanics_summary: MechanicsSummary | None = None
+    resolved_request: CriticRequest | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """递归转换全部中间产物，供离线审计和可视化使用。"""

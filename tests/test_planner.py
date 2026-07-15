@@ -11,6 +11,7 @@ from pavg_critic.schemas import (
     PhysicsRelation,
     PlannerMetadata,
     SchemaError,
+    QuestionGraph,
 )
 
 
@@ -27,6 +28,20 @@ class FakePlanModel:
         if self.error:
             raise self.error
         return self.payload
+
+
+class SequencedStructuredModel:
+    model = "shared-fake-model"
+
+    def __init__(self, *responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def generate_json(self, **kwargs):
+        properties = kwargs["schema"].get("properties", {})
+        stage = "physics_plan" if "objects" in properties else "question_graph"
+        self.calls.append(stage)
+        return self.responses.pop(0)
 
 
 def _model_plan_payload():
@@ -214,6 +229,96 @@ def test_invalid_explicit_plan_is_not_silently_repaired():
 
     with pytest.raises(SchemaError, match="floor"):
         CriticRequest(video_path="unused.mp4", physics_plan=invalid)
+
+
+def test_pipeline_reuses_question_model_for_planner_when_planner_model_missing():
+    from pavg_critic import PhysicsCritic
+
+    model = SequencedStructuredModel(_model_plan_payload(), {"nodes": []})
+    artifacts = PhysicsCritic(question_model=model).analyze_detailed(
+        CriticRequest(video_path="unused.mp4", prompt="A red ball falls."),
+        observations=(),
+        floor_y=100,
+    )
+
+    assert model.calls == ["physics_plan", "question_graph"]
+    assert artifacts.resolved_request.physics_plan.objects == ("red_ball", "floor")
+    assert artifacts.report.diagnostics["planner"]["source"] == "model"
+
+
+def test_pipeline_prefers_dedicated_planner_model():
+    from pavg_critic import PhysicsCritic
+
+    planner_model = FakePlanModel(payload=_model_plan_payload())
+    question_model = SequencedStructuredModel({"nodes": []})
+    PhysicsCritic(
+        planner_model=planner_model,
+        question_model=question_model,
+    ).analyze_detailed(
+        CriticRequest(video_path="unused.mp4", prompt="A red ball falls."),
+        observations=(),
+        floor_y=100,
+    )
+
+    assert len(planner_model.calls) == 1
+    assert question_model.calls == ["question_graph"]
+
+
+def test_pipeline_complete_explicit_plan_skips_dedicated_planner_model():
+    from pavg_critic import PhysicsCritic
+
+    planner_model = FakePlanModel(error=AssertionError("must not run"))
+    artifacts = PhysicsCritic(planner_model=planner_model).analyze_detailed(
+        CriticRequest(
+            video_path="unused.mp4",
+            physics_plan=PhysicsPlan(
+                objects=("ball",), expected_events=("projectile",)
+            ),
+        ),
+        observations=(),
+        floor_y=100,
+    )
+
+    assert planner_model.calls == []
+    assert artifacts.resolved_request.physics_plan.planner_metadata.source == "explicit"
+
+
+def test_pipeline_passes_one_resolved_request_to_downstream_plugins():
+    from pavg_critic import PhysicsCritic
+
+    class RecordingGraphGenerator:
+        def __init__(self):
+            self.requests = []
+
+        def generate(self, request):
+            self.requests.append(request)
+            return QuestionGraph(source="recording_graph")
+
+    class RecordingExtractor:
+        def __init__(self):
+            self.requests = []
+
+        def extract(self, request, tracks, events):
+            self.requests.append(request)
+            return ()
+
+    graph = RecordingGraphGenerator()
+    extractor = RecordingExtractor()
+    artifacts = PhysicsCritic(
+        question_graph_generator=graph,
+        visual_evidence_extractors=(extractor,),
+    ).analyze_detailed(
+        CriticRequest(video_path="unused.mp4", prompt="A ball falls."),
+        observations=(),
+        floor_y=100,
+    )
+
+    assert graph.requests[0] is artifacts.resolved_request
+    assert extractor.requests[0] is artifacts.resolved_request
+    assert artifacts.resolved_request.physics_plan.expected_events == (
+        "leave_support",
+        "fall",
+    )
 
 
 @pytest.mark.parametrize(

@@ -21,6 +21,7 @@ from .evidence_fusion import CoverageAwareEvidenceFusion
 from .fusion import ResultFusion
 from .interfaces import (
     ObjectDetector,
+    PhysicsPlanner,
     QuestionGraphGenerator,
     StructuredTextModel,
     VisualEvidenceExtractor,
@@ -29,6 +30,7 @@ from .interfaces import (
 from .keyframe_selector import KeyframeSelector
 from .mechanics import MechanicsEvaluator
 from .physics_rules import PhysicsRuleEngine, RuleContext
+from .planner import ModelPhysicsPlanner, PhysicsPlanResolver, TemplatePhysicsPlanner
 from .pqsg import HybridQuestionGraphGenerator, PQSGQuestionGraphGenerator
 from .question_executor import QuestionExecutionContext, QuestionGraphExecutor
 from .question_generator import TemplateQuestionGraphGenerator
@@ -51,6 +53,8 @@ class PhysicsCritic:
         detector: ObjectDetector | None = None,
         question_graph_generator: QuestionGraphGenerator | None = None,
         question_model: StructuredTextModel | None = None,
+        physics_planner: PhysicsPlanner | None = None,
+        planner_model: StructuredTextModel | None = None,
         visual_evidence_extractors: Iterable[VisualEvidenceExtractor] = (),
         vlm_verifier: VLMVerifier | None = None,
     ) -> None:
@@ -61,6 +65,8 @@ class PhysicsCritic:
             detector: 可选视觉前端；不注入时使用 HSV 红色目标基线。
             question_graph_generator: 可选问题图生成器；缺省时从 PhysicsPlan 生成模板图。
             question_model: 可选结构化文本模型；提供时自动把 PQSG 模型图融合进模板图。
+            physics_planner: 自定义 prompt→PhysicsPlan 实现。
+            planner_model: Planner 专用结构化模型；缺省时复用 question_model。
             visual_evidence_extractors: 可选 CV 插件；共享轨迹后输出五维检查表证据。
             vlm_verifier: 可选 Video-VLM 复核器；缺省时明确跳过 VLM。
         """
@@ -82,6 +88,25 @@ class PhysicsCritic:
             enabled_rules=self.config.rules.enabled,
         )
         self.visual_evidence_extractors = tuple(visual_evidence_extractors)
+        if physics_planner is not None and planner_model is not None:
+            raise ValueError("Provide either physics_planner or planner_model, not both")
+        # 模型优先级：显式 Planner 实现/专用模型 > 复用 QG 模型 > 确定性模板。
+        if physics_planner is not None:
+            self.physics_plan_resolver = PhysicsPlanResolver(physics_planner)
+        elif planner_model is not None:
+            self.physics_plan_resolver = PhysicsPlanResolver(
+                ModelPhysicsPlanner(planner_model),
+                fallback=TemplatePhysicsPlanner(),
+                fallback_on_provider_error=True,
+            )
+        elif question_model is not None:
+            self.physics_plan_resolver = PhysicsPlanResolver(
+                ModelPhysicsPlanner(question_model),
+                fallback=TemplatePhysicsPlanner(),
+                fallback_on_provider_error=True,
+            )
+        else:
+            self.physics_plan_resolver = PhysicsPlanResolver(TemplatePhysicsPlanner())
         if question_graph_generator is not None and question_model is not None:
             raise ValueError(
                 "Provide either question_graph_generator or question_model, not both"
@@ -134,9 +159,17 @@ class PhysicsCritic:
     ) -> CriticArtifacts:
         """执行完整流水线，并额外返回富化轨迹和离散事件供调试审计。"""
 
-        # 问题图仅依赖请求计划，可与视频解码并行；当前同步实现先生成图以便尽早发现
-        # 非法外部 QG 输出。关闭图层时保持原 1.0 规则流水线行为。
+        # Planner 必须先于问题图执行；后续所有阶段共享同一个 resolved_request，避免
+        # 模板图、规则、力学模块和插件看到互相矛盾的计划版本。
         provider_failures: list[dict[str, object]] = []
+        resolution = self.physics_plan_resolver.resolve(request)
+        resolved_request = replace(request, physics_plan=resolution.plan)
+        request = resolved_request
+        if resolution.provider_failure is not None:
+            provider_failures.append(resolution.provider_failure)
+
+        # 问题图仅依赖已解析请求，可与视频解码并行；当前同步实现先生成图以便尽早发现
+        # 非法外部 QG 输出。关闭图层时保持原 1.0 规则流水线行为。
         if self.config.question_graph.enabled:
             try:
                 question_graph = self.question_graph_generator.generate(request)
@@ -227,10 +260,18 @@ class PhysicsCritic:
                 question_graph,
                 node_results,
             )
+        diagnostics = dict(report.diagnostics)
+        metadata = request.physics_plan.planner_metadata
+        diagnostics["planner"] = {
+            "source": metadata.source,
+            "confidence": metadata.confidence,
+            "fallback_used": metadata.fallback_used,
+            "model": metadata.model,
+            "resolved_plan": request.physics_plan.to_dict(),
+        }
         if provider_failures:
-            diagnostics = dict(report.diagnostics)
             diagnostics["provider_failures"] = tuple(provider_failures)
-            report = replace(report, diagnostics=diagnostics)
+        report = replace(report, diagnostics=diagnostics)
         if checklist_summary is not None:
             # 检查表先作为独立诊断写入；阶段 5 的覆盖感知融合再决定它对总分的权重。
             diagnostics = dict(report.diagnostics)
@@ -279,6 +320,7 @@ class PhysicsCritic:
             visual_evidence=visual_evidence,
             mechanics_results=mechanics_results,
             mechanics_summary=mechanics_summary,
+            resolved_request=resolved_request,
         )
 
     def _observe_video(self, video_path: str) -> tuple[tuple[FrameState, ...], float]:
