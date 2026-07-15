@@ -110,6 +110,24 @@ def test_model_planner_rejects_properties_outside_strict_schema():
         ModelPhysicsPlanner(FakePlanModel(payload=payload)).generate("A ball falls.")
 
 
+def test_model_planner_receives_partial_explicit_plan_context():
+    from pavg_critic.planner import ModelPhysicsPlanner
+
+    model = FakePlanModel(payload=_model_plan_payload())
+    ModelPhysicsPlanner(model).generate(
+        "A red ball falls to the floor.",
+        partial_plan=PhysicsPlan(objects=("custom_ball", "floor")),
+    )
+
+    user_payload = json.loads(model.calls[0]["user_prompt"])
+    assert user_payload["prompt"] == "A red ball falls to the floor."
+    assert user_payload["partial_physics_plan"]["objects"] == [
+        "custom_ball",
+        "floor",
+    ]
+    assert "planner_metadata" not in user_payload["partial_physics_plan"]
+
+
 def test_resolver_falls_back_after_timeout():
     from pavg_critic.planner import (
         ModelPhysicsPlanner,
@@ -149,6 +167,24 @@ def test_planner_failure_record_truncates_provider_message():
     ).resolve(CriticRequest(video_path="unused.mp4", prompt="A ball falls."))
 
     assert len(resolution.provider_failure["message"]) == 300
+
+
+def test_empty_template_fallback_keeps_zero_confidence():
+    from pavg_critic.planner import (
+        ModelPhysicsPlanner,
+        PhysicsPlanResolver,
+        TemplatePhysicsPlanner,
+    )
+
+    resolution = PhysicsPlanResolver(
+        ModelPhysicsPlanner(FakePlanModel(error=TimeoutError("timeout"))),
+        fallback=TemplatePhysicsPlanner(),
+        fallback_on_provider_error=True,
+    ).resolve(CriticRequest(video_path="unused.mp4", prompt=""))
+
+    assert resolution.plan.planner_metadata.source == "empty"
+    assert resolution.plan.planner_metadata.confidence == 0.0
+    assert resolution.plan.planner_metadata.fallback_used is True
 
 
 def test_resolver_skips_model_for_complete_explicit_core():
@@ -197,6 +233,7 @@ def test_resolver_fills_only_empty_core_and_explicit_extension_id_wins():
     assert resolution.plan.objects == ("custom_ball", "floor")
     assert resolution.plan.expected_events == ("fall", "floor_contact")
     assert resolution.plan.relations[0].relation == "initially_above"
+    assert resolution.plan.physics_constraints[0].subjects == ("custom_ball",)
     assert resolution.plan.planner_metadata.source == "merged"
 
 

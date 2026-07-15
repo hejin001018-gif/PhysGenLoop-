@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from typing import Any, Mapping
@@ -76,7 +77,11 @@ class TemplatePhysicsPlanner:
     )
     _STATIC_OBJECTS = frozenset({"table", "floor", "wall"})
 
-    def generate(self, prompt: str) -> PhysicsPlan:
+    def generate(
+        self, prompt: str, partial_plan: PhysicsPlan | None = None
+    ) -> PhysicsPlan:
+        # partial_plan 由 Resolver 统一合并；模板只需要 prompt 的确定性词表结果。
+        del partial_plan
         text = str(prompt or "").strip()
         if not text:
             return PhysicsPlan()
@@ -241,15 +246,27 @@ class ModelPhysicsPlanner:
         self.model = model
         self.model_name = str(getattr(model, "model", type(model).__name__))
 
-    def generate(self, prompt: str) -> PhysicsPlan:
+    def generate(
+        self, prompt: str, partial_plan: PhysicsPlan | None = None
+    ) -> PhysicsPlan:
+        partial_context = (partial_plan or PhysicsPlan()).to_dict()
+        partial_context.pop("planner_metadata", None)
         payload = self.model.generate_json(
             system_prompt=(
                 "Convert the video-generation prompt into a conservative physics plan. "
+                "Treat every non-empty field in partial_physics_plan as authoritative and "
+                "use its object identifiers when generating relations or constraints. "
                 "Use stable snake_case identifiers. Include only objects and qualitative "
                 "events/constraints supported by the prompt. Never invent masses, speeds, "
                 "gravity constants, dimensions, coefficients, or other numeric parameters."
             ),
-            user_prompt=str(prompt or ""),
+            user_prompt=json.dumps(
+                {
+                    "prompt": str(prompt or ""),
+                    "partial_physics_plan": partial_context,
+                },
+                ensure_ascii=False,
+            ),
             schema=PHYSICS_PLAN_SCHEMA,
         )
         self._validate_payload_shape(payload)
@@ -334,21 +351,33 @@ class PhysicsPlanResolver:
             )
 
         try:
-            generated = self.planner.generate(request.prompt)
+            generated = self.planner.generate(request.prompt, partial_plan=explicit)
         except _PROVIDER_ERRORS as error:
             if not self.fallback_on_provider_error:
                 raise
             assert self.fallback is not None
-            fallback_plan = self.fallback.generate(request.prompt)
+            fallback_plan = self.fallback.generate(
+                request.prompt, partial_plan=explicit
+            )
             model_name = getattr(self.planner, "model_name", None)
-            generated = _with_metadata(
-                fallback_plan,
+            fallback_metadata = (
                 PlannerMetadata(
                     source="template_fallback",
                     confidence=0.4,
                     fallback_used=True,
                     model=None if model_name is None else str(model_name),
-                ),
+                )
+                if _has_semantic_content(fallback_plan)
+                else PlannerMetadata(
+                    source="empty",
+                    confidence=0.0,
+                    fallback_used=True,
+                    model=None if model_name is None else str(model_name),
+                )
+            )
+            generated = _with_metadata(
+                fallback_plan,
+                fallback_metadata,
             )
             return PhysicsPlanResolution(
                 plan=_merge_plans(explicit, generated),
@@ -406,7 +435,16 @@ def _merge_plans(explicit: PhysicsPlan, generated: PhysicsPlan) -> PhysicsPlan:
             model=generated.planner_metadata.model,
         )
     else:
-        metadata = PlannerMetadata(source="explicit", confidence=1.0)
+        metadata = PlannerMetadata(
+            source="explicit",
+            confidence=1.0,
+            fallback_used=generated.planner_metadata.fallback_used,
+            model=(
+                generated.planner_metadata.model
+                if generated.planner_metadata.fallback_used
+                else None
+            ),
+        )
 
     result = PhysicsPlan(
         objects=objects,

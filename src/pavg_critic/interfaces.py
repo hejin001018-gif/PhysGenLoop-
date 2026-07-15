@@ -46,7 +46,9 @@ class QuestionGraphGenerator(Protocol):
 class PhysicsPlanner(Protocol):
     """把自然语言 prompt 转换为统一 PhysicsPlan 的协议。"""
 
-    def generate(self, prompt: str) -> PhysicsPlan: ...
+    def generate(
+        self, prompt: str, partial_plan: PhysicsPlan | None = None
+    ) -> PhysicsPlan: ...
 
 
 class StructuredTextModel(Protocol):

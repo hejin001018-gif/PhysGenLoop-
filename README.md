@@ -114,6 +114,17 @@ from pavg_critic import DeepSeekChatModel, PhysicsCritic
 critic = PhysicsCritic(question_model=DeepSeekChatModel.from_env())
 ```
 
+当输入没有完整的 `objects + expected_events` 时，上述共享模型先生成 PhysicsPlan，再生成 PQSG 图，共两次文本 API 调用。完整显式计划会跳过第一次 Planner 调用。若希望分离模型：
+
+```python
+critic = PhysicsCritic(
+    planner_model=planner_model,
+    question_model=qg_model,
+)
+```
+
+也可注入实现 `generate(prompt, partial_plan=None) -> PhysicsPlan` 的 `physics_planner`；Resolver 会把用户的部分显式计划一并传入，不能同时传 `physics_planner` 和 `planner_model`。
+
 OpenAI 可同时生成 PQSG 图并复核关键帧。模型名必须显式配置，避免默认值随时间漂移：
 
 ```powershell
