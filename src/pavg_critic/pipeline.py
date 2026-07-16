@@ -201,10 +201,16 @@ class PhysicsCritic:
             mechanics_results, mechanics_summary = (), None
         context = RuleContext(request=request, tracks=tracks, events=events)
         raw_candidates = self.rule_engine.evaluate(context)
-        candidates = tuple(
-            with_track_evidence(self.localizer.localize(item, events), tracks)
-            for item in raw_candidates
+        localized_candidates = tuple(
+            self.localizer.localize(item, events) for item in raw_candidates
         )
+        if isinstance(self.vlm_verifier, NoOpVLMVerifier):
+            candidates = localized_candidates
+        else:
+            candidates = tuple(
+                with_track_evidence(candidate, tracks)
+                for candidate in localized_candidates
+            )
 
         visual_evidence = tuple(
             evidence

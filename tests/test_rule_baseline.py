@@ -184,3 +184,23 @@ def test_vlm_verifier_receives_sam2_track_evidence():
 
     assert verifier.candidates
     assert verifier.candidates[0].evidence["sam2_track"]["track_id"] == "ball-1"
+
+
+def test_noop_rule_baseline_does_not_add_vlm_track_payload():
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(objects=("red_ball",), expected_events=("fall",)),
+    )
+    report = _critic().analyze(
+        request,
+        observations=(
+            _state(0, 40, velocity=(0, 100)),
+            _state(1, 55, velocity=(0, 100)),
+            _state(2, 48, velocity=(0, -100)),
+            _state(3, 38, velocity=(0, -100)),
+        ),
+        floor_y=100,
+    )
+
+    assert report.violations
+    assert "sam2_track" not in report.violations[0].evidence
