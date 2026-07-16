@@ -103,7 +103,7 @@
 - Create local: `outputs/benchmarks/videophy2-full-qwen3vl8b/`
 - Modify: this plan under `Execution results`
 
-- [ ] Launch the full matched D0/B1 matrix in a resumable session with one process owning the prediction lock.
+- [x] Launch the full matched D0/B1 matrix in a resumable session with one process owning the prediction lock.
 - [ ] Monitor progress, GPU state, failure count and ETA at least once per hour without altering prompts, thresholds or sample membership.
 - [ ] Resume interrupted work from valid sample×method keys until every manifest row has a terminal prediction for both methods.
 - [ ] Generate summaries, 2,000 action-group bootstrap confidence intervals, paired outcomes and generator/action/rule-family slices.
@@ -239,3 +239,9 @@ Results are appended here after every task checkpoint. Existing results are immu
 - The matched closed-model audit was not run because no secret was injected into the remote shell or repository.
 - M4 repair diagnostics are synchronized locally under `outputs/benchmarks/videophy2-m4-vlm-repair-smoke20/`. Dev10 weight 0.7 and 0.6 both scored `0.600/0.600` accuracy/Macro-F1; 0.5 scored `0.500/0.333`. The frozen tie-break selected 0.7. One eval10 run at 0.7 scored `0.800/0.792` with violation recall `1.0` and zero failures.
 - Compared with the old smoke20 M4 result (`0.500/0.333`), the repair removes the all-physical collapse. It matches the previously measured B1 eval10 score but does not yet establish a clear improvement over B1, so M4 remains a diagnostic candidate rather than the primary method for the full 3,397-row run.
+
+### E13 — Full VideoPhy-2 D0/B1 launch
+
+- At 2026-07-16 16:22 Asia/Shanghai, the remote A100 launched PID `144429` in a detached session. The command uses the frozen full manifest `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/manifest.json` (SHA-256 `d8be5fe97ddf6902515c09ccbb53f394b25230213db7c3058d61f84748624906`), methods `D0_DIRECT_VLM,B1_RULE`, provider `chat` with strict JSON schema, 16 frames, official SAM2.1 Hiera B+, and the resumable run directory `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/run`.
+- The full dataset is already materialized and decode-audited: 3,397/3,397 videos. The process owns `predictions.jsonl.lock`; initial progress after startup was 7 predictions and 3 SAM2 observation caches. Logs are `/root/pavg-benchmark/logs/videophy2-full-qwen3vl8b.stdout.log` and `.stderr.log`.
+- The SSH launch command itself timed out after detaching, but an independent audit confirmed the intended process, lock, output file and SAM2 propagation log were active; no duplicate evaluator was started.
