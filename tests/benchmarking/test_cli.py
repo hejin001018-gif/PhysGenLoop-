@@ -56,6 +56,32 @@ def test_max_samples_defaults_to_none():
     assert args.max_samples is None
 
 
+def test_chat_json_schema_mode_is_explicit_and_forwarded(monkeypatch):
+    args = build_parser().parse_args(
+        [
+            "--manifest",
+            "m.json",
+            "--run-dir",
+            "run",
+            "--methods",
+            "D0_DIRECT_VLM",
+            "--provider",
+            "chat",
+            "--chat-response-format",
+            "json_schema",
+        ]
+    )
+    monkeypatch.setenv("BENCH_API_KEY", "local")
+    monkeypatch.setenv("BENCH_MODEL", "Qwen/Qwen3-VL-8B-Instruct")
+
+    model = build_benchmark_model(
+        args.provider,
+        chat_response_format=args.chat_response_format,
+    )
+
+    assert model.strict_json_schema is True
+
+
 def test_env_file_maps_project_names_without_returning_secrets(tmp_path, monkeypatch):
     path = tmp_path / ".env"
     path.write_text(

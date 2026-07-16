@@ -85,6 +85,13 @@ def _source_url(row: Mapping[str, str]) -> str | None:
     return None
 
 
+def _prompt_group_id(row: Mapping[str, str]) -> str:
+    try:
+        return _value(row, "prompt_group_id")
+    except ValueError:
+        return "__missing_action__"
+
+
 def _physical_rules(row: Mapping[str, str]) -> tuple[str, ...]:
     result: list[str] = []
     for column in (
@@ -95,6 +102,8 @@ def _physical_rules(row: Mapping[str, str]) -> tuple[str, ...]:
     ):
         raw = str(row.get(column) or "").strip()
         if not raw:
+            continue
+        if raw.casefold() in {"nan", "[nan]"}:
             continue
         try:
             parsed = ast.literal_eval(raw)
@@ -170,7 +179,7 @@ def load_videophy_csv(
                     split=split,
                     prompt=_value(row, "prompt"),
                     video_path=str(video_path),
-                    prompt_group_id=_value(row, "prompt_group_id"),
+                    prompt_group_id=_prompt_group_id(row),
                     generator=_value(row, "generator"),
                     semantic_label=(
                         "unknown"
@@ -361,6 +370,89 @@ def write_source_smoke_csv(
         writer.writerows(chosen)
 
 
+def write_source_pilot_csv(
+    input_csv: str | Path,
+    output_csv: str | Path,
+    *,
+    count: int,
+    seed: int,
+) -> None:
+    """Select a deterministic action-covering, label/generator-balanced pilot."""
+
+    with Path(input_csv).open(newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle)
+        rows = list(reader)
+        fieldnames = list(reader.fieldnames or ())
+    if count <= 0 or count > len(rows):
+        raise ValueError("count must be between 1 and the number of source rows")
+
+    candidates = sorted(
+        rows,
+        key=lambda row: _sample_id(row, benchmark="videophy2"),
+    )
+    random.Random(seed).shuffle(candidates)
+    tie_order = {id(row): index for index, row in enumerate(candidates)}
+    action_counts: Counter[str] = Counter()
+    label_counts: Counter[str] = Counter()
+    generator_counts: Counter[str] = Counter()
+    pair_counts: Counter[tuple[str, str]] = Counter()
+    chosen: list[dict[str, str]] = []
+    action_coverage_target = min(
+        count,
+        len({_prompt_group_id(row) for row in candidates}),
+    )
+
+    while len(chosen) < count:
+        def priority(row: dict[str, str]):
+            physics = _score(row, "physics_score")
+            label = (
+                "unknown"
+                if physics is None
+                else ("physical" if physics >= 4 else "violation")
+            )
+            action = _prompt_group_id(row)
+            generator = _value(row, "generator")
+            if len(chosen) < action_coverage_target:
+                return (
+                    action_counts[action],
+                    label_counts[label],
+                    generator_counts[generator],
+                    pair_counts[(label, generator)],
+                    tie_order[id(row)],
+                )
+            return (
+                label_counts[label],
+                generator_counts[generator],
+                pair_counts[(label, generator)],
+                action_counts[action],
+                tie_order[id(row)],
+            )
+
+        row = min(candidates, key=priority)
+        candidates.remove(row)
+        physics = _score(row, "physics_score")
+        label = (
+            "unknown"
+            if physics is None
+            else ("physical" if physics >= 4 else "violation")
+        )
+        action = _prompt_group_id(row)
+        generator = _value(row, "generator")
+        action_counts[action] += 1
+        label_counts[label] += 1
+        generator_counts[generator] += 1
+        pair_counts[(label, generator)] += 1
+        chosen.append(row)
+
+    chosen.sort(key=lambda row: _sample_id(row, benchmark="videophy2"))
+    destination = Path(output_csv)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(chosen)
+
+
 def write_manifest(samples: Iterable[BenchmarkSample], path: str | Path) -> None:
     destination = Path(path)
     serialized = []
@@ -440,8 +532,13 @@ def materialize_video_csv(
                 continue
             temporary = target.with_suffix(target.suffix + ".part")
             if parsed.scheme in {"http", "https"}:
+                encoded_source = urllib.parse.urlunparse(
+                    parsed._replace(
+                        path=urllib.parse.quote(parsed.path, safe="/%"),
+                    )
+                )
                 request = urllib.request.Request(
-                    source,
+                    encoded_source,
                     headers={"User-Agent": "PAVG-benchmark/1.0"},
                 )
                 with (

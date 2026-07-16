@@ -14,6 +14,7 @@ from pavg_critic.benchmarking.datasets import (
     select_smoke_samples,
     split_diagnostic_samples,
     write_source_smoke_csv,
+    write_source_pilot_csv,
     write_manifest,
 )
 
@@ -44,6 +45,11 @@ def main(argv=None) -> int:
     source_smoke_parser.add_argument("--count", required=True, type=int)
     source_smoke_parser.add_argument("--seed", required=True, type=int)
     source_smoke_parser.add_argument("--output-csv", required=True, type=Path)
+    source_pilot_parser = commands.add_parser("source-pilot")
+    source_pilot_parser.add_argument("--csv", required=True, type=Path)
+    source_pilot_parser.add_argument("--count", required=True, type=int)
+    source_pilot_parser.add_argument("--seed", required=True, type=int)
+    source_pilot_parser.add_argument("--output-csv", required=True, type=Path)
     split_parser = commands.add_parser("split")
     split_parser.add_argument("--manifest", required=True, type=Path)
     split_parser.add_argument("--dev-count", required=True, type=int)
@@ -88,6 +94,14 @@ def main(argv=None) -> int:
         return 0
     if args.command == "source-smoke":
         write_source_smoke_csv(
+            args.csv,
+            args.output_csv,
+            count=args.count,
+            seed=args.seed,
+        )
+        return 0
+    if args.command == "source-pilot":
+        write_source_pilot_csv(
             args.csv,
             args.output_csv,
             count=args.count,

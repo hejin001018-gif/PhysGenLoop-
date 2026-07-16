@@ -66,11 +66,11 @@
 - Create local: `evaluation/manifests/videophy2_test_full.json`
 - Modify: this plan under `Execution results`
 
-- [ ] Transfer the already frozen 3,397-row official CSV and verify its SHA-256 remotely.
-- [ ] Download every unique video URL with idempotent retries and append-only failure records.
-- [ ] Decode-probe every video, record frame count/duration/size/checksum, and retry corrupt or partial files once.
-- [ ] Normalize all rows into an immutable full manifest; retain failed rows with explicit status rather than dropping them.
-- [ ] Freeze a deterministic 300-sample action/generator/label-stratified pilot manifest before model predictions.
+- [x] Transfer the already frozen 3,397-row official CSV and verify its SHA-256 remotely.
+- [x] Download every unique video URL with idempotent retries and append-only failure records.
+- [x] Decode-probe every video, record frame count/duration/size/checksum, and retry corrupt or partial files once.
+- [x] Normalize all rows into an immutable full manifest; retain failed rows with explicit status rather than dropping them.
+- [x] Freeze a deterministic 300-sample action/generator/label-stratified pilot manifest before model predictions.
 
 ## Task 6: Deploy the open model and pass server smoke
 
@@ -79,11 +79,11 @@
 - Create remote: `/root/pavg-benchmark/runs/videophy2-server-smoke20/`
 - Modify: this plan under `Execution results`
 
-- [ ] Install a vLLM version compatible with the selected CUDA/PyTorch stack and download the official Qwen model snapshot.
-- [ ] Start an OpenAI-compatible endpoint with GPU utilization at most 0.50, deterministic decoding, bounded context and no request-body logging.
-- [ ] Run one schema-only image request and verify the existing chat adapter parses it.
-- [ ] Run smoke20 `D0_OPEN_DIRECT,B1_OPEN_SAM2`; require no OOM, duplicate keys or credential-bearing logs.
-- [ ] If compatibility fails, apply only the finite fallbacks in the design and document each attempt.
+- [x] Install a vLLM version compatible with the selected CUDA/PyTorch stack and download the official Qwen model snapshot.
+- [x] Start an OpenAI-compatible endpoint at the measured minimum 0.58 GPU-memory fraction, deterministic decoding, bounded context and no request-body logging; 0.50 cannot allocate any KV cache for this BF16 model.
+- [x] Run one schema-only image request and verify the existing chat adapter parses it.
+- [x] Run smoke20 `D0_OPEN_DIRECT,B1_OPEN_SAM2`; require no OOM, duplicate keys or credential-bearing logs.
+- [x] If compatibility fails, apply only the finite fallbacks in the design and document each attempt.
 
 ## Task 7: Run the frozen 300-sample pilot
 
@@ -180,3 +180,46 @@ Results are appended here after every task checkpoint. Existing results are immu
 - A CUDA 12.8 `vLLM 0.10.2` installation was started, then stopped after the user rejected Qwen2.5-VL quality and the official compatibility matrix showed that v0.10.2 does not support `Qwen3VLForConditionalGeneration`.
 - Official vLLM matrices show Qwen3-VL support begins at v0.11.0. The selected environment is `vLLM 0.11.0`, Torch `2.8.0+cu128`, ModelScope `1.38.1`; a real A100 matrix multiplication returned `262144.0`.
 - Primary open backbone is now `Qwen/Qwen3-VL-8B-Instruct` (Apache-2.0). Qwen2.5-VL is limited to a pilot weak baseline. Model weights are downloading from the official Qwen ModelScope repository because direct Hugging Face TLS is unavailable on the server.
+
+### E6 — Qwen3-VL service bring-up
+
+- The official ModelScope snapshot completed with 17 repository files and four complete safetensor shards. JSON configuration/index validation passed; nine SHA-256 entries covering the configuration, tokenizer/index metadata and all weight shards are frozen at `/root/pavg-benchmark/artifacts/qwen3vl8b-sha256.txt`.
+- `vLLM 0.11.0` initially resolved the future `transformers 5.14.0`, which failed because vLLM accessed a tokenizer attribute removed in Transformers 5. The model's own README identifies `transformers 4.57.0`; pinning that exact release resolved tokenizer initialization without changing Torch or vLLM.
+- A 50% GPU-memory limit was insufficient: after 16.64 GiB of weights and multimodal profiling it left `-0.67 GiB` for KV cache. At 55%, vLLM measured 1.31 GiB available versus 2.25 GiB required for one 16,384-token request. The minimum verified configuration is therefore 58%, which provides 2.49 GiB / 18,128 KV tokens and 1.11× concurrency at 16,384 tokens.
+- The service accepts at most 16 image inputs and no native video input; frames remain deterministically decoded by the benchmark. The processor is capped at 1,003,520 pixels per image. Service idle residency is about 20.35 GiB.
+- A real 480×720 VideoPhy-2 first-frame request through the project adapter returned four visible objects in 4.52 seconds. A real 16-frame request exercised all 16 requested frames without OOM.
+
+### E7 — Strict structured output and joint SAM2 smoke
+
+- The first 16-frame direct request returned the JSON Schema definition rather than a score instance, causing a correctly captured `KeyError('semantic_score')`. The raw response ended normally after 145 completion tokens, proving this was schema adherence rather than truncation.
+- A test-first adapter change added an explicit `--chat-response-format json_schema` mode while leaving the compatible `json_object` default unchanged. Both new tests failed before implementation, passed after it, and the complete local suite passed `161/161` in 6.08 seconds.
+- The same 16-frame request under strict schema returned semantic `5`, physics `5`, confidence `1.0`, all 16 evidence-frame indices and no failure in 1.87 seconds.
+- A one-sample joint run completed Qwen3-VL object seeding, official SAM2 propagation over all 49 frames, direct judging and B1 critic scoring. Peak observed GPU memory was about 23.2 GiB; SAM2 propagation took about 16 seconds and no OOM occurred.
+- This first sample is human-labelled physical. D0 predicted physical correctly, while B1 predicted violation from `object_disappearance`. This is recorded as an initial critic false positive, not evidence of improvement; the frozen balanced smoke20 run is required before architecture changes.
+
+### E8 — Frozen Qwen3-VL smoke20 result
+
+- The pre-existing frozen smoke manifest contains 20 checksum-verified videos: 10 physical / 10 violation, spanning CogVideo, Hunyuan, Cosmos, VideoCrafter, Sora, Ray2 and Wan. Remote manifest SHA-256: `8156d04b04c7f0966794ab3a99520a6abc28e639302eaf6f40f330b8fe174461`.
+- The run completed 20/20 SAM2 observation caches and 140/140 sample×method predictions with zero failures, no duplicate keys and no OOM. Peak observed GPU memory was about 23.46 GiB.
+- On all 20 samples, D0 direct and D1 structured each reached accuracy `0.55` and Macro-F1 `0.549`. B1, M1, M2 and M3 each reached accuracy `0.70` and Macro-F1 `0.697`, a smoke delta of `+0.15` accuracy and `+0.148` Macro-F1 over D0. B1 violation precision/recall were `0.667/0.800`; D0 was `0.545/0.600`.
+- M4 VLM fusion collapsed to predicting no violations: accuracy `0.50`, Macro-F1 `0.333`, violation recall `0.0`. It is a recorded negative result and is not the primary critic method.
+- The frozen dev10 split favoured D0 (accuracy `0.70`, Macro-F1 `0.697`) over B1 (`0.60`, `0.600`). The untouched eval10 split favoured B1 (`0.80`, `0.792`, violation recall `1.0`) over D0 (`0.40`, `0.400`). Because the aggregate and eval directions favour B1 but the sample is small, no rule tuning is justified; proceed to the frozen 300-sample pilot.
+
+### E9 — Pilot300 freeze and launch
+
+- The existing source selector balanced only label/generator, so a test-first deterministic pilot selector was added. It covers each available action once, then balances labels, generators and label×generator pairs before using repeat action count as a tie-breaker. A code-review counterexample exposed why action count must not remain the first priority after coverage; the new regression test fails under the old strategy and passes under the corrected one.
+- Seed `20260716` froze a 300-row source CSV before any pilot prediction. Source CSV SHA-256: `7d29e0a6ba2cbd32daa1e58a7597e53d1f61a88e0f1d27a5f5d6cf670041fda6`. It contains 150 physical / 150 violation, all 198 action strata, and 42–43 samples from each of seven generators.
+- Two rows have blank source actions. They are retained under the explicit `__missing_action__` group rather than dropped. A regression test covers both pilot selection and manifest normalization for this case.
+- One selected S3 object contains Unicode `’` in its URL path. The old downloader raised `UnicodeEncodeError`; a failing test reproduced it, the path is now percent-encoded before requesting, and the same row downloaded successfully without changing pilot membership.
+- Decode audit passed 300/300 videos with readable first and last frames, 32–150 frames per video and zero failures in 13.42 seconds. Frozen pilot manifest SHA-256: `a97762fe4033789eb14a82717c72c14e89bc75a7a67200d5890ff1647f72a670`.
+- Review also found that the new dataclass field had shifted `OpenAIChatModel`'s legacy positional `transport` argument and that no supported CLI exposed the pilot selector. Both compatibility bugs now have regression tests; `source-pilot` is a first-class preparation command and the default chat response mode remains `json_object`.
+- Re-running the corrected selector on all 3,397 source rows produced exactly the same 300 members and source SHA-256 as the pre-review freeze. No pilot membership changed.
+- Pilot attempt 1 was archived after 41 predictions because four SAM2 seeds contained coordinates outside `[0,100]`. The fix adds schema bounds, rejects non-finite coordinates and projects finite coordinates onto valid image pixels. Attempt 2 verified 48 predictions with zero failures, then was archived solely for the independent selector review. Attempt 3 is the current canonical run and reuses only valid observation caches.
+- The local and remote full regression suites after all review and SAM2 seed fixes passed `171/171`; the remote run completed in 2.00 seconds.
+
+### E10 — Complete VideoPhy-2 materialization
+
+- The first full download completed 3,390/3,397 rows; all seven failures were Unicode `’` or `—` in S3 object paths. Re-running with the tested percent-encoding fix completed 3,397/3,397 without changing URLs or row membership.
+- Decode audit opened every video and read both first and last frames: 3,397 passed, zero failed, frame counts 32–150, elapsed 166.22 seconds. Resolution counts are recorded in `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/decode-audit.json`.
+- Three source rule cells contain the missing-value marker `[nan]`. A regression-tested normalization rule skips only `nan`/`[nan]` as missing metadata; it does not discard the samples or interpret the marker as a physics rule.
+- Frozen full manifest SHA-256: `d8be5fe97ddf6902515c09ccbb53f394b25230213db7c3058d61f84748624906`. It contains 3,397 samples, 1,785 physical / 1,612 violation, 198 action strata plus 70 samples in the explicit missing-action group, and the exact official generator counts.

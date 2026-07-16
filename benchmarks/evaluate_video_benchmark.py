@@ -55,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("responses", "chat"),
         default="responses",
     )
+    parser.add_argument(
+        "--chat-response-format",
+        choices=("json_object", "json_schema"),
+        default="json_object",
+    )
     parser.add_argument("--frame-count", type=int, default=16)
     parser.add_argument("--max-samples", type=int)
     parser.add_argument("--observations-dir", type=Path)
@@ -93,7 +98,11 @@ def load_benchmark_environment(path: str | Path) -> dict[str, object]:
     }
 
 
-def build_benchmark_model(provider: str):
+def build_benchmark_model(
+    provider: str,
+    *,
+    chat_response_format: str = "json_object",
+):
     api_key = os.environ.get("BENCH_API_KEY", "")
     model = os.environ.get("BENCH_MODEL", "")
     if not api_key or not model:
@@ -117,6 +126,7 @@ def build_benchmark_model(provider: str):
                 "BENCH_BASE_URL",
                 "http://127.0.0.1:8000/v1",
             ),
+            strict_json_schema=chat_response_format == "json_schema",
         )
     raise ValueError(f"unsupported provider: {provider}")
 
@@ -178,7 +188,14 @@ def main(argv=None) -> int:
         or "M4_VLM" in method_ids
         or args.observation_provider == "sam2"
     )
-    model = build_benchmark_model(args.provider) if requires_model else None
+    model = (
+        build_benchmark_model(
+            args.provider,
+            chat_response_format=args.chat_response_format,
+        )
+        if requires_model
+        else None
+    )
     model_id = os.environ.get("BENCH_MODEL") if model is not None else None
     methods = []
     if "D0_DIRECT_VLM" in method_ids:
@@ -239,6 +256,7 @@ def main(argv=None) -> int:
     config = _redact_config(
         {
             "provider": args.provider,
+            "chat_response_format": args.chat_response_format,
             "model": model_id,
             "frame_count": args.frame_count,
             "methods": list(method_ids),

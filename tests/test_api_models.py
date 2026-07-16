@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from pavg_critic.api_models import DeepSeekChatModel, OpenAIResponsesModel
+from pavg_critic.api_models import (
+    DeepSeekChatModel,
+    OpenAIChatModel,
+    OpenAIResponsesModel,
+)
 
 
 class FakeTransport:
@@ -120,3 +124,63 @@ def test_openai_multimodal_adapter_embeds_selected_images():
     content = transport.calls[0]["payload"]["input"][1]["content"]
     assert content[0] == {"type": "input_text", "text": "inspect"}
     assert content[1]["type"] == "input_image"
+
+
+def test_openai_chat_adapter_can_request_strict_json_schema():
+    transport = FakeTransport(
+        {"choices": [{"message": {"content": '{"physics_score":5}'}}]}
+    )
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["physics_score"],
+        "properties": {"physics_score": {"type": "integer"}},
+    }
+    model = OpenAIChatModel(
+        api_key="test-key",
+        model="test-model",
+        strict_json_schema=True,
+        transport=transport,
+    )
+
+    result = model.generate_json_with_images(
+        system_prompt="system",
+        user_prompt="inspect",
+        image_data_urls=("data:image/jpeg;base64,AAAA",),
+        schema=schema,
+    )
+
+    assert result == {"physics_score": 5}
+    assert transport.calls[0]["payload"]["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "pavg_structured_output",
+            "strict": True,
+            "schema": schema,
+        },
+    }
+
+
+def test_openai_chat_positional_transport_keeps_compatible_json_object_mode():
+    transport = FakeTransport(
+        {"choices": [{"message": {"content": '{"answer":"yes"}'}}]}
+    )
+
+    model = OpenAIChatModel(
+        "test-key",
+        "test-model",
+        "https://example.test/v1",
+        120.0,
+        transport,
+    )
+
+    assert model.transport is transport
+    assert model.strict_json_schema is False
+    assert model.generate_json(
+        system_prompt="system",
+        user_prompt="user",
+        schema={"type": "object"},
+    ) == {"answer": "yes"}
+    assert transport.calls[0]["payload"]["response_format"] == {
+        "type": "json_object"
+    }
