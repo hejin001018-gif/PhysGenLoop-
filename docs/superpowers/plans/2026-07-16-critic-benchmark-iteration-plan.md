@@ -379,3 +379,12 @@ These runs reused the frozen gpt-mini SAM2 v2 cache. They are direct-baseline se
 - Local RTX 5060 completed the 20-video smoke and both 10-video held-out cache builds without GPU OOM; the bottleneck was video propagation and API latency, not insufficient VRAM.
 - A remote SSH audit was intentionally deferred for this Stage A gate. The supplied password was not placed in a command, script, environment snapshot or repository artifact. Stage B should use SSH key/agent authentication before transferring data or credentials.
 - Decision: do not claim a server comparison for Stage A; reserve the server for the larger VideoPhy-2 full test and VideoPhy-1 OOD run.
+
+### Server connectivity validation S1 — 2026-07-16
+
+- TCP connectivity to `px-cloud2.matpool.com:29848` succeeded.
+- The RSA, ECDSA, and ED25519 host-key fingerprints were collected before authentication; the password-authenticated client accepted only a key from that pinned scan set.
+- Direct password authentication as `root` succeeded. The password was supplied only to the in-memory SSH client environment for this connection and was not written to the repository or a remote file.
+- Read-only audit result: host `qe74VL`, Linux `5.15.0-56-generic` (`x86_64`), one NVIDIA A100-PCIE-40GB (`40960 MiB`, driver `570.211.01`), Python `3.8.10`, and approximately `199G` free on `/`.
+- No project files were uploaded, no remote packages were installed, and no server configuration was changed.
+- Decision: the server is reachable and suitable for the planned full benchmark. Before long-running jobs, create a dedicated Python environment, inspect current GPU utilization, and switch routine access to an SSH key instead of retaining password-based automation.

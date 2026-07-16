@@ -19,7 +19,7 @@
 
 - [x] Record the local commit, dirty-file list, Python version, 159-test baseline, VideoPhy-2 CSV SHA-256 and exact row/label/generator counts.
 - [x] Verify the new design has no `TBD`, `TODO` or unresolved sample/model choices.
-- [ ] Commit only the new spec and plan; preserve unrelated user changes.
+- [x] Commit only the new spec and plan; preserve unrelated user changes.
 
 ## Task 2: Establish secure remote access and complete server audit
 
@@ -27,11 +27,11 @@
 - Create: `outputs/benchmarks/server-audit/server.json`
 - Modify: this plan under `Execution results`
 
-- [ ] Generate a dedicated local ED25519 key outside the repository if it does not exist.
-- [ ] Append only that public key to remote `/root/.ssh/authorized_keys`, set SSH directory/file permissions, and verify key-only login in a fresh connection.
-- [ ] Record hostname, OS, CPU count, RAM, disk, GPU name/memory/driver, CUDA runtime, Python/conda executables, GPU utilization and non-sensitive process names.
-- [ ] Probe access to the official GitHub, Hugging Face and VideoPhy S3 endpoints from the server.
-- [ ] Redact secrets and unrelated command lines from the saved audit.
+- [x] Generate a dedicated local ED25519 key outside the repository if it does not exist.
+- [x] Append only that public key to remote `/root/.ssh/authorized_keys`, set SSH directory/file permissions, and verify key-only login in a fresh connection.
+- [x] Record hostname, OS, CPU count, RAM, disk, GPU name/memory/driver, CUDA runtime, Python/conda executables, GPU utilization and non-sensitive process names.
+- [x] Probe access to the official GitHub, Hugging Face and VideoPhy S3 endpoints from the server.
+- [x] Redact secrets and unrelated command lines from the saved audit.
 
 ## Task 3: Transfer a reproducible source snapshot
 
@@ -40,10 +40,10 @@
 - Create remote: `/root/pavg-benchmark/artifacts/source-manifest.json`
 - Modify: this plan under `Execution results`
 
-- [ ] Create a git bundle at commit `ce004ff` plus an explicit tar archive containing only required uncommitted benchmark source/docs identified by a reviewed file list.
-- [ ] Transfer the bundle/archive with SHA-256 sidecars; never include `.env`, videos, outputs, caches or credentials.
-- [ ] Clone the bundle remotely, apply the explicit overlay, and record the resulting source-tree hash and `git status --short`.
-- [ ] Verify remote imports use the intended source tree.
+- [x] Create a git bundle at the committed Stage B head plus an explicit overlay containing only required uncommitted benchmark source identified by a reviewed file list.
+- [x] Transfer the bundle/archive with SHA-256 sidecars; never include `.env`, videos, outputs, caches or credentials.
+- [x] Clone the bundle remotely, apply the explicit overlay, and record the resulting source-tree hash and `git status --short`.
+- [x] Verify remote imports use the intended source tree.
 
 ## Task 4: Build and verify the remote Python/SAM2 environment
 
@@ -52,11 +52,11 @@
 - Create remote: `/root/pavg-benchmark/logs/environment.txt`
 - Modify: this plan under `Execution results`
 
-- [ ] Create or locate Python 3.12; create an isolated virtual environment.
-- [ ] Install CUDA PyTorch, the project benchmark/SAM2 extras, official SAM2 at the frozen commit and the pinned checkpoint.
-- [ ] Record `pip freeze`, PyTorch/CUDA/cuDNN versions and checkpoint/source SHA-256 values.
-- [ ] Run the full pytest suite and record exact pass/fail counts.
-- [ ] Run the real three-frame SAM2 propagation test and require one continuous track across all frames.
+- [x] Create or locate Python 3.12; create an isolated virtual environment.
+- [x] Install CUDA PyTorch, the project benchmark/SAM2 extras, official SAM2 at the frozen commit and the pinned checkpoint.
+- [x] Record `pip freeze`, PyTorch/CUDA/cuDNN versions and checkpoint/source SHA-256 values.
+- [x] Run the full pytest suite and record exact pass/fail counts.
+- [x] Run the real three-frame SAM2 propagation test and require one continuous track across all frames.
 
 ## Task 5: Materialize and freeze the full VideoPhy-2 dataset
 
@@ -147,3 +147,29 @@ Results are appended here after every task checkpoint. Existing results are immu
 - Frozen VideoPhy-2 CSV SHA-256: `85a6690b9508b7e69c592f3cbcbc4113efd3a573eb5ec69d6ae030a8ffb8a4e7`.
 - Population: 3,397 unique URLs, 198 actions, 1,785 physical / 1,612 violation; Wan 591, VideoCrafter 591, CogVideo 589, Hunyuan 587, Cosmos 585, Ray2 394 and Sora 60.
 - Design self-review found no placeholders or unresolved primary method/data choices.
+- Design/plan commit: `2210e16d5d0e5123a383e35bbc80da9e0c0b1a98`. An initially attempted commit inherited the user's already-staged `.env.example`; the commit was immediately amended to remove it, and `.env.example` was restored to its original staged state. Verification shows the final commit contains only the two new documentation files.
+
+### E2 — SSH key and server audit
+
+- Dedicated ED25519 key fingerprint: `SHA256:y6o4iKZ7CNkupn7RgRkoQyXBe3jE0HshPOfeOI/eVbo`; the private key is outside the repository. A fresh connection with password/agent lookup disabled authenticated as `root`.
+- Host `qe74VL`: 12 CPUs, 90 GiB RAM (86 GiB available), 200 GiB root disk (191 GiB available).
+- GPU: one idle NVIDIA A100-PCIE-40GB, 40,960 MiB, driver `570.211.01`; no compute processes; `nvcc` is absent, so the environment must use wheel-bundled CUDA runtime.
+- Runtime: system Python 3.8.10; no conda. The isolated environment will be bootstrapped with `uv` and Python 3.12.
+- Network: official GitHub raw and VideoPhy S3 are reachable; direct Hugging Face TLS is reset. `hf-mirror.com`, official Qwen ModelScope endpoints and the `uv` installer are reachable, so the frozen CSV/model can be obtained without changing the protocol.
+- Audit artifact: `outputs/benchmarks/server-audit/server.json`; it contains no credential or unrelated process arguments.
+
+### E3 — Reproducible remote source
+
+- The transferred bundle uses source commit `2210e16d5d0e5123a383e35bbc80da9e0c0b1a98` rather than the older plan-header checkpoint `ce004ff`, because `2210e16` adds only the approved Stage B documents. Bundle SHA-256: `b785d199164f3067532c9701a64a9a2456fedd4cdec92580c875335475a53e0b`; committed tree: `4d44a036e9070a4aedb9f15606c9143263ec3f0d`.
+- The clean snapshot failed test collection because the committed benchmark CLI imports `OpenAIChatModel`, while that required class exists only in the user's uncommitted `src/pavg_critic/api_models.py`. The exact file was added as the sole overlay after evidence of the import failure; overlay SHA-256: `b31206424bd68463b467900b859d3d958e9d1179f08268019d7be12164d1d154`.
+- Remote `git status --porcelain` contains exactly `M src/pavg_critic/api_models.py`. The remote source manifest records the commit, bundle hash, overlay path/hash/reason and exclusions.
+- No `.env`, videos, output caches, credentials, README/test.py changes or other uncommitted files were transferred.
+
+### E4 — Remote CUDA/SAM2 verification
+
+- Environment: uv `0.11.29`, CPython `3.12.13`, PyTorch `2.7.1+cu128`, torchvision `0.22.1+cu128`, CUDA runtime `12.8`, cuDNN `90701`, OpenCV `5.0.0`, NumPy `2.5.1`.
+- Official SAM2 source: `2b90b9f5ceec907a1c18123530e92e794ad901a4`; checkpoint SHA-256: `a2345aede8715ab1d5d31b4a509fb160c5a4af1970f199d9054ccfb746c004c5`.
+- The first two editable-install attempts stalled because isolated build dependencies re-downloaded Torch and remote output was not drained. The successful installation used the existing verified Torch environment, `--no-build-isolation` and official `SAM2_BUILD_CUDA=0`; the optional post-processing extension is absent because `nvcc` is unavailable.
+- Full remote test suite after the required overlay: `159 passed in 2.01s`.
+- Real A100 propagation on a three-frame moving-square video produced exactly one stable `sam2:0` track per frame with boxes `(20,48,39,79)`, `(40,48,59,79)` and `(60,48,79,79)`. The missing optional `_C` post-processing warning was recorded; propagation itself passed.
+- Frozen package inventory is stored at `/root/pavg-benchmark/logs/environment.txt`.
