@@ -42,6 +42,7 @@ evaluation/external/
 .vscode/
 *.swp
 .DS_Store
+.claude/
 
 # Isolated implementation worktrees
 .worktrees/
