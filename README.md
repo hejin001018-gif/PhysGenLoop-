@@ -344,46 +344,86 @@ Selector 不应只看物理分数，建议综合以下目标：
 
 ## 推荐工程结构
 
+以下为当前仓库真实目录结构（截至 2026-07-15）。标注含义：
+- ✅ 已铸（含代码与文档）
+- 🟡 骨架（目录已建，代码待补）
+- ⬜ 规划中（尚未创建）
+
 ```text
-PAVG/
-├── configs/                    # 数据、模型、实验与服务配置
-├── dataset/
-│   ├── blender_generator/      # Blender 场景与异常注入脚本
-│   ├── annotations/            # 标注规范、校验与转换工具
-│   └── generated_videos/       # 本地或外部生成视频索引
-├── critic/
-│   ├── detector.py
-│   ├── tracker.py
-│   ├── trajectory.py
-│   ├── event_detector.py
-│   ├── physics_rules.py
-│   ├── temporal_localizer.py
-│   ├── keyframe_selector.py
-│   ├── vlm_verifier.py
-│   └── fusion.py
-├── generator/
-│   ├── hunyuan_pipeline.py
-│   ├── generator_server.py
-│   └── schemas.py
-├── agents/
-│   ├── planner.py
-│   ├── repairer.py
-│   ├── selector.py
-│   └── controller.py
-├── evaluation/
-│   ├── critic_metrics.py
-│   ├── generation_metrics.py
-│   └── human_evaluation.py
-├── experiments/
-│   ├── critic_benchmark.py
-│   ├── feedback_ablation.py
-│   └── end_to_end_loop.py
-├── tests/
-├── outputs/
-└── README.md
+PhysGenLoop-/
+├── README.md                            # ✅ 项目总纲（本文件）
+├── requirements.txt                     # ✅ Python 依赖锁定
+├── .gitignore                           # ✅
+├── 项目总体思路.pdf                     # ✅ 需求源文档
+│
+├── configs/                             # ✅ 配置层
+│   └── default.yaml                     #    Critic 四路权重 / Repair 阈值 / 评测基准
+│
+├── schemas/                             # ✅ 契约层（JSON Schema 骨骼）
+│   ├── sample.schema.json               #    单样本目录契约
+│   ├── critic_output.schema.json        #    Critic 输出契约
+│   ├── generator_request.schema.json    #    HunyuanVideo 调用契约
+│   └── README.md
+│
+├── data/                                # 🟡 数据集根目录
+│   └── samples/                         #    单样本存放（对齐 sample.schema.json）
+│
+├── data_pipeline/                       # 🟡 数据处理管道
+│   ├── kubric_adapter/                  # ✅ Kubric 输出 → 项目 schema 转换层
+│   │   ├── converter.py
+│   │   ├── README.md
+│   │   └── __init__.py
+│   ├── physion_loader/                  # ⬜ Physion/Physion v2 数据加载器
+│   └── intphys2_loader/                 # ⬜ IntPhys 2 异常配对加载器
+│
+├── models/                              # 🟡 模型层
+│   ├── critic/                          # ⬜ Physics Critic 各子模块
+│   │                                    #    (detector/tracker/trajectory/
+│   │                                    #     event_detector/physics_rules/
+│   │                                    #     temporal_localizer/keyframe_selector/
+│   │                                    #     vlm_verifier/fusion)
+│   └── vlm/                             # ⬜ VLM Verifier 封装
+│
+├── generators/                          # 🟡 视频生成层
+│   └── hunyuan_probe.py                 # ✅ HunyuanVideo 单次探针（--dry-run 已通）
+│
+├── agents/                              # ✅ Agentic 闭环
+│   ├── prompt_rewriter.py               #    LLM 改写层（Claude/OpenAI/Stub）
+│   ├── repairer.py                      #    Repair Agent 决策器 + Request Builder
+│   ├── video_backend.py                 #    视频后端抽象（local/replicate/fal/stub）
+│   ├── README.md
+│   └── __init__.py
+│   # ⬜ planner.py / selector.py / controller.py（下一步）
+│
+├── benchmarks/                          # 🟡 评测基准
+│   └── intphys2_zeroshot_baseline.py    # ✅ IntPhys 2 零样本 VLM 基线骨架
+│
+├── evaluation/                          # ⬜ 评估度量（critic_metrics /
+│                                        #    generation_metrics / human_evaluation）
+│
+├── experiments/                         # ⬜ 实验脚本（critic_benchmark /
+│                                        #    feedback_ablation / end_to_end_loop）
+│
+├── tests/                               # ✅ 单元测试
+│   ├── test_schemas.py                  #    6 项 schema 校验
+│   └── test_repairer.py                 #    6 项 Repair 决策链
+│
+├── outputs/                             # ✅ 生成产物根（.gitkeep 占位）
+│
+└── worklog/                             # ✅ 迭代日志
+    ├── 2026_7_14/框架骨干.md            #    十脉合流框架方案
+    └── 2026_07_15/repair_agent_修改提示词方案.md
 ```
 
-建议让原始大文件、模型权重和生成视频存放在仓库外部或对象存储中，Git 仅跟踪元数据、配置、少量示例和可复现实验脚本。
+**变更说明**（相对早期设计）：
+- `dataset/` → 拆分为 `data/`（数据本体）+ `data_pipeline/`（处理管道），Kubric / Physion / IntPhys 2 三条数据源并列成子目录。
+- `critic/` → 收敛到 `models/critic/`，与 `models/vlm/` 并列。
+- `generator/` → 更名为 `generators/`（复数，容纳多后端探针）。
+- 新增 `schemas/` 一等公民：所有跨模块契约集中管理，供 `agents/`、`generators/`、`data_pipeline/` 引用。
+- 新增 `benchmarks/`：外域评测基准的入口脚本（IntPhys 2 / Physion Eval / VideoPhy2 等）。
+- 新增 `worklog/`：以日期分卷的迭代日志与方案沉淀。
+
+建议让原始大文件、模型权重和生成视频存放在仓库外部或对象存储中，Git 仅跟踪元数据、配置、少量示例和可复现实验脚本（已在 `.gitignore` 中约定）。
 
 ## 环境与硬件
 
