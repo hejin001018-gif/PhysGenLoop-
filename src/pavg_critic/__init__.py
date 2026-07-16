@@ -4,7 +4,7 @@
 布局。未列入 ``__all__`` 的类仍可用于高级扩展，但不承诺在后续版本中保持导入路径。
 """
 
-from .api_models import DeepSeekChatModel, OpenAIResponsesModel
+from .api_models import DeepSeekChatModel, OpenAIChatModel, OpenAIResponsesModel
 from .config import CriticConfig, load_config
 from .pipeline import PhysicsCritic
 from .planner import ModelPhysicsPlanner, PhysicsPlanResolver, TemplatePhysicsPlanner
@@ -21,6 +21,8 @@ from .schemas import (
     QuestionGraph,
     QuestionNode,
 )
+from .sam2_detector import SAM2ObjectDetector
+from .vlm_detector import VLMObjectDetector
 from .vlm_verifier import EvidenceGroundedVLMVerifier
 
 __all__ = [
@@ -32,6 +34,7 @@ __all__ = [
     "FrameState",
     "HybridQuestionGraphGenerator",
     "NodeResult",
+    "OpenAIChatModel",
     "OpenAIResponsesModel",
     "ModelPhysicsPlanner",
     "PhysicsConstraint",
@@ -42,8 +45,10 @@ __all__ = [
     "PlannerMetadata",
     "PQSGQuestionGraphGenerator",
     "QuestionGraph",
+    "SAM2ObjectDetector",
     "QuestionNode",
     "TemplatePhysicsPlanner",
+    "VLMObjectDetector",
     "load_config",
 ]
 

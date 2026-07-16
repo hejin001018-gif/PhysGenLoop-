@@ -11,8 +11,15 @@ import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Protocol
+from typing import Any, Mapping, Protocol, Sequence
 from urllib.parse import urlparse
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:  # pragma: no cover — python-dotenv 是可选的
+    pass
 
 
 class ModelAPIError(RuntimeError):
@@ -238,6 +245,171 @@ class DeepSeekChatModel:
         return _parse_json_text(text)
 
 
+@dataclass
+class OpenAIChatModel:
+    """OpenAI 兼容 Chat Completions 模型，同时支持纯文本和多模态生成。
+
+    使用 ``/chat/completions`` 端点而非 Responses API，因此兼容绝大多数
+    OpenAI 兼容中转站（包括 DeepSeek、本地 vLLM 等）。
+
+    同时满足 :class:`StructuredTextModel` 和 :class:`MultimodalStructuredModel`
+    两个 Protocol，可直接注入到 :class:`PhysicsCritic` 中。
+    """
+
+    api_key: str = field(repr=False)
+    model: str
+    base_url: str = "https://api.openai.com/v1"
+    timeout_sec: float = 120.0
+    transport: JsonTransport | None = None
+
+    def __post_init__(self) -> None:
+        if not self.api_key:
+            raise ValueError("OpenAIChatModel api_key must not be empty")
+        if not self.model:
+            raise ValueError("OpenAIChatModel model must not be empty")
+        _validate_base_url(self.base_url, "OpenAIChat")
+        self.transport = self.transport or UrllibJsonTransport()
+
+    @classmethod
+    def from_env(
+        cls,
+        *,
+        model_env: str = "TEXT_MODEL",
+        **overrides: Any,
+    ) -> "OpenAIChatModel":
+        """从环境变量或 ``.env`` 文件读取配置。
+
+        读取顺序（同名变量优先使用通用名称，再 fallback 到 provider 专属名称）：
+
+        - api_key: ``API_KEY`` → ``OPENAI_API_KEY``
+        - base_url: ``BASE_URL`` → ``OPENAI_BASE_URL`` → ``https://api.openai.com/v1``
+        - model: ``model_env`` 指定的变量名 → ``OPENAI_MODEL``
+
+        Args:
+            model_env: 读取模型名时优先使用的环境变量名，例如 ``"VLM_MODEL"`` 或 ``"TEXT_MODEL"``。
+            **overrides: 直接传给构造器的额外参数（如 ``timeout_sec``）。
+        """
+        api_key = os.getenv("API_KEY", os.getenv("OPENAI_API_KEY", ""))
+        if not api_key:
+            raise ValueError(
+                "Set API_KEY (or OPENAI_API_KEY) in .env or environment "
+                "before using OpenAIChatModel"
+            )
+        base_url = os.getenv(
+            "BASE_URL",
+            os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        )
+        model = os.getenv(model_env, os.getenv("OPENAI_MODEL", ""))
+        if not model:
+            raise ValueError(
+                f"Set {model_env} (or OPENAI_MODEL) in .env or environment "
+                f"before using OpenAIChatModel"
+            )
+        return cls(api_key=api_key, model=model, base_url=base_url, **overrides)
+
+    # ------------------------------------------------------------------
+    # StructuredTextModel protocol
+    # ------------------------------------------------------------------
+
+    def generate_json(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        schema: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        """纯文本 Chat Completions 调用，要求模型返回 JSON 对象。"""
+        assert self.transport is not None
+        # 把 JSON Schema 一并嵌入 system prompt，辅助 json_object 模式输出。
+        schema_text = json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
+        response = self.transport.post_json(
+            url=_build_chat_completions_url(self.base_url),
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            payload={
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            f"{system_prompt}\n\n"
+                            f"Return a JSON object matching this schema: {schema_text}"
+                        ),
+                    },
+                    {"role": "user", "content": user_prompt},
+                ],
+                "response_format": {"type": "json_object"},
+            },
+            timeout_sec=self.timeout_sec,
+        )
+        try:
+            text = response["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise ModelAPIError(
+                "Chat Completions response contains no assistant content"
+            ) from exc
+        return _parse_json_text(text)
+
+    # ------------------------------------------------------------------
+    # MultimodalStructuredModel protocol
+    # ------------------------------------------------------------------
+
+    def generate_json_with_images(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        image_data_urls: Sequence[str],
+        schema: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        """多模态 Chat Completions 调用，将图片以 data URL 嵌入用户消息。"""
+        if not image_data_urls:
+            raise ValueError(
+                "At least one image is required for multimodal generation"
+            )
+        assert self.transport is not None
+        schema_text = json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
+        # 构建 Vision API 格式的 content 数组
+        user_content: list[dict[str, Any]] = [
+            {"type": "text", "text": user_prompt}
+        ]
+        user_content.extend(
+            {"type": "image_url", "image_url": {"url": data_url}}
+            for data_url in image_data_urls
+        )
+        response = self.transport.post_json(
+            url=_build_chat_completions_url(self.base_url),
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            payload={
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            f"{system_prompt}\n\n"
+                            f"Return a JSON object matching this schema: {schema_text}"
+                        ),
+                    },
+                    {"role": "user", "content": user_content},
+                ],
+                "response_format": {"type": "json_object"},
+            },
+            timeout_sec=self.timeout_sec,
+        )
+        try:
+            text = response["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise ModelAPIError(
+                "Chat Completions response contains no assistant content"
+            ) from exc
+        return _parse_json_text(text)
+
+
 def _openai_output_text(response: Mapping[str, Any]) -> str:
     """从原始 Responses API 输出数组提取第一个 output_text。"""
 
@@ -273,3 +445,39 @@ def _validate_https_base_url(value: str, provider: str) -> None:
     parsed = urlparse(value)
     if parsed.scheme.lower() != "https" or not parsed.netloc:
         raise ValueError(f"{provider} base_url must be an absolute HTTPS URL")
+
+
+def _validate_base_url(value: str, provider: str) -> None:
+    """校验 base_url，允许 HTTPS 及本地 localhost HTTP。
+
+    公有云服务强制 HTTPS 以防止 Bearer token 泄漏，但本地 Ollama/vLLM
+    实例通常运行在 http://localhost，需要放行。
+    """
+    parsed = urlparse(value)
+    if not parsed.netloc:
+        raise ValueError(f"{provider} base_url must be an absolute URL")
+    scheme = parsed.scheme.lower()
+    if scheme == "https":
+        return
+    if scheme == "http":
+        host = parsed.hostname or ""
+        if host in ("localhost", "127.0.0.1", "::1") or host.startswith("192.168."):
+            return  # 本地/内网地址允许 HTTP
+    raise ValueError(
+        f"{provider} base_url must be HTTPS (or HTTP for localhost/private IP)"
+    )
+
+
+def _build_chat_completions_url(base_url: str) -> str:
+    """构建 /chat/completions 完整 URL，避免重复拼接。
+
+    兼容三种常见格式：
+
+    - 官方 OpenAI: ``https://api.openai.com/v1`` → 追加 ``/chat/completions``
+    - DeepSeek: ``https://api.deepseek.com`` → 追加 ``/chat/completions``
+    - 已含完整路径的中转站: ``https://proxy.example.com/v1/chat/completions`` → 不变
+    """
+    url = base_url.rstrip("/")
+    if url.endswith("/chat/completions"):
+        return url
+    return f"{url}/chat/completions"
