@@ -33,20 +33,21 @@ The exact row count, generator distribution, checksum and unavailable URL count 
 
 ### Primary full matched block
 
-Use `Qwen/Qwen2.5-VL-7B-Instruct` served through vLLM on the remote A100 40GB:
+Use `Qwen/Qwen3-VL-8B-Instruct` served through vLLM on the remote A100 40GB:
 
 - `D0_OPEN_DIRECT`: fixed 16-frame direct VLM physical judgment;
 - `B1_OPEN_SAM2`: the frozen Revision B deterministic PAVG critic, with official SAM2.1 Hiera B+ dense tracks and the same Qwen model used for object-seed proposals.
 
-The model, prompt hashes, frame count, SAM2 source/checkpoint hashes, vLLM version and decoding parameters are identical or explicitly separated in resolved configuration. Qwen2.5-VL-7B is selected over a larger model because it leaves enough A100 memory for concurrent SAM2 propagation and has a stable OpenAI-compatible multimodal serving path.
+The model, prompt hashes, frame count, SAM2 source/checkpoint hashes, vLLM version and decoding parameters are identical or explicitly separated in resolved configuration. Qwen3-VL-8B-Instruct replaces the originally proposed Qwen2.5-VL-7B after the user reported inadequate Qwen2.5-VL quality. The 8B dense model remains small enough to share an A100 40GB with SAM2 when vLLM is capped at 50% GPU-memory utilization. Official Qwen materials describe improved visual perception, spatial/video dynamics and reasoning; official vLLM support begins at v0.11.0.
 
 ### Secondary controls
 
 - `D1_OPEN_STRUCTURED`: the existing structured-checklist direct baseline on the 300-sample pilot and, if runtime remains within the 72-hour gate, on the full set.
+- `D0_QWEN25_WEAK`: Qwen2.5-VL-7B direct baseline on the frozen pilot only, retained to quantify the backbone upgrade rather than support the primary claim.
 - `A0_VIDEOPHY_AUTO`: released official auto-evaluator scores aligned by source URL or sample identity when alignment is unambiguous.
 - `D0_CLOSED` and `B1_CLOSED_SAM2`: matched `gpt-5-mini` audit on a frozen 300-sample stratified pilot. This anchors the open-model result without committing thousands of paid calls.
 
-If Qwen cannot serve the existing image-data-URL contract after two documented compatibility fixes, the full matched block falls back to `gpt-5-mini`. Terra and Luna are sensitivity models only and do not replace the primary matched block unless `gpt-5-mini` is unavailable.
+If Qwen3-VL cannot serve the existing image-data-URL contract after two documented compatibility fixes, the matched open block falls back first to `Qwen/Qwen2.5-VL-7B-Instruct`, then to `gpt-5-mini`. Terra and Luna are sensitivity models only and do not replace the primary matched block unless `gpt-5-mini` is unavailable.
 
 ## 4. Execution architecture
 
@@ -67,7 +68,7 @@ If Qwen cannot serve the existing image-data-URL contract after two documented c
 
 - vLLM initially reserves at most 50% of A100 memory; SAM2 uses the remaining memory. Reduce vLLM utilization once if the smoke produces OOM.
 - The first open-model fallback is lower vLLM memory utilization and shorter maximum context, not a model or prompt change.
-- The second compatibility fallback is `Qwen/Qwen2-VL-7B-Instruct` with the same prompts and frame sampling.
+- The second compatibility fallback is `Qwen/Qwen2.5-VL-7B-Instruct` with the same prompts and frame sampling.
 - After two failed compatibility fixes, use the closed-model matched block and record the open-model failure as a negative engineering result.
 - Downloads, observation caches and predictions are resumable. Existing valid sample×method keys are skipped; duplicates are rejected.
 - No sample is silently removed. Metrics report all-sample and successfully decoded subsets side by side.
@@ -92,8 +93,8 @@ Local final artifacts live under:
 - `evaluation/manifests/videophy2_test_full.json`;
 - `evaluation/manifests/videophy1_test_full.json`;
 - `outputs/benchmarks/server-audit/`;
-- `outputs/benchmarks/videophy2-full-qwen25vl7b/`;
-- `outputs/benchmarks/videophy1-ood-qwen25vl7b/`;
+- `outputs/benchmarks/videophy2-full-qwen3vl8b/`;
+- `outputs/benchmarks/videophy1-ood-qwen3vl8b/`;
 - `docs/results/criticbenchmark.md`;
 - `docs/superpowers/plans/2026-07-16-full-videophy-server-evaluation.md`.
 

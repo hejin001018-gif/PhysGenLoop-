@@ -4,9 +4,9 @@
 
 **Goal:** Run an auditable full VideoPhy-2 matched open-model comparison on the rented A100 server, then apply the frozen configuration to VideoPhy-1 OOD and synchronize complete results locally.
 
-**Architecture:** Serve Qwen2.5-VL-7B through a memory-bounded local vLLM endpoint while the frozen Revision B critic uses official SAM2.1 Hiera B+ for dense tracks. Use append-only manifests, observation caches and predictions so downloads and multi-day inference can resume safely. Closed `gpt-5-mini` is a frozen 300-sample audit anchor and a full-run fallback only after two documented open-model compatibility failures.
+**Architecture:** Serve Qwen3-VL-8B-Instruct through a memory-bounded local vLLM endpoint while the frozen Revision B critic uses official SAM2.1 Hiera B+ for dense tracks. Use append-only manifests, observation caches and predictions so downloads and multi-day inference can resume safely. Qwen2.5-VL-7B is a weak pilot baseline only; closed `gpt-5-mini` is a frozen 300-sample audit anchor and a full-run fallback only after two documented Qwen3 compatibility failures.
 
-**Tech Stack:** Python 3.12, PyTorch CUDA, official Meta SAM2.1, vLLM, Qwen2.5-VL-7B-Instruct, OpenCV, pytest, Paramiko/OpenSSH, VideoPhy-2 and VideoPhy-1.
+**Tech Stack:** Python 3.12, PyTorch CUDA 12.8, official Meta SAM2.1, vLLM 0.11.0, Qwen3-VL-8B-Instruct, OpenCV, pytest, Paramiko/OpenSSH, VideoPhy-2 and VideoPhy-1.
 
 ---
 
@@ -75,7 +75,7 @@
 ## Task 6: Deploy the open model and pass server smoke
 
 **Files:**
-- Create remote: `/root/pavg-benchmark/models/Qwen2.5-VL-7B-Instruct/`
+- Create remote: `/root/pavg-benchmark/models/Qwen3-VL-8B-Instruct/`
 - Create remote: `/root/pavg-benchmark/runs/videophy2-server-smoke20/`
 - Modify: this plan under `Execution results`
 
@@ -88,7 +88,7 @@
 ## Task 7: Run the frozen 300-sample pilot
 
 **Files:**
-- Create remote: `/root/pavg-benchmark/runs/videophy2-pilot300-qwen25vl7b/`
+- Create remote: `/root/pavg-benchmark/runs/videophy2-pilot300-qwen3vl8b/`
 - Modify: this plan under `Execution results`
 
 - [ ] Run `D0_OPEN_DIRECT,D1_OPEN_STRUCTURED,B1_OPEN_SAM2` with append-only predictions and SAM2 observation cache.
@@ -99,8 +99,8 @@
 ## Task 8: Run all 3,397 VideoPhy-2 samples
 
 **Files:**
-- Create remote: `/root/pavg-benchmark/runs/videophy2-full-qwen25vl7b/`
-- Create local: `outputs/benchmarks/videophy2-full-qwen25vl7b/`
+- Create remote: `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/`
+- Create local: `outputs/benchmarks/videophy2-full-qwen3vl8b/`
 - Modify: this plan under `Execution results`
 
 - [ ] Launch the full matched D0/B1 matrix in a resumable session with one process owning the prediction lock.
@@ -113,7 +113,7 @@
 
 **Files:**
 - Create local: `evaluation/manifests/videophy1_test_full.json`
-- Create local: `outputs/benchmarks/videophy1-ood-qwen25vl7b/`
+- Create local: `outputs/benchmarks/videophy1-ood-qwen3vl8b/`
 - Modify: this plan under `Execution results`
 
 - [ ] Retrieve the official public test metadata, record row count/schema/checksum and materialize every accessible video.
@@ -173,3 +173,10 @@ Results are appended here after every task checkpoint. Existing results are immu
 - Full remote test suite after the required overlay: `159 passed in 2.01s`.
 - Real A100 propagation on a three-frame moving-square video produced exactly one stable `sam2:0` track per frame with boxes `(20,48,39,79)`, `(40,48,59,79)` and `(60,48,79,79)`. The missing optional `_C` post-processing warning was recorded; propagation itself passed.
 - Frozen package inventory is stored at `/root/pavg-benchmark/logs/environment.txt`.
+
+### E5 — Open-model upgrade and CUDA compatibility
+
+- The initial latest `vLLM 0.25.1` environment resolved Torch `2.11.0+cu130`. Import succeeded, but the required real CUDA tensor operation failed because driver 570 exposes CUDA 12.8 and cannot execute CUDA 13.0 binaries.
+- A CUDA 12.8 `vLLM 0.10.2` installation was started, then stopped after the user rejected Qwen2.5-VL quality and the official compatibility matrix showed that v0.10.2 does not support `Qwen3VLForConditionalGeneration`.
+- Official vLLM matrices show Qwen3-VL support begins at v0.11.0. The selected environment is `vLLM 0.11.0`, Torch `2.8.0+cu128`, ModelScope `1.38.1`; a real A100 matrix multiplication returned `262144.0`.
+- Primary open backbone is now `Qwen/Qwen3-VL-8B-Instruct` (Apache-2.0). Qwen2.5-VL is limited to a pilot weak baseline. Model weights are downloading from the official Qwen ModelScope repository because direct Hugging Face TLS is unavailable on the server.
