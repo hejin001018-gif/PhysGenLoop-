@@ -50,7 +50,13 @@ class ResultFusion:
                 }
             )
             if review is not None:
-                evidence.update({"vlm_score": review.score, "vlm_model": review.model})
+                evidence.update(
+                    {
+                        "vlm_score": review.score,
+                        "vlm_model": review.model,
+                        "vlm_claim_status": review.claim_status,
+                    }
+                )
             violations.append(
                 (
                     score,

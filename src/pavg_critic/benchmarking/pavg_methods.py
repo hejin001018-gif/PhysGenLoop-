@@ -168,7 +168,7 @@ class PAVGMethod:
         *,
         model_id: str | None,
         verifier_model=None,
-        verifier_detector_weight: float = 0.4,
+        verifier_detector_weight: float = 0.7,
     ):
         if mode not in {
             "B1_RULE",

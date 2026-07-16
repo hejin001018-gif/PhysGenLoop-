@@ -56,6 +56,20 @@ def test_max_samples_defaults_to_none():
     assert args.max_samples is None
 
 
+def test_m4_detector_weight_defaults_to_detector_dominant_value():
+    args = build_parser().parse_args(
+        [
+            "--manifest",
+            "m.json",
+            "--run-dir",
+            "run",
+            "--methods",
+            "M4_VLM",
+        ]
+    )
+    assert args.m4_detector_weight == 0.7
+
+
 def test_chat_json_schema_mode_is_explicit_and_forwarded(monkeypatch):
     args = build_parser().parse_args(
         [

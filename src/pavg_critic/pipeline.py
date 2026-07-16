@@ -40,7 +40,7 @@ from .schemas import CriticArtifacts, CriticReport, CriticRequest, FrameState, S
 from .temporal_localizer import TemporalLocalizer
 from .tracker import CentroidTracker
 from .trajectory import TrajectoryExtractor
-from .vlm_verifier import NoOpVLMVerifier
+from .vlm_verifier import NoOpVLMVerifier, with_track_evidence
 
 
 class PhysicsCritic:
@@ -201,7 +201,10 @@ class PhysicsCritic:
             mechanics_results, mechanics_summary = (), None
         context = RuleContext(request=request, tracks=tracks, events=events)
         raw_candidates = self.rule_engine.evaluate(context)
-        candidates = tuple(self.localizer.localize(item, events) for item in raw_candidates)
+        candidates = tuple(
+            with_track_evidence(self.localizer.localize(item, events), tracks)
+            for item in raw_candidates
+        )
 
         visual_evidence = tuple(
             evidence

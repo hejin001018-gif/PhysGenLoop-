@@ -8,8 +8,9 @@ from pathlib import Path
 import jsonschema
 
 from pavg_critic import CriticRequest, FrameState, PhysicsCritic
-from pavg_critic.config import CriticConfig, QuestionGraphConfig, TrajectoryConfig
-from pavg_critic.schemas import PhysicsPlan
+from pavg_critic.config import CriticConfig, FusionConfig, QuestionGraphConfig, TrajectoryConfig
+from pavg_critic.fusion import ResultFusion
+from pavg_critic.schemas import PhysicsPlan, ViolationCandidate, VLMReview
 
 
 def _state(frame, y, velocity, bottom=None):
@@ -98,3 +99,25 @@ def test_fused_report_still_validates_schema_2():
     )
 
     jsonschema.validate(report.to_dict(), schema)
+
+
+def test_fusion_records_vlm_claim_status_in_violation_evidence():
+    candidate = ViolationCandidate(
+        object="red_ball",
+        track_id="ball-1",
+        category="premature_rebound",
+        start_frame=1,
+        peak_frame=2,
+        end_frame=3,
+        reason="reversal before contact",
+        repair_instruction="continue falling",
+        detector_score=0.9,
+        rules=("velocity_reversal_before_contact",),
+    )
+    report = ResultFusion(FusionConfig(detector_weight=0.7, vlm_weight=0.3)).fuse(
+        (candidate,),
+        {0: (1, 2, 3)},
+        {0: VLMReview(score=0.8, claim_status="confirmed")},
+    )
+
+    assert report.violations[0].evidence["vlm_claim_status"] == "confirmed"

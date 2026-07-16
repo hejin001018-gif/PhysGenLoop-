@@ -70,7 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--sam2-config")
     parser.add_argument("--sam2-checkpoint", type=Path)
-    parser.add_argument("--m4-detector-weight", type=float, default=0.4)
+    parser.add_argument("--m4-detector-weight", type=float, default=0.7)
     return parser
 
 

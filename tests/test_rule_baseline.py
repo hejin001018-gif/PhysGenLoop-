@@ -152,3 +152,35 @@ def test_unplanned_floor_geometry_is_not_surface_penetration_evidence():
     assert "surface_penetration" not in {
         item.category for item in report.violations
     }
+
+
+def test_vlm_verifier_receives_sam2_track_evidence():
+    class CaptureVerifier:
+        def __init__(self):
+            self.candidates = ()
+
+        def verify_many(self, request, candidates, keyframes):
+            self.candidates = tuple(candidates)
+            return {index: None for index in range(len(candidates))}
+
+    verifier = CaptureVerifier()
+    critic = PhysicsCritic(
+        CriticConfig(
+            trajectory=TrajectoryConfig(smoothing_window=1),
+            question_graph=QuestionGraphConfig(enabled=False),
+        ),
+        vlm_verifier=verifier,
+    )
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(objects=("red_ball",), expected_events=("fall",)),
+    )
+    critic.analyze(request, observations=(
+        _state(0, 40, velocity=(0, 100)),
+        _state(1, 55, velocity=(0, 100)),
+        _state(2, 48, velocity=(0, -100)),
+        _state(3, 38, velocity=(0, -100)),
+    ), floor_y=100)
+
+    assert verifier.candidates
+    assert verifier.candidates[0].evidence["sam2_track"]["track_id"] == "ball-1"

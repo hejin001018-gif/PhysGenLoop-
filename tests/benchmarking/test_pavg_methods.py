@@ -80,6 +80,17 @@ def test_m4_accepts_explicit_verifier_model(tmp_path):
     assert method.method_id == "M4_VLM"
 
 
+def test_m4_defaults_to_detector_dominant_fusion(tmp_path):
+    provider = CachedObservationProvider(tmp_path, lambda ignored: ())
+    method = PAVGMethod(
+        "M4_VLM",
+        provider,
+        model_id="verifier-model",
+        verifier_model=object(),
+    )
+    assert method.verifier_detector_weight == 0.7
+
+
 def test_m4_verifier_failure_becomes_explicit_unknown(
     tmp_path, sample_factory, frame_state_factory
 ):
