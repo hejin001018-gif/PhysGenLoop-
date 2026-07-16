@@ -60,3 +60,11 @@
 - Concurrent materialization downloaded 1,666 shard-B videos. The 32 remaining Sora URLs returned HTTP 403 because their source paths encode spaces with `+`; their checksum-frozen copies were transferred from server 1. The final decode audit passed 1,698/1,698 videos, reading both first and last frames, with 32–150 frames and zero failures in 41.16 seconds.
 - The complete server-2 regression suite passed `179/179` in 2.12 seconds. A real one-sample D0/B1 joint smoke produced 2/2 successful predictions with strict JSON schema and official SAM2.
 - The detached shard-B evaluator started as PID `41922` from source revision `1989a81ce0c0ef849e5fa57480cc01c93ad5da94`. It uses the frozen command arguments recorded by its `resolved_config.json`, resumed from 67 prior keys, reached 75 keys at the first checkpoint, used 100% GPU, and had zero failures. At the same checkpoint shard A had 241 keys and zero failures.
+
+### E5 — 23:02 dual-worker checkpoint
+
+- Both evaluators remained live and their prediction files were updated within seconds of inspection. Server 1 used 98% GPU with 25.2 GiB allocated; server 2 used 100% GPU with 24.7 GiB allocated.
+- The key audit found 678/3,398 terminal shard-A predictions and 519/3,396 terminal shard-B predictions, for 1,197/6,794 total keys (17.6%). Method counts were A `D0=339/B1=339` and B `D0=260/B1=259`; the one-key difference is the currently active sample.
+- Duplicate keys, out-of-shard sample IDs and unknown methods were all zero on both workers. Each worker had one B1 terminal failure: `videophy2-1a4d8e4b16713ff507aa` on A and `videophy2-220b8130a3c7f8a6db0a` on B. Both failures were `ValueError: VLM produced no object seeds for SAM2 tracking`; neither was an OOM, decode failure or process crash.
+- The observed B1 failure rate at this checkpoint was 2/598 (0.33%). Under the frozen terminal-failure policy these records remain in the append-only results and no prompt, seed rule, sample or threshold was changed.
+- The 21:39–23:02 combined rate was approximately 7.7 prediction keys per minute. A provisional completion estimate is another 12–13 hours, subject to video-length variation.
