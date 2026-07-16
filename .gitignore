@@ -2,10 +2,19 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
 .venv/
 venv/
 .env
 .env.*
+!.env.example
 *.log
 
 # 大文件（README §推荐工程结构：Git 仅跟踪元数据）
