@@ -1,0 +1,632 @@
+{
+  "schema_version": "1.0",
+  "samples": [
+    {
+      "sample_id": "videophy2-0091e84a455b13133b20",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A glass is wiped dry with a tea towel, visible water droplets disappearing.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-0091e84a455b13133b20.mp4",
+      "prompt_group_id": "wiping something off of something",
+      "generator": "cogvideo",
+      "semantic_label": "not_adherent",
+      "physics_label": "violation",
+      "semantic_score": 2.0,
+      "physics_score": 3.0,
+      "physical_rules": [
+        "The cloth changes shape as it is squeezed.",
+        "Water droplets fall from the cloth.",
+        "The volume of water released is less than the initial volume absorbed by the cloth.",
+        "The cloth should compress to expel water droplets when pressure is applied"
+      ],
+      "raw_labels": {
+        "sa": "2",
+        "pc": "3",
+        "joint": "0",
+        "is_hard": "1",
+        "physics_rules_followed": "['The cloth changes shape as it is squeezed.', 'Water droplets fall from the cloth.']",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "['The volume of water released is less than the initial volume absorbed by the cloth.']",
+        "human_violated_rules": "['The cloth should compress to expel water droplets when pressure is applied']",
+        "metadata_rules": "{'The cloth changes shape as it is squeezed.': 'Elasticity', 'Water droplets fall from the cloth.': 'Gravity', 'The cloth should compress to expel water droplets when pressure is applied': ['Fluid Mechanics']}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/cogvideoX5b_hard_upsampled/A_glass_is_wiped_dry_with_a_tea_towel,_visible_water_droplets_disappearing.mp4",
+      "sha256": "31d2d802e6634283c461bde2077177376134d85acd15a04d699bac86e5c20ac3"
+    },
+    {
+      "sample_id": "videophy2-07565b08669bccb6f335",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A person forcefully rips a piece of kraft paper, the fibers stretching and separating before breaking.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-07565b08669bccb6f335.mp4",
+      "prompt_group_id": "ripping paper",
+      "generator": "videocrafter",
+      "semantic_label": "not_adherent",
+      "physics_label": "violation",
+      "semantic_score": 3.0,
+      "physics_score": 3.0,
+      "physical_rules": [
+        "The fabric/paper remains on the surface; it does not float.",
+        "The fabric/paper changes shape from a larger, whole piece to two smaller pieces.",
+        "The edges of the torn fabric/paper are uneven and jagged."
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "3",
+        "joint": "0",
+        "is_hard": "1",
+        "physics_rules_followed": "['The fabric/paper remains on the surface; it does not float.']",
+        "physics_rules_unfollowed": "['The fabric/paper changes shape from a larger, whole piece to two smaller pieces.', 'The edges of the torn fabric/paper are uneven and jagged.']",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{'The fabric/paper remains on the surface; it does not float.': 'Gravity', 'The fabric/paper changes shape from a larger, whole piece to two smaller pieces.': 'Elasticity', 'The edges of the torn fabric/paper are uneven and jagged.': 'Hardness'}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/videocrafter_videophy2_hard/A_person_forcefully_rips_a_piece_of_kraft_paper__the_fibers_stretching_and_separating_before_breaking_.mp4",
+      "sha256": "2f2fbd2c128b7d04b6cf570170695f9d32e02bb6e583608438328e5b1c475a7a"
+    },
+    {
+      "sample_id": "videophy2-264694e3a22d25cb425f",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A roller skater pushes off a wall, gaining speed and gliding across a smooth concrete surface.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-264694e3a22d25cb425f.mp4",
+      "prompt_group_id": "roller skating",
+      "generator": "sora",
+      "semantic_label": "not_adherent",
+      "physics_label": "violation",
+      "semantic_score": 2.0,
+      "physics_score": 2.0,
+      "physical_rules": [
+        "The person moves forward on the roller skates.",
+        "The roller skates maintain contact with the concrete.",
+        "The person's body remains upright.",
+        "The person's body maintains angular momentum, requiring the entire body to rotate together when changing direction"
+      ],
+      "raw_labels": {
+        "sa": "2",
+        "pc": "2",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['The person moves forward on the roller skates.', 'The roller skates maintain contact with the concrete.', \"The person's body remains upright.\"]",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[\"The person's body maintains angular momentum, requiring the entire body to rotate together when changing direction\"]",
+        "metadata_rules": "{'The person moves forward on the roller skates.': 'Friction', 'The roller skates maintain contact with the concrete.': 'Friction', \"The person's body remains upright.\": 'Gravity', \"The person's body maintains angular momentum, requiring the entire body to rotate together when changing direction\": ['Conservation of Angular Momentum']}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/sora_hard_videophy2/Urban+Skating+Adventure.mp4",
+      "sha256": "2f80cee77a4630e026603775d7a8f9588b79c037dd194dd9b75a7471e39c2a79"
+    },
+    {
+      "sample_id": "videophy2-31cdd137d1153f80f5aa",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "Multiple paragliders launch sequentially from a cliff edge, showcasing the staggered takeoffs and individual flight paths.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-31cdd137d1153f80f5aa.mp4",
+      "prompt_group_id": "paragliding",
+      "generator": "hunyuan",
+      "semantic_label": "not_adherent",
+      "physics_label": "physical",
+      "semantic_score": 3.0,
+      "physics_score": 4.0,
+      "physical_rules": [
+        "The paragliders move downwards at a relatively constant speed when not actively maneuvering.",
+        "The paragliders maintain a relatively consistent horizontal velocity unless actively maneuvering.",
+        "The paragliders change direction when the pilots shift their weight or use control mechanisms."
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "4",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['The paragliders move downwards at a relatively constant speed when not actively maneuvering.', 'The paragliders maintain a relatively consistent horizontal velocity unless actively maneuvering.']",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "['The paragliders change direction when the pilots shift their weight or use control mechanisms.']",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/hunyuan_xdit/Multiple_paragliders_launch_sequentially_from_a_cliff_edge,_showcasing_the_staggered_takeoffs_and_individual_flight_paths.mp4",
+      "sha256": "9acae99a40e649cc43828d0c18efec0a79d2cf737014053b0b76dc9fa28f8d19"
+    },
+    {
+      "sample_id": "videophy2-32d9a1473edccf41bb15",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A player uses a backhand shot to send a racquetball into the corner, the ball rebounding off two walls.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-32d9a1473edccf41bb15.mp4",
+      "prompt_group_id": "playing squash or racquetball",
+      "generator": "hunyuan",
+      "semantic_label": "not_adherent",
+      "physics_label": "violation",
+      "semantic_score": 2.0,
+      "physics_score": 2.0,
+      "physical_rules": [
+        "The tennis net remains in a fixed position.",
+        "The tennis racket moves before the ball moves.",
+        "The ball descends to the ground under the influence of gravity"
+      ],
+      "raw_labels": {
+        "sa": "2",
+        "pc": "2",
+        "joint": "0",
+        "is_hard": "1",
+        "physics_rules_followed": "['The tennis net remains in a fixed position.']",
+        "physics_rules_unfollowed": "['The tennis racket moves before the ball moves.']",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "['The ball descends to the ground under the influence of gravity']",
+        "metadata_rules": "{'The ball descends to the ground under the influence of gravity': ['Gravity']}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/hunyuan_xdit/A_player_uses_a_backhand_shot_to_send_a_racquetball_into_the_corner,_the_ball_rebounding_off_two_walls.mp4",
+      "sha256": "f0bd63e59d6493458bc69d1743e19837e93f3be7196c6cd4d12c6c0993eb8de8"
+    },
+    {
+      "sample_id": "videophy2-33bec95af1576efacf41",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A person expertly rides a Segway down a ramp, performing a controlled jump before landing smoothly.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-33bec95af1576efacf41.mp4",
+      "prompt_group_id": "using segway",
+      "generator": "cosmos",
+      "semantic_label": "not_adherent",
+      "physics_label": "physical",
+      "semantic_score": 3.0,
+      "physics_score": 4.0,
+      "physical_rules": [
+        "The scooter wheels maintain contact with the ramp surface.",
+        "The scooter and rider move downward along the curved ramp.",
+        "The scooter's speed changes as it goes down the ramp.",
+        "The scooter maintains a trajectory that follows the ramp's curve until landing"
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "4",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['The scooter wheels maintain contact with the ramp surface.', 'The scooter and rider move downward along the curved ramp.', \"The scooter's speed changes as it goes down the ramp.\"]",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[\"The scooter maintains a trajectory that follows the ramp's curve until landing\"]",
+        "metadata_rules": "{'The scooter wheels maintain contact with the ramp surface.': 'Friction', 'The scooter and rider move downward along the curved ramp.': 'Gravity', \"The scooter's speed changes as it goes down the ramp.\": 'Gravity', \"The scooter maintains a trajectory that follows the ramp's curve until landing\": ['Conservation of Momentum']}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/cosmos_videophy2_test_challenging/A_person_expertly_rides_a_Segway_down_a_ramp,_performing_a_controlled_jump_before_landing_smoothly.mp4",
+      "sha256": "2d03d9e4ca284b01d8c0aea3bec671dd7e39c29d09ab47c6f4639465c66fcc91"
+    },
+    {
+      "sample_id": "videophy2-3ebeb2dcab63f3635e57",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A mountain biker pedals uphill through deep snow, their tires leaving visible tracks.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-3ebeb2dcab63f3635e57.mp4",
+      "prompt_group_id": "biking through snow",
+      "generator": "cogvideo",
+      "semantic_label": "not_adherent",
+      "physics_label": "physical",
+      "semantic_score": 3.0,
+      "physics_score": 4.0,
+      "physical_rules": [
+        "The bike moves forward.",
+        "The bike leaves tracks in the snow.",
+        "Snow falls from the trees.",
+        "The bike displaces snow when moving forward, creating visible tracks in the snow"
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "4",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['The bike moves forward.', 'The bike leaves tracks in the snow.']",
+        "physics_rules_unfollowed": "['Snow falls from the trees.']",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "['The bike displaces snow when moving forward, creating visible tracks in the snow']",
+        "metadata_rules": "{'The bike moves forward.': 'Conservation of Momentum', 'The bike leaves tracks in the snow.': 'Friction', 'Snow falls from the trees.': 'Gravity', 'The bike displaces snow when moving forward, creating visible tracks in the snow': ['Friction']}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/cogvideoX5b_hard_upsampled/A_mountain_biker_pedals_uphill_through_deep_snow,_their_tires_leaving_visible_tracks.mp4",
+      "sha256": "2193ef0781349250873ccfefec86aea6f815bcadb6c83eae592655defa99ceb7"
+    },
+    {
+      "sample_id": "videophy2-4c8f0476dc8624d7df11",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A rower's hands release the oar, and the oar falls into the boat, making a gentle thud.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-4c8f0476dc8624d7df11.mp4",
+      "prompt_group_id": "rowing",
+      "generator": "ray2",
+      "semantic_label": "not_adherent",
+      "physics_label": "physical",
+      "semantic_score": 3.0,
+      "physics_score": 5.0,
+      "physical_rules": [
+        "The oars move through the water.",
+        "The boat moves forward when the oars are pulled.",
+        "The boat floats on the water.",
+        "The oar falls freely to the boat after being released"
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "5",
+        "joint": "0",
+        "is_hard": "1",
+        "physics_rules_followed": "['The oars move through the water.', 'The boat moves forward when the oars are pulled.', 'The boat floats on the water.']",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "['The oar falls freely to the boat after being released']",
+        "metadata_rules": "{'The oars move through the water.': 'Friction', 'The boat moves forward when the oars are pulled.': 'Conservation of Momentum', 'The boat floats on the water.': 'Buoyancy', 'The oar falls freely to the boat after being released': ['Gravity']}"
+      },
+      "source_url": "https://storage.cdn-luma.com/dream_machine/5153cf6a-7a17-497c-bfc8-b176cd11f032/d567c50b-7427-42d4-80cf-df83824b3fdb_result.mp4",
+      "sha256": "97fd4a4a160520784be2f656b3ca4722203a46ff13795657ea4d031ee539e17f"
+    },
+    {
+      "sample_id": "videophy2-561afc9739e8f392c981",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A person uses a long-handled fruit picker to reach and twist a peach from a tree.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-561afc9739e8f392c981.mp4",
+      "prompt_group_id": "picking fruit",
+      "generator": "hunyuan",
+      "semantic_label": "adherent",
+      "physics_label": "physical",
+      "semantic_score": 4.0,
+      "physics_score": 4.0,
+      "physical_rules": [
+        "The peach changes position from the tree to the fruit picker.",
+        "The peach detaches from the tree branch.",
+        "The fruit picker moves toward and then away from the tree."
+      ],
+      "raw_labels": {
+        "sa": "4",
+        "pc": "4",
+        "joint": "1",
+        "is_hard": "0",
+        "physics_rules_followed": "['The peach changes position from the tree to the fruit picker.', 'The peach detaches from the tree branch.', 'The fruit picker moves toward and then away from the tree.']",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{'The peach detaches from the tree branch.': 'Friction'}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/hunyuan_xdit/A_person_uses_a_long-handled_fruit_picker_to_reach_and_twist_a_peach_from_a_tree.mp4",
+      "sha256": "ac31f9a200c50a79f583827338d0c5f3de7db1450de5a13f032c9a9edf0b2a46"
+    },
+    {
+      "sample_id": "videophy2-6cdb88f03af1cd2eda3a",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A bungee cord connects to a harness and then the jumper leaps from a high platform, showcasing the full range of motion.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-6cdb88f03af1cd2eda3a.mp4",
+      "prompt_group_id": "bungee jumping",
+      "generator": "hunyuan",
+      "semantic_label": "not_adherent",
+      "physics_label": "violation",
+      "semantic_score": 2.0,
+      "physics_score": 3.0,
+      "physical_rules": [
+        "The person remains suspended in the air.",
+        "The position of the person changes vertically.",
+        "The person in the red helmet moves upwards."
+      ],
+      "raw_labels": {
+        "sa": "2",
+        "pc": "3",
+        "joint": "0",
+        "is_hard": "1",
+        "physics_rules_followed": "['The person remains suspended in the air.', 'The position of the person changes vertically.']",
+        "physics_rules_unfollowed": "['The person in the red helmet moves upwards.']",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/hunyuan_xdit/A_bungee_cord_connects_to_a_harness_and_then_the_jumper_leaps_from_a_high_platform,_showcasing_the_full_range_of_motion.mp4",
+      "sha256": "bd69a20d2d351fcb5d9bca0e8b13ce4051aa4d05761cba6bda5de173cbcad3c6"
+    },
+    {
+      "sample_id": "videophy2-872e28eca2c60496ff0a",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A plastic ruler is bent until it cracks, displaying a visible stress fracture that propagates.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-872e28eca2c60496ff0a.mp4",
+      "prompt_group_id": "bending something until it breaks",
+      "generator": "wan",
+      "semantic_label": "not_adherent",
+      "physics_label": "violation",
+      "semantic_score": 3.0,
+      "physics_score": 2.0,
+      "physical_rules": [
+        "The two pieces of the object can be rejoined to form the original shape.",
+        "The object remains in the hands of the person holding it; it does not fall to the ground.",
+        "The two pieces of the object maintain their individual shapes and sizes when separated.",
+        "The two pieces of the object cannot rejoin without external force or material"
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "2",
+        "joint": "0",
+        "is_hard": "1",
+        "physics_rules_followed": "['The two pieces of the object can be rejoined to form the original shape.', 'The object remains in the hands of the person holding it; it does not fall to the ground.']",
+        "physics_rules_unfollowed": "['The two pieces of the object maintain their individual shapes and sizes when separated.']",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "['The two pieces of the object cannot rejoin without external force or material']",
+        "metadata_rules": "{'The two pieces of the object can be rejoined to form the original shape.': 'Elasticity', 'The object remains in the hands of the person holding it; it does not fall to the ground.': 'Gravity', 'The two pieces of the object maintain their individual shapes and sizes when separated.': 'Conservation of Mass', 'The two pieces of the object cannot rejoin without external force or material': ['Conservation of Mass']}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/wan_videophy2_test_hard_upsampled/A_plastic_ruler_is_bent_until_it_cracks,_displaying_a_visible_stress_fracture_that_propagates.mp4",
+      "sha256": "c878d717c1e4c384c998a27c040bea27b2e4f9d204583bd3ba1ce55da9346986"
+    },
+    {
+      "sample_id": "videophy2-98c57957fc47bf6cd827",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A wet sponge is wrung out in a sink, leaving behind a puddle of water.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-98c57957fc47bf6cd827.mp4",
+      "prompt_group_id": "twisting (wringing) something wet until water comes out",
+      "generator": "ray2",
+      "semantic_label": "adherent",
+      "physics_label": "violation",
+      "semantic_score": 4.0,
+      "physics_score": 3.0,
+      "physical_rules": [
+        "Water droplets fall from the sponge into the sink.",
+        "The volume of the sponge decreases as water is removed."
+      ],
+      "raw_labels": {
+        "sa": "4",
+        "pc": "3",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['Water droplets fall from the sponge into the sink.']",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "['The volume of the sponge decreases as water is removed.']",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{'Water droplets fall from the sponge into the sink.': 'Gravity', 'The volume of the sponge decreases as water is removed.': 'Conservation of Mass'}"
+      },
+      "source_url": "https://storage.cdn-luma.com/dream_machine/428c9932-a865-401e-ae5b-e45fa994c089/61d90c17-37e0-4e7f-a341-cb2f1389dbe7_result.mp4",
+      "sha256": "fbc354e104bb9b1085fc52c71c8a07ebacdd257db8f276b15eefa7780fbe5c06"
+    },
+    {
+      "sample_id": "videophy2-ab0d1c3644235fe4be83",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A soccer ball is juggled while walking slowly forward, maintaining a steady rhythm and control, for five steps.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-ab0d1c3644235fe4be83.mp4",
+      "prompt_group_id": "soccerjuggling",
+      "generator": "cogvideo",
+      "semantic_label": "adherent",
+      "physics_label": "physical",
+      "semantic_score": 4.0,
+      "physics_score": 4.0,
+      "physical_rules": [
+        "The ball changes position repeatedly.",
+        "The ball maintains a roughly consistent height during the juggling.",
+        "The ball's trajectory changes direction consistently during the juggling."
+      ],
+      "raw_labels": {
+        "sa": "4",
+        "pc": "4",
+        "joint": "1",
+        "is_hard": "0",
+        "physics_rules_followed": "['The ball changes position repeatedly.', 'The ball maintains a roughly consistent height during the juggling.', \"The ball's trajectory changes direction consistently during the juggling.\"]",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{'The ball changes position repeatedly.': 'Gravity', 'The ball maintains a roughly consistent height during the juggling.': 'Gravity', \"The ball's trajectory changes direction consistently during the juggling.\": 'Elasticity'}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/cogvideoX5b_hard_upsampled/A_soccer_ball_is_juggled_while_walking_slowly_forward,_maintaining_a_steady_rhythm_and_control,_for_five_steps.mp4",
+      "sha256": "5ba3959fd201032f1e3c1046219d2bc543ca3348465b91ffcc33905f0b503270"
+    },
+    {
+      "sample_id": "videophy2-c6b35bad7cf58266e893",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A parasail is being inflated and prepared by crew, showing the process of inflation and the parachute's texture.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-c6b35bad7cf58266e893.mp4",
+      "prompt_group_id": "parasailing",
+      "generator": "videocrafter",
+      "semantic_label": "not_adherent",
+      "physics_label": "physical",
+      "semantic_score": 1.0,
+      "physics_score": 4.0,
+      "physical_rules": [
+        "The parachute descends vertically.",
+        "The parachute's shape remains relatively constant during descent.",
+        "The figure remains suspended below the parachute."
+      ],
+      "raw_labels": {
+        "sa": "1",
+        "pc": "4",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['The parachute descends vertically.', \"The parachute's shape remains relatively constant during descent.\", 'The figure remains suspended below the parachute.']",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{'The parachute descends vertically.': 'Gravity', \"The parachute's shape remains relatively constant during descent.\": 'Elasticity', 'The figure remains suspended below the parachute.': 'Gravity'}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/videocrafter_videophy2_hard/A_parasail_is_being_inflated_and_prepared_by_crew__showing_the_process_of_inflation_and_the_parachute_s_texture_.mp4",
+      "sha256": "6b1a8848a1aeeb1832d68fd69c8857adc600809570e58239a04a7e4df340a999"
+    },
+    {
+      "sample_id": "videophy2-ca26b2d074dd871b1661",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A person drops a stitch while knitting, the dropped loop clearly visible.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-ca26b2d074dd871b1661.mp4",
+      "prompt_group_id": "knitting",
+      "generator": "wan",
+      "semantic_label": "not_adherent",
+      "physics_label": "physical",
+      "semantic_score": 3.0,
+      "physics_score": 4.0,
+      "physical_rules": [
+        "The yarn stretches and deforms as it is pulled through the needles.",
+        "The needles move in a coordinated pattern.",
+        "The ball of yarn decreases in size as the knitting progresses."
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "4",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['The yarn stretches and deforms as it is pulled through the needles.', 'The needles move in a coordinated pattern.']",
+        "physics_rules_unfollowed": "['The ball of yarn decreases in size as the knitting progresses.']",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{'The yarn stretches and deforms as it is pulled through the needles.': 'Elasticity', 'The needles move in a coordinated pattern.': 'None', 'The ball of yarn decreases in size as the knitting progresses.': 'Conservation of Mass'}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/wan_videophy2_test_hard_upsampled/A_person_drops_a_stitch_while_knitting,_the_dropped_loop_clearly_visible.mp4",
+      "sha256": "8e999ab5548197a556f504687930acc88f2e8ed03b3a0feced4dc4d7de631380"
+    },
+    {
+      "sample_id": "videophy2-cc0d5a18d5a2d636f77a",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A poi ball catches on a tree branch briefly interrupting the spin.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-cc0d5a18d5a2d636f77a.mp4",
+      "prompt_group_id": "spinning poi",
+      "generator": "cogvideo",
+      "semantic_label": "not_adherent",
+      "physics_label": "violation",
+      "semantic_score": 3.0,
+      "physics_score": 3.0,
+      "physical_rules": [
+        "The ball maintains its shape as it moves.",
+        "The ball moves through the air.",
+        "The ball's position changes over time.",
+        "The ball must transition smoothly through space and cannot instantly appear at a new location."
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "3",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['The ball maintains its shape as it moves.', 'The ball moves through the air.', \"The ball's position changes over time.\"]",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "['The ball must transition smoothly through space and cannot instantly appear at a new location.']",
+        "metadata_rules": "{'The ball maintains its shape as it moves.': 'Elasticity', 'The ball moves through the air.': 'Gravity', \"The ball's position changes over time.\": 'Gravity', 'The ball must transition smoothly through space and cannot instantly appear at a new location.': ['Conservation of Energy']}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/cogvideoX5b_hard_upsampled/A_poi_ball_catches_on_a_tree_branch_briefly_interrupting_the_spin.mp4",
+      "sha256": "2a1af6d4177615f781676e0e554492a6e78354573e935dee07edd61814d1d551"
+    },
+    {
+      "sample_id": "videophy2-dbe3a4ca115b5cdcb544",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "An athlete's hand slips momentarily on a parallel bar before regaining a firm grip, then continuing the routine.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-dbe3a4ca115b5cdcb544.mp4",
+      "prompt_group_id": "parallelbars",
+      "generator": "cosmos",
+      "semantic_label": "not_adherent",
+      "physics_label": "violation",
+      "semantic_score": 3.0,
+      "physics_score": 3.0,
+      "physical_rules": [
+        "The athlete's body and the bar remain in a fixed position relative to each other while he grips the bar.",
+        "The bar remains stationary relative to the frame, unless the athlete moves",
+        "The athlete's arm maintains its structural integrity and does not exhibit excessive deformation during gripping"
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "3",
+        "joint": "0",
+        "is_hard": "1",
+        "physics_rules_followed": "[\"The athlete's body and the bar remain in a fixed position relative to each other while he grips the bar.\", 'The bar remains stationary relative to the frame, unless the athlete moves']",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[\"The athlete's arm maintains its structural integrity and does not exhibit excessive deformation during gripping\"]",
+        "metadata_rules": "{\"The athlete's body and the bar remain in a fixed position relative to each other while he grips the bar.\": 'Friction', 'The bar remains stationary relative to the frame, unless the athlete moves': 'Friction', \"The athlete's arm maintains its structural integrity and does not exhibit excessive deformation during gripping\": ['Elasticity']}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/cosmos_videophy2_test_challenging/An_athlete's_hand_slips_momentarily_on_a_parallel_bar_before_regaining_a_firm_grip,_then_continuing_the_routine.mp4",
+      "sha256": "8c9bf35647a165694274e001603e4feb24976af0c0c11c193de3b3cddef73cd4"
+    },
+    {
+      "sample_id": "videophy2-eb92c05a29ebb8734709",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A woman quickly ties a simple four-in-hand knot, the loose end hanging down.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-eb92c05a29ebb8734709.mp4",
+      "prompt_group_id": "tying necktie",
+      "generator": "sora",
+      "semantic_label": "not_adherent",
+      "physics_label": "physical",
+      "semantic_score": 3.0,
+      "physics_score": 4.0,
+      "physical_rules": [
+        "The woman's reflection in the mirror is laterally inverted.",
+        "The tie changes shape as it is wrapped around the woman's neck.",
+        "The tie's position changes from being loose to being tied around the neck."
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "4",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "[\"The woman's reflection in the mirror is laterally inverted.\", \"The tie changes shape as it is wrapped around the woman's neck.\", \"The tie's position changes from being loose to being tied around the neck.\"]",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{\"The woman's reflection in the mirror is laterally inverted.\": 'Reflection', \"The tie changes shape as it is wrapped around the woman's neck.\": 'Elasticity', \"The tie's position changes from being loose to being tied around the neck.\": 'Gravity'}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/sora_hard_videophy2/Mastering+the+Perfect+Knot.mp4",
+      "sha256": "3e9a014e34936ae1a6959e6a6451bec12e0f1e3c26cece484e8595ae69128403"
+    },
+    {
+      "sample_id": "videophy2-ed81e826f68b4e93e434",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "Someone uses a shovel to bury a small campfire with sand, completely extinguishing it.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-ed81e826f68b4e93e434.mp4",
+      "prompt_group_id": "extinguishing fire",
+      "generator": "cosmos",
+      "semantic_label": "not_adherent",
+      "physics_label": "physical",
+      "semantic_score": 3.0,
+      "physics_score": 4.0,
+      "physical_rules": [
+        "The wood maintains its shape despite being moved.",
+        "The burning wood produces visible flames.",
+        "The shovels move the wood.",
+        "The wood should be displaced and moved by the shovel"
+      ],
+      "raw_labels": {
+        "sa": "3",
+        "pc": "4",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['The wood maintains its shape despite being moved.', 'The burning wood produces visible flames.']",
+        "physics_rules_unfollowed": "['The shovels move the wood.']",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "['The wood should be displaced and moved by the shovel']",
+        "metadata_rules": "{'The wood maintains its shape despite being moved.': 'Hardness', 'The burning wood produces visible flames.': 'Flame reaction', 'The shovels move the wood.': 'Friction', 'The wood should be displaced and moved by the shovel': ['Friction']}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/cosmos_videophy2_test_challenging/Someone_uses_a_shovel_to_bury_a_small_campfire_with_sand,_completely_extinguishing_it.mp4",
+      "sha256": "b238e3c2830e26505e3638270365d0e95593ab6669abb7d322ddb96355c0eed4"
+    },
+    {
+      "sample_id": "videophy2-f31d22132e3a1cd2f43c",
+      "benchmark": "videophy2",
+      "split": "test",
+      "prompt": "A tightly folded parachute is unfolded, revealing its vibrant colors and intricate design.",
+      "video_path": "../external/videophy2/videos-smoke20/videophy2-f31d22132e3a1cd2f43c.mp4",
+      "prompt_group_id": "unfolding something",
+      "generator": "cosmos",
+      "semantic_label": "adherent",
+      "physics_label": "violation",
+      "semantic_score": 4.0,
+      "physics_score": 3.0,
+      "physical_rules": [
+        "The parachute fabric stretches and deforms as it inflates.",
+        "The parachute expands and changes shape from a compact form to a larger, dome-like shape.",
+        "The parachute's overall position and orientation is maintained in the video, it does not change its height or angle at any point."
+      ],
+      "raw_labels": {
+        "sa": "4",
+        "pc": "3",
+        "joint": "0",
+        "is_hard": "0",
+        "physics_rules_followed": "['The parachute fabric stretches and deforms as it inflates.', 'The parachute expands and changes shape from a compact form to a larger, dome-like shape.', \"The parachute's overall position and orientation is maintained in the video, it does not change its height or angle at any point.\"]",
+        "physics_rules_unfollowed": "[]",
+        "physics_rules_cannot_be_determined": "[]",
+        "human_violated_rules": "[]",
+        "metadata_rules": "{'The parachute fabric stretches and deforms as it inflates.': 'Elasticity', 'The parachute expands and changes shape from a compact form to a larger, dome-like shape.': 'Buoyancy', \"The parachute's overall position and orientation is maintained in the video, it does not change its height or angle at any point.\": 'Gravity'}"
+      },
+      "source_url": "https://videophysics2testvideos.s3.us-east-2.amazonaws.com/cosmos_videophy2_test_challenging/A_tightly_folded_parachute_is_unfolded,_revealing_its_vibrant_colors_and_intricate_design.mp4",
+      "sha256": "77c9e959beea183f27ca6042d232e2093f0f89dee993728bf25c6d5eb71f7973"
+    }
+  ]
+}

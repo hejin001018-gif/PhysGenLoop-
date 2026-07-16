@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pavg-critic"
+version = "0.3.0"
+description = "Evidence-grounded physics critic for generated videos"
+requires-python = ">=3.10"
+dependencies = [
+  "jsonschema>=4.20,<5",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+video = [
+  "numpy>=1.24",
+  "opencv-python>=4.9",
+]
+env = ["python-dotenv>=1.0"]
+# Meta's official SAM2 is installed from its pinned source tree; this extra only
+# provides the compatible runtime tensors and never pulls the unrelated PyPI
+# package named ``sam2``.
+sam2 = ["torch>=2.5.1", "torchvision>=0.20.1", "numpy>=1.24"]
+test = ["pytest>=8,<9"]
+
+[project.scripts]
+pavg-critic = "pavg_critic.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "--import-mode=importlib"

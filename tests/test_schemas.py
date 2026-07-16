@@ -23,10 +23,6 @@ def test_critic_schema_is_valid():
     Draft202012Validator.check_schema(_load("critic_output.schema.json"))
 
 
-def test_generator_schema_is_valid():
-    Draft202012Validator.check_schema(_load("generator_request.schema.json"))
-
-
 def test_readme_sample_example_validates():
     # 对齐 README §标注示例
     payload = {
@@ -49,12 +45,15 @@ def test_readme_sample_example_validates():
     jsonschema.validate(payload, _load("sample.schema.json"))
 
 
-def test_readme_critic_example_validates():
+def test_critic_v2_example_validates():
     payload = {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
+        "decision": "violation",
         "is_physical": False,
         "physics_score": 0.46,
         "confidence": 0.91,
+        "coverage": 0.8,
+        "score_breakdown": {"rules": 0.46},
         "violations": [{
             "object": "red_ball",
             "category": "premature_rebound",
@@ -70,8 +69,16 @@ def test_readme_critic_example_validates():
                 "vlm_score": 0.87,
             },
         }],
+        "node_results": [],
+        "diagnostics": {},
+        "model_versions": {},
+        "evidence_bundles": [],
     }
     jsonschema.validate(payload, _load("critic_output.schema.json"))
+
+
+def test_generator_schema_is_valid():
+    Draft202012Validator.check_schema(_load("generator_request.schema.json"))
 
 
 def test_readme_generator_example_validates():

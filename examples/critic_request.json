@@ -1,0 +1,5 @@
+{
+  "schema_version": "2.0",
+  "video_path": "unused_when_observations_are_supplied.mp4",
+  "prompt": "A red ball falls, contacts the floor, and rebounds."
+}

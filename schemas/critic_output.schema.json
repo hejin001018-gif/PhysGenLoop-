@@ -1,72 +1,137 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pavg.local/schemas/critic_output.schema.json",
-  "title": "PAVG Physics Critic Output",
-  "description": "Physics Critic 输出。对齐 README §Physics Critic §推荐输出。",
+  "title": "PAVG CriticReport 2.0",
+  "description": "PAVG Physics Critic 的统一、可审计输出。",
   "type": "object",
-  "required": ["schema_version", "is_physical", "physics_score", "confidence", "violations"],
   "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision",
+    "is_physical",
+    "physics_score",
+    "confidence",
+    "coverage",
+    "violations",
+    "node_results",
+    "score_breakdown",
+    "diagnostics",
+    "model_versions",
+    "evidence_bundles"
+  ],
   "properties": {
-    "schema_version": {"type": "string", "const": "1.0"},
+    "schema_version": {"const": "2.0"},
+    "decision": {"enum": ["physical", "violation", "unknown"]},
     "is_physical": {"type": "boolean"},
     "physics_score": {"type": "number", "minimum": 0, "maximum": 1},
     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "coverage": {"type": "number", "minimum": 0, "maximum": 1},
     "score_breakdown": {
       "type": "object",
-      "description": "physics_score = w1·rule + w2·refsim + w3·vlm_same + w4·vlm_diff",
-      "properties": {
-        "rule": {"type": "number", "minimum": 0, "maximum": 1},
-        "refsim": {"type": "number", "minimum": 0, "maximum": 1},
-        "vlm_same": {"type": "number", "minimum": 0, "maximum": 1},
-        "vlm_diff": {"type": "number", "minimum": 0, "maximum": 1}
-      }
+      "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}
     },
     "violations": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["object", "category", "start_frame", "end_frame", "reason"],
-        "properties": {
-          "object": {"type": "string"},
-          "category": {"type": "string"},
-          "start_frame": {"type": "integer", "minimum": 0},
-          "peak_frame": {"type": "integer", "minimum": 0},
-          "end_frame": {"type": "integer", "minimum": 0},
-          "critical_frames": {
-            "type": "array",
-            "items": {"type": "integer", "minimum": 0}
-          },
-          "reason": {"type": "string"},
-          "repair_instruction": {"type": "string"},
-          "evidence": {
-            "type": "object",
-            "properties": {
-              "rules": {"type": "array", "items": {"type": "string"}},
-              "detector_score": {"type": "number", "minimum": 0, "maximum": 1},
-              "vlm_score": {"type": "number", "minimum": 0, "maximum": 1},
-              "refsim_deviation": {"type": "number", "minimum": 0}
-            }
-          }
-        }
-      }
+      "items": {"$ref": "#/$defs/violation"}
     },
-    "diagnostics": {
+    "graph_evaluation": {
       "type": "object",
-      "description": "PQSG 细粒度诊断（objects / actions / physical_laws 三层通过率）",
-      "properties": {
-        "pqsg_objects": {"type": "number", "minimum": 0, "maximum": 1},
-        "pqsg_actions": {"type": "number", "minimum": 0, "maximum": 1},
-        "pqsg_laws": {"type": "number", "minimum": 0, "maximum": 1}
-      }
+      "additionalProperties": true
     },
+    "node_results": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/node_result"}
+    },
+    "diagnostics": {"type": "object", "additionalProperties": true},
     "model_versions": {
       "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "evidence_bundles": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/evidence_bundle"}
+    }
+  },
+  "$defs": {
+    "violation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object",
+        "category",
+        "start_frame",
+        "peak_frame",
+        "end_frame",
+        "critical_frames",
+        "reason",
+        "repair_instruction",
+        "evidence"
+      ],
       "properties": {
-        "detector": {"type": "string"},
-        "tracker": {"type": "string"},
-        "vlm_same": {"type": "string"},
-        "vlm_diff": {"type": "string"},
-        "refsim_engine": {"type": "string"}
+        "object": {"type": "string"},
+        "category": {"type": "string"},
+        "start_frame": {"type": "integer", "minimum": 0},
+        "peak_frame": {"type": "integer", "minimum": 0},
+        "end_frame": {"type": "integer", "minimum": 0},
+        "critical_frames": {
+          "type": "array",
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "reason": {"type": "string"},
+        "repair_instruction": {"type": "string"},
+        "evidence": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "evidence_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "source",
+        "status",
+        "confidence",
+        "coverage",
+        "critical_frames",
+        "details"
+      ],
+      "properties": {
+        "family": {"enum": ["rules", "pqsg", "checklist", "mechanics", "vlm"]},
+        "source": {"type": "string"},
+        "status": {"enum": ["available", "unknown", "not_applicable", "failed"]},
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "critical_frames": {"type": "array", "items": {"type": "integer"}},
+        "details": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "node_result": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "node_id",
+        "category",
+        "status",
+        "confidence",
+        "reason",
+        "verifier",
+        "critical_frames",
+        "rule_ids",
+        "blocked_by",
+        "evidence"
+      ],
+      "properties": {
+        "node_id": {"type": "string"},
+        "category": {"enum": ["object", "action", "physics"]},
+        "status": {"enum": ["yes", "no", "blocked", "unknown"]},
+        "direct_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "reason": {"type": "string"},
+        "verifier": {"type": "string"},
+        "critical_frames": {"type": "array", "items": {"type": "integer"}},
+        "rule_ids": {"type": "array", "items": {"type": "string"}},
+        "blocked_by": {"type": "array", "items": {"type": "string"}},
+        "evidence": {"type": "object", "additionalProperties": true}
       }
     }
   }

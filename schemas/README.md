@@ -1,20 +1,6 @@
-# schemas/ — 骨骼契约
+# JSON Schema
 
-三份 JSON Schema 定义了整个 PAVG 阵法的数据契约。任何组件读写这些结构前，先用 `jsonschema` 校验。
+- `critic_output.schema.json`：PAVG Critic 2.0 的稳定输出，包括三态决策、覆盖率、违规、问题图结果和五类证据包。
+- `sample.schema.json`：保留的评估样本/人工标注契约，继续兼容现有 1.0 数据。
 
-| 文件 | 用途 | 消费方 |
-|------|------|--------|
-| `sample.schema.json` | 单样本目录的元数据 + 标注 | Kubric 适配器 · Physion/IntPhys 2 loader · 训练脚本 |
-| `critic_output.schema.json` | Physics Critic 输出 | Critic · Repair Agent · Selector · Evaluation |
-| `generator_request.schema.json` | HunyuanVideo 调用契约 | Planner · Repair Agent · `generators/hunyuan_probe.py` |
-
-## 校验示例
-
-```python
-import json, jsonschema
-schema = json.load(open("schemas/sample.schema.json"))
-payload = json.load(open("data/samples/gravity_001/annotation.json"))
-jsonschema.validate(payload, schema)
-```
-
-版本管理：`schema_version` 目前固定 `"1.0"`，破坏性改动必须升版号并在此 README 追加迁移说明。
+运行 `python -m pytest tests/test_schemas.py -q` 可检查 schema 本身及示例输出。
