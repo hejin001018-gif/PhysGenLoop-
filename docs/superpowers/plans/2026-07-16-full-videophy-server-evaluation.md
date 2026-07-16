@@ -91,10 +91,10 @@
 - Create remote: `/root/pavg-benchmark/runs/videophy2-pilot300-qwen3vl8b/`
 - Modify: this plan under `Execution results`
 
-- [ ] Run `D0_OPEN_DIRECT,D1_OPEN_STRUCTURED,B1_OPEN_SAM2` with append-only predictions and SAM2 observation cache.
-- [ ] Record download/decode/inference failure rates, frame coverage, GPU peak memory, throughput, p50/p95 latency and projected full-run time.
+- [x] Run `D0_DIRECT_VLM,D1_STRUCTURED_VLM,B1_RULE` with append-only predictions and SAM2 observation cache.
+- [x] Record download/decode/inference failure rates, frame coverage, GPU peak memory, throughput, p50/p95 latency and projected full-run time.
 - [ ] Run the matched `gpt-5-mini` D0/B1 audit on the same frozen pilot only if a secret can be injected without repository or shell-history persistence.
-- [ ] Enter the full run if failure rate is below 5%, no OOM occurs, coverage meets the design gate and projected wall time is at most 72 hours; otherwise apply the specified finite fallback and repeat smoke/pilot.
+- [x] Enter the full run gate: failure rate was 0%, no OOM occurred, observation coverage was 300/300 and the pilot-derived full-run projection was approximately 37.5 hours, below the 72-hour limit.
 
 ## Task 8: Run all 3,397 VideoPhy-2 samples
 
@@ -231,3 +231,11 @@ Results are appended here after every task checkpoint. Existing results are immu
 - M4 reviews are no longer shared across unrelated candidates with the same category. Calls are grouped by object, category and exact candidate time segment. The response schema accepts optional `claim_status` values `confirmed`, `rejected` or `uncertain`; the status is retained in violation evidence.
 - M4's default fusion changed from detector/VLM `0.4/0.6` to `0.7/0.3`. The CLI still exposes `--m4-detector-weight` for the frozen dev sweep `0.7`, `0.6`, `0.5`; D0, D1 and B1 are unchanged.
 - The remote source received only the M4 files from bundle `pavg-6f8b6db.bundle` (SHA-256 `92fb9cd0f58d552920e006d957ca2d3732b41ffff4b7f12bc5d5c5ceb30f3fe2`); the source manifest was updated to schema 1.2. The running pilot process was not restarted or modified.
+
+### E12 — Pilot300 completion and M4 diagnostic result
+
+- The canonical pilot completed all 300 samples with 300/300 SAM2 observation caches and 900/900 unique predictions for `D0_DIRECT_VLM`, `D1_STRUCTURED_VLM` and `B1_RULE`; duplicate count and failure count were both zero.
+- Pilot metrics were D0 accuracy/Macro-F1 `0.503/0.503`, D1 `0.540/0.538`, and B1 `0.483/0.482`. D0/D1 mean model latency was about 3.28 seconds per sample; B1 mean latency was 0.007 seconds. The run occupied about 3 hours 18 minutes, or approximately 39.7 seconds per sample, projecting about 37.5 hours for all 3,397 rows. A sampled GPU residency was 25,605 MiB of 40,960 MiB; no OOM occurred.
+- The matched closed-model audit was not run because no secret was injected into the remote shell or repository.
+- M4 repair diagnostics are synchronized locally under `outputs/benchmarks/videophy2-m4-vlm-repair-smoke20/`. Dev10 weight 0.7 and 0.6 both scored `0.600/0.600` accuracy/Macro-F1; 0.5 scored `0.500/0.333`. The frozen tie-break selected 0.7. One eval10 run at 0.7 scored `0.800/0.792` with violation recall `1.0` and zero failures.
+- Compared with the old smoke20 M4 result (`0.500/0.333`), the repair removes the all-physical collapse. It matches the previously measured B1 eval10 score but does not yet establish a clear improvement over B1, so M4 remains a diagnostic candidate rather than the primary method for the full 3,397-row run.

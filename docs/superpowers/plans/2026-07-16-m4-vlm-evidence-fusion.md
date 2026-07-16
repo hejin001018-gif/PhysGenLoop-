@@ -32,9 +32,9 @@
 ## Task 5: Verify locally and remotely
 
 - [x] Run focused red/green tests after each behavior change, then the full local suite.
-- [ ] Transfer only the committed M4 source/plan to the remote source tree; do not restart the active pilot.
-- [ ] After the pilot frees the endpoint, run independent M4 dev10 weights 0.7/0.6/0.5 using cached SAM2 observations, select one by frozen dev criteria, then run eval10 once.
-- [ ] Save configs, predictions, summaries, failure/latency logs, and the outcome in the main full-evaluation plan.
+- [x] Transfer only the committed M4 source/plan to the remote source tree; do not restart the active pilot.
+- [x] After the pilot frees the endpoint, run independent M4 dev10 weights 0.7/0.6/0.5 using cached SAM2 observations, select one by frozen dev criteria, then run eval10 once.
+- [x] Save configs, predictions, summaries, failure/latency logs, and the outcome in the main full-evaluation plan.
 
 ## Execution results
 
@@ -48,3 +48,10 @@ Results are appended after each checkpoint.
 - M4's default detector/VLM fusion is now `0.7/0.3`; `--m4-detector-weight` remains available for the frozen `0.7/0.6/0.5` dev sweep. D0, D1 and B1 code paths are unchanged.
 - Focused red/green checks passed, followed by the local full suite: `177 passed in 4.95s` using the repository's ignored basetemp.
 - The active remote pilot remains untouched: at checkpoint time it had 175 cached SAM2 observations and 527 predictions, with the original D0/D1/B1 command still running.
+
+### E2 — Dev sweep and frozen eval check
+
+- The first M4 launch exited before prediction because `BENCH_*` variables were absent; setting `BENCH_API_KEY=local`, the local Qwen3 model name, and `BENCH_BASE_URL=http://127.0.0.1:8000/v1` completed the intended local-vLLM run without using a provider secret.
+- Dev10 runs at detector weights 0.7, 0.6 and 0.5 produced 10/10 predictions with zero failures each. Weights 0.7 and 0.6 tied at accuracy/Macro-F1 `0.600/0.600`; 0.5 fell to `0.500/0.333` and predicted no violations. The conservative tie-break selected 0.7.
+- The single frozen eval10 run at weight 0.7 produced 10/10 unique predictions, zero failures, accuracy `0.800`, Macro-F1 `0.792`, violation precision `0.714`, and violation recall `1.000`.
+- Synchronized artifacts: `outputs/benchmarks/videophy2-m4-vlm-repair-smoke20/`. The result is a recovery from the previous M4 collapse, not a demonstrated improvement over B1 on this small diagnostic split.
