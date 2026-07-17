@@ -195,7 +195,7 @@ git commit -m "feat: expose critic fusion audit artifacts"
 - Create: `src/pavg_critic/benchmarking/model_cache.py`
 - Create: `tests/benchmarking/test_model_cache.py`
 
-- [ ] **Step 1: Write failing cache/telemetry tests**
+- [x] **Step 1: Write failing cache/telemetry tests**
 
 Cover text and image calls, exact cache reuse, namespace separation, schema/prompt invalidation, corrupted-cache rejection and provider-error non-caching. The central assertion is:
 
@@ -211,7 +211,7 @@ assert all(len(event.cache_key) == 64 for event in events)
 assert "u" not in json.dumps([event.to_dict() for event in events])
 ```
 
-- [ ] **Step 2: Run the new test and verify import failure**
+- [x] **Step 2: Run the new test and verify import failure**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/benchmarking/test_model_cache.py -q
@@ -219,7 +219,7 @@ assert "u" not in json.dumps([event.to_dict() for event in events])
 
 Expected: FAIL with `ModuleNotFoundError` for `model_cache`.
 
-- [ ] **Step 3: Implement canonical keying and atomic response caching**
+- [x] **Step 3: Implement canonical keying and atomic response caching**
 
 Create these public types and methods; the implementation below is the required cache/retry boundary:
 
@@ -362,7 +362,7 @@ class AuditedCachedModel:
 
 Import `asdict`, `dataclass`, `hashlib`, `json`, `Path`, `perf_counter` and `sleep`. Define `PROVIDER_ERRORS` as `(ModelAPIError, TimeoutError, ConnectionError, OSError, SchemaError, QuestionGraphError, KeyError, ValueError, TypeError)`. The cache key is SHA-256 of canonical JSON containing `schema_version=1.0`, namespace, model ID, prompt hashes, schema hash and ordered image-data SHA-256 values. Store only parsed response JSON and those hashes at `cache_dir / namespace / key[:2] / f"{key}.json"`; write via a sibling `.tmp` followed by `replace`. Never cache failures, and reject a cache file whose embedded key/namespace/model does not match.
 
-- [ ] **Step 4: Run cache tests and the complete suite**
+- [x] **Step 4: Run cache tests and the complete suite**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/benchmarking/test_model_cache.py -q
@@ -371,7 +371,7 @@ Import `asdict`, `dataclass`, `hashlib`, `json`, `Path`, `perf_counter` and `sle
 
 Expected: PASS; the fake provider is called once across two identical calls.
 
-- [ ] **Step 5: Commit the model cache**
+- [x] **Step 5: Commit the model cache**
 
 ```powershell
 git add src/pavg_critic/benchmarking/model_cache.py tests/benchmarking/test_model_cache.py
@@ -1019,3 +1019,12 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - RED evidence: the focused test failed with `AttributeError: 'CriticArtifacts' object has no attribute 'keyframes'`.
 - GREEN evidence: the focused audit test passed `1/1`; the complete local suite passed `282/282` in 14.38 seconds.
 - `CriticArtifacts` now exposes typed keyframe/review maps, and reports record the pre-evidence-fusion public decision fields plus the deterministic hard-violation override flag. No weights, thresholds or decisions were tuned.
+
+### E3 — Stage-separated model response cache
+
+- Timestamp: `2026-07-17T15:36:51+08:00`; implementation started from commit `3aa741d13eb9b8a83757dfb423139871f7c78d2a`.
+- RED evidence: the new focused suite failed at collection with `ModuleNotFoundError: No module named 'pavg_critic.benchmarking.model_cache'` before production code existed.
+- The first GREEN attempt without a repository basetemp hit the known Windows global pytest-temp ACL failure. With the correct repository basetemp, a second issue caused the test host to lose stdout. Systematic isolation traced this to POSIX-style `os.kill(pid, 0)` being unsafe for liveness checks on Windows.
+- A single platform-boundary fix uses Windows `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` and retains `os.kill(pid, 0)` on POSIX. The existing concurrent-cache test is the regression reproducer.
+- Focused cache tests passed `7/7` in 0.37 seconds; the complete local suite passed `289/289` in 15.25 seconds.
+- Cache identity includes namespace, model ID, prompt/schema hashes and ordered image-evidence hashes. Provider failures are retried up to three attempts but never cached; per-key locks prevent duplicate concurrent provider calls; telemetry contains hashes/latency only and no prompt or image bytes.
