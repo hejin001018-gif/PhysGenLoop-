@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import hashlib
+import ast
 import json
 import math
 import os
+import random
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from collections import defaultdict
+from typing import Any, Mapping, Sequence
 
 from .contracts import BenchmarkPrediction, BenchmarkSample
+from .metrics import compute_smoke_metrics
 
 
 @dataclass(frozen=True)
@@ -20,6 +24,315 @@ class PredictionMergeResult:
 
     predictions: tuple[BenchmarkPrediction, ...]
     artifact_audit: dict[str, Any]
+
+
+_BASELINE_METHOD = "D0_DIRECT_VLM"
+_CANDIDATE_METHOD = "B1_RULE"
+_BINARY_PHYSICS_LABELS = ("physical", "violation")
+
+
+def _prediction_index(
+    samples: Sequence[BenchmarkSample],
+    predictions: Sequence[BenchmarkPrediction],
+    *,
+    expected_method: str,
+) -> dict[str, BenchmarkPrediction]:
+    """Validate one method's exact sample coverage and return an ID index."""
+
+    sample_ids = [sample.sample_id for sample in samples]
+    if len(set(sample_ids)) != len(sample_ids):
+        raise ValueError("benchmark samples contain duplicate sample_id values")
+    indexed: dict[str, BenchmarkPrediction] = {}
+    for prediction in predictions:
+        if prediction.method_id != expected_method:
+            raise ValueError(
+                f"expected method_id {expected_method!r}, got "
+                f"{prediction.method_id!r}"
+            )
+        if prediction.sample_id in indexed:
+            raise ValueError(
+                f"duplicate {expected_method} prediction sample_id "
+                f"{prediction.sample_id!r}"
+            )
+        indexed[prediction.sample_id] = prediction
+    expected_ids = set(sample_ids)
+    actual_ids = set(indexed)
+    if expected_ids != actual_ids:
+        missing = sorted(expected_ids - actual_ids)
+        extra = sorted(actual_ids - expected_ids)
+        raise ValueError(
+            f"{expected_method} prediction sample IDs must match exactly; "
+            f"missing={missing!r}, extra={extra!r}"
+        )
+    return indexed
+
+
+def _is_correct(sample: BenchmarkSample, prediction: BenchmarkPrediction) -> bool:
+    """Return strict binary correctness, treating unknown/failure as misses."""
+
+    return (
+        sample.physics_label in _BINARY_PHYSICS_LABELS
+        and prediction.failure is None
+        and prediction.physics_label in _BINARY_PHYSICS_LABELS
+        and sample.physics_label == prediction.physics_label
+    )
+
+
+def _strict_macro_f1(
+    samples: Sequence[BenchmarkSample],
+    predictions: Mapping[str, BenchmarkPrediction],
+) -> float:
+    """Compute binary macro-F1 while retaining duplicate bootstrap rows."""
+
+    f1_values: list[float] = []
+    for target in _BINARY_PHYSICS_LABELS:
+        true_positive = false_positive = false_negative = 0
+        for sample in samples:
+            prediction = predictions[sample.sample_id]
+            predicted_label = (
+                prediction.physics_label
+                if prediction.failure is None
+                else "unknown"
+            )
+            if sample.physics_label == target and predicted_label == target:
+                true_positive += 1
+            elif sample.physics_label != target and predicted_label == target:
+                false_positive += 1
+            elif sample.physics_label == target and predicted_label != target:
+                false_negative += 1
+        precision = (
+            true_positive / (true_positive + false_positive)
+            if true_positive + false_positive
+            else 0.0
+        )
+        recall = (
+            true_positive / (true_positive + false_negative)
+            if true_positive + false_negative
+            else 0.0
+        )
+        f1_values.append(
+            2 * precision * recall / (precision + recall)
+            if precision + recall
+            else 0.0
+        )
+    return sum(f1_values) / len(f1_values)
+
+
+def _strict_metrics(
+    samples: Sequence[BenchmarkSample],
+    predictions: Sequence[BenchmarkPrediction],
+) -> dict[str, float | int | None]:
+    """Return smoke metrics with strict unknown/failure correctness semantics."""
+
+    sanitized = tuple(
+        prediction
+        if prediction.failure is None
+        else BenchmarkPrediction(
+            sample_id=prediction.sample_id,
+            method_id=prediction.method_id,
+            model_id=prediction.model_id,
+            semantic_score=prediction.semantic_score,
+            physics_score=prediction.physics_score,
+            semantic_label=prediction.semantic_label,
+            physics_label="unknown",
+            confidence=prediction.confidence,
+            coverage=prediction.coverage,
+            latency_sec=prediction.latency_sec,
+            visible_frame_count=prediction.visible_frame_count,
+            violation_categories=prediction.violation_categories,
+            evidence_frames=prediction.evidence_frames,
+            repair_instruction=prediction.repair_instruction,
+            failure=prediction.failure,
+        )
+        for prediction in predictions
+    )
+    metrics = compute_smoke_metrics(samples, sanitized)
+    indexed = {prediction.sample_id: prediction for prediction in predictions}
+    metrics["accuracy"] = sum(
+        _is_correct(sample, indexed[sample.sample_id]) for sample in samples
+    ) / len(samples)
+    metrics["macro_f1"] = _strict_macro_f1(samples, indexed)
+    return metrics
+
+
+def paired_outcomes(
+    samples: Sequence[BenchmarkSample],
+    baseline_predictions: Sequence[BenchmarkPrediction],
+    candidate_predictions: Sequence[BenchmarkPrediction],
+) -> dict[str, int]:
+    """Count the four paired correctness outcomes for D0 versus B1."""
+
+    baseline = _prediction_index(
+        samples, baseline_predictions, expected_method=_BASELINE_METHOD
+    )
+    candidate = _prediction_index(
+        samples, candidate_predictions, expected_method=_CANDIDATE_METHOD
+    )
+    outcomes = {
+        "both_correct": 0,
+        "baseline_only_correct": 0,
+        "candidate_only_correct": 0,
+        "both_wrong": 0,
+    }
+    for sample in samples:
+        baseline_correct = _is_correct(sample, baseline[sample.sample_id])
+        candidate_correct = _is_correct(sample, candidate[sample.sample_id])
+        if baseline_correct and candidate_correct:
+            outcomes["both_correct"] += 1
+        elif baseline_correct:
+            outcomes["baseline_only_correct"] += 1
+        elif candidate_correct:
+            outcomes["candidate_only_correct"] += 1
+        else:
+            outcomes["both_wrong"] += 1
+    return outcomes
+
+
+def _linear_percentile(values: Sequence[float], quantile: float) -> float:
+    if not values:
+        raise ValueError("percentile requires at least one value")
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * quantile
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
+
+
+def action_group_bootstrap(
+    samples: Sequence[BenchmarkSample],
+    baseline_predictions: Sequence[BenchmarkPrediction],
+    candidate_predictions: Sequence[BenchmarkPrediction],
+    *,
+    resamples: int = 2000,
+    seed: int = 20260717,
+) -> dict[str, float | int]:
+    """Bootstrap candidate-minus-baseline Macro-F1 by action group.
+
+    Each draw samples the sorted action-group list with replacement and adds
+    every row in each selected group, preserving multiplicity. This avoids
+    the duplicate-ID restriction used by ordinary smoke metrics.
+    """
+
+    if isinstance(resamples, bool) or not isinstance(resamples, int) or resamples <= 0:
+        raise ValueError("resamples must be a positive integer")
+    baseline = _prediction_index(
+        samples, baseline_predictions, expected_method=_BASELINE_METHOD
+    )
+    candidate = _prediction_index(
+        samples, candidate_predictions, expected_method=_CANDIDATE_METHOD
+    )
+    ordered_samples = tuple(sorted(samples, key=lambda sample: sample.sample_id))
+    groups: dict[str, list[BenchmarkSample]] = defaultdict(list)
+    for sample in ordered_samples:
+        groups[sample.prompt_group_id].append(sample)
+    group_ids = sorted(groups)
+    point_estimate = _strict_macro_f1(ordered_samples, candidate) - _strict_macro_f1(
+        ordered_samples, baseline
+    )
+    rng = random.Random(seed)
+    deltas: list[float] = []
+    for _ in range(resamples):
+        draw: list[BenchmarkSample] = []
+        for _ in group_ids:
+            draw.extend(groups[rng.choice(group_ids)])
+        candidate_f1 = _strict_macro_f1(draw, candidate)
+        baseline_f1 = _strict_macro_f1(draw, baseline)
+        deltas.append(candidate_f1 - baseline_f1)
+    return {
+        "point_estimate": point_estimate,
+        "lower": _linear_percentile(deltas, 0.025),
+        "upper": _linear_percentile(deltas, 0.975),
+        "resamples": resamples,
+        "seed": seed,
+        "group_count": len(group_ids),
+    }
+
+
+def parse_rule_families(sample: BenchmarkSample) -> tuple[str, ...]:
+    """Parse exact source rule-family labels from ``metadata_rules`` only."""
+
+    raw_metadata = sample.raw_labels.get("metadata_rules")
+    if isinstance(raw_metadata, str):
+        try:
+            metadata = ast.literal_eval(raw_metadata)
+        except (SyntaxError, ValueError, TypeError, MemoryError):
+            return ("__unmapped__",)
+    elif isinstance(raw_metadata, Mapping):
+        metadata = raw_metadata
+    else:
+        return ("__unmapped__",)
+    if not isinstance(metadata, Mapping):
+        return ("__unmapped__",)
+    families: set[str] = set()
+    for value in metadata.values():
+        if isinstance(value, str):
+            values = (value,)
+        elif isinstance(value, (list, tuple, set)):
+            values = value
+        else:
+            continue
+        for family in values:
+            if isinstance(family, str) and family.strip():
+                families.add(family.strip())
+    return tuple(sorted(families)) or ("__unmapped__",)
+
+
+def build_slices(
+    samples: Sequence[BenchmarkSample],
+    baseline_predictions: Sequence[BenchmarkPrediction],
+    candidate_predictions: Sequence[BenchmarkPrediction],
+) -> dict[str, dict[str, dict[str, Any]]]:
+    """Build deterministic generator, action and source-rule-family slices."""
+
+    baseline = _prediction_index(
+        samples, baseline_predictions, expected_method=_BASELINE_METHOD
+    )
+    candidate = _prediction_index(
+        samples, candidate_predictions, expected_method=_CANDIDATE_METHOD
+    )
+    ordered_samples = tuple(sorted(samples, key=lambda sample: sample.sample_id))
+    dimensions: dict[str, dict[str, list[BenchmarkSample]]] = {
+        "action": defaultdict(list),
+        "generator": defaultdict(list),
+        "rule_family": defaultdict(list),
+    }
+    for sample in ordered_samples:
+        dimensions["action"][sample.prompt_group_id].append(sample)
+        dimensions["generator"][sample.generator].append(sample)
+        for family in parse_rule_families(sample):
+            dimensions["rule_family"][family].append(sample)
+
+    result: dict[str, dict[str, dict[str, Any]]] = {}
+    for dimension in ("action", "generator", "rule_family"):
+        slices: dict[str, dict[str, Any]] = {}
+        for name in sorted(dimensions[dimension]):
+            members = tuple(dimensions[dimension][name])
+            baseline_predictions_for_slice = tuple(
+                baseline[sample.sample_id] for sample in members
+            )
+            candidate_predictions_for_slice = tuple(
+                candidate[sample.sample_id] for sample in members
+            )
+            baseline_metrics = _strict_metrics(
+                members, baseline_predictions_for_slice
+            )
+            candidate_metrics = _strict_metrics(
+                members, candidate_predictions_for_slice
+            )
+            slices[name] = {
+                "count": len(members),
+                "baseline_metrics": baseline_metrics,
+                "candidate_metrics": candidate_metrics,
+                "candidate_minus_baseline": {
+                    "accuracy": candidate_metrics["accuracy"]
+                    - baseline_metrics["accuracy"],
+                    "macro_f1": candidate_metrics["macro_f1"]
+                    - baseline_metrics["macro_f1"],
+                },
+            }
+        result[dimension] = slices
+    return result
 
 
 def _sha256(content: bytes) -> str:

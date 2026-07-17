@@ -9,7 +9,13 @@ from pathlib import Path
 import pytest
 
 import pavg_critic.benchmarking.full_report as full_report
-from pavg_critic.benchmarking.full_report import merge_prediction_shards
+from pavg_critic.benchmarking.full_report import (
+    action_group_bootstrap,
+    build_slices,
+    merge_prediction_shards,
+    paired_outcomes,
+    parse_rule_families,
+)
 
 
 METHODS = ("D0_DIRECT_VLM", "B1_RULE")
@@ -559,3 +565,142 @@ def test_second_replace_failure_rolls_back_existing_artifact_pair(
     assert merged_path.read_bytes() == original_merged
     assert audit_path.read_bytes() == original_audit
     assert not [path for path in tmp_path.iterdir() if path.suffix == ".tmp"]
+
+
+def test_paired_outcomes_treats_unknown_and_failure_as_incorrect(
+    tmp_path, sample_factory, prediction_factory
+):
+    samples = tuple(
+        sample_factory(index=index, physical=index < 2, generator="g")
+        for index in range(4)
+    )
+    baseline = [
+        prediction_factory("0", "physical", 5.0),
+        prediction_factory("1", "violation", 2.0),
+        prediction_factory("2", "unknown", None),
+        replace(
+            prediction_factory("3", "violation", 2.0),
+            failure={"type": "provider_error"},
+        ),
+    ]
+    candidate = [
+        prediction_factory("0", "physical", 5.0, method_id="B1_RULE"),
+        prediction_factory("1", "violation", 2.0, method_id="B1_RULE"),
+        prediction_factory("2", "violation", 2.0, method_id="B1_RULE"),
+        prediction_factory("3", "physical", 5.0, method_id="B1_RULE"),
+    ]
+
+    assert paired_outcomes(samples, baseline, candidate) == {
+        "both_correct": 1,
+        "baseline_only_correct": 0,
+        "candidate_only_correct": 1,
+        "both_wrong": 2,
+    }
+
+
+def test_action_group_bootstrap_is_deterministic_and_samples_groups(
+    sample_factory, prediction_factory
+):
+    samples = (
+        replace(
+            sample_factory(index=0, physical=True, generator="g"),
+            prompt_group_id="group-a",
+        ),
+        replace(
+            sample_factory(index=1, physical=False, generator="g"),
+            prompt_group_id="group-a",
+        ),
+        replace(
+            sample_factory(index=2, physical=True, generator="g"),
+            prompt_group_id="group-b",
+        ),
+        replace(
+            sample_factory(index=3, physical=False, generator="g"),
+            prompt_group_id="group-b",
+        ),
+    )
+    baseline = [
+        prediction_factory("0", "physical", 5.0),
+        prediction_factory("1", "physical", 5.0),
+        prediction_factory("2", "violation", 2.0),
+        prediction_factory("3", "violation", 2.0),
+    ]
+    candidate = [
+        prediction_factory("0", "physical", 5.0, method_id="B1_RULE"),
+        prediction_factory("1", "violation", 2.0, method_id="B1_RULE"),
+        prediction_factory("2", "physical", 5.0, method_id="B1_RULE"),
+        prediction_factory("3", "violation", 2.0, method_id="B1_RULE"),
+    ]
+
+    first = action_group_bootstrap(
+        samples, baseline, candidate, resamples=19, seed=123
+    )
+    second = action_group_bootstrap(
+        tuple(reversed(samples)),
+        list(reversed(baseline)),
+        list(reversed(candidate)),
+        resamples=19,
+        seed=123,
+    )
+    assert first == second
+    assert first["resamples"] == 19
+    assert first["seed"] == 123
+    assert first["group_count"] == 2
+    assert first["point_estimate"] == pytest.approx(0.5)
+    assert first["lower"] <= first["point_estimate"] <= first["upper"]
+
+
+@pytest.mark.parametrize(
+    ("raw_metadata", "expected"),
+    (
+        ("{'a': ' gravity ', 'b': ['contact', 'gravity']}", ("contact", "gravity")),
+        ({"a": ("gravity", "contact"), "b": {"contact"}}, ("contact", "gravity")),
+        ("not a mapping", ("__unmapped__",)),
+        ("{'a': 7}", ("__unmapped__",)),
+        (None, ("__unmapped__",)),
+    ),
+)
+def test_parse_rule_families_is_strict_and_multilabel(
+    sample_factory, raw_metadata, expected
+):
+    sample = replace(
+        sample_factory(index=1, physical=False, generator="g"),
+        raw_labels={"metadata_rules": raw_metadata},
+    )
+    assert parse_rule_families(sample) == expected
+
+
+def test_build_slices_contains_generator_action_and_rule_family_metrics(
+    sample_factory, prediction_factory
+):
+    samples = (
+        replace(
+            sample_factory(index=0, physical=True, generator="g1"),
+            prompt_group_id="action-a",
+            raw_labels={"metadata_rules": "{'r': 'gravity'}"},
+        ),
+        replace(
+            sample_factory(index=1, physical=False, generator="g2"),
+            prompt_group_id="action-b",
+            raw_labels={"metadata_rules": "{'r': ['contact', 'gravity']}"},
+        ),
+    )
+    baseline = [
+        prediction_factory("0", "physical", 5.0),
+        prediction_factory("1", "physical", 5.0),
+    ]
+    candidate = [
+        prediction_factory("0", "physical", 5.0, method_id="B1_RULE"),
+        prediction_factory("1", "violation", 2.0, method_id="B1_RULE"),
+    ]
+
+    slices = build_slices(samples, baseline, candidate)
+    assert list(slices) == ["action", "generator", "rule_family"]
+    assert set(slices["generator"]) == {"g1", "g2"}
+    assert set(slices["action"]) == {"action-a", "action-b"}
+    assert set(slices["rule_family"]) == {"contact", "gravity"}
+    gravity = slices["rule_family"]["gravity"]
+    assert gravity["count"] == 2
+    assert gravity["candidate_minus_baseline"]["accuracy"] == pytest.approx(0.5)
+    assert "macro_f1" in gravity["baseline_metrics"]
+    assert "macro_f1" in gravity["candidate_metrics"]
