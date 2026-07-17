@@ -1,0 +1,17 @@
+A realistic physics simulation.
+
+A single metal ball is dropped from a height onto a concrete floor.
+
+No humans.
+No people.
+No animals.
+Only the physical object.
+
+The ball accelerates downward due to gravity.
+The ball collides with the floor.
+The ball slightly deforms during impact.
+The ball bounces several times with decreasing height because of energy loss.
+
+Fixed side camera.
+Realistic lighting.
+Real world physics.

@@ -1,0 +1,9 @@
+outputs/
+videos/
+*.mp4
+*.mov
+*.zip
+__pycache__/
+.DS_Store
+*.pyc
+.vscode/

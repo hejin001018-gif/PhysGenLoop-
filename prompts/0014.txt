@@ -1,0 +1,18 @@
+A realistic physics simulation of a car braking on a wet road.
+
+A modern sedan is driving on a rainy asphalt road at constant speed.
+The driver suddenly applies emergency brakes.
+
+The tires generate friction force against the wet surface.
+The wheels slow down first, then the whole vehicle gradually decelerates because of inertia.
+
+Water sprays from the tires.
+The car slides slightly before coming to a complete stop.
+
+The braking distance depends on friction between tires and road.
+The motion follows Newtonian mechanics.
+
+Fixed side camera.
+Realistic street environment.
+No humans visible.
+Scientific physics simulation style.

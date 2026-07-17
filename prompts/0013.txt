@@ -1,0 +1,14 @@
+A realistic physics simulation of an egg falling onto a hard ceramic floor.
+
+An egg falls from a kitchen table under gravity.
+
+The egg accelerates downward.
+When hitting the floor, the shell cracks and fragments spread outward.
+
+The collision transfers kinetic energy into deformation and fracture energy.
+
+Small shell pieces scatter realistically.
+
+The camera is fixed showing the entire event.
+Realistic kitchen environment.
+Physics follows gravity, collision and material fracture mechanics.

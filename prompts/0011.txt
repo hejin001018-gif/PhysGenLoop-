@@ -1,0 +1,14 @@
+A realistic physics simulation of a person on a playground swing.
+
+A child sits on a swing attached to two ropes.
+
+The swing starts from an initial angle and oscillates under gravity.
+
+Potential energy converts into kinetic energy during downward motion.
+
+The amplitude gradually decreases because of air resistance and friction.
+
+The ropes remain under tension.
+The motion follows pendulum mechanics.
+
+The camera is fixed showing the complete swing motion.
