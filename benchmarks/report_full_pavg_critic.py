@@ -32,6 +32,15 @@ CORE_REPORT_FILES = (
     "summary.json",
     "summary.md",
 )
+FULL_MANIFEST_SHA256 = (
+    "d8be5fe97ddf6902515c09ccbb53f394b25230213db7c3058d61f84748624906"
+)
+PILOT_MANIFEST_SHA256 = (
+    "a97762fe4033789eb14a82717c72c14e89bc75a7a67200d5890ff1647f72a670"
+)
+SHUFFLED_MANIFEST_SHA256 = (
+    "5250aea3077f9360e42e20008ee8873a9d9a5f3284e7b52270cba33b098e5848"
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -44,6 +53,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pilot-manifest", required=True, type=Path)
     parser.add_argument(
         "--prompt-predictions", required=True, action="append", type=Path
+    )
+    parser.add_argument(
+        "--prompt-resolved-config", required=True, action="append", type=Path
     )
     parser.add_argument(
         "--observation-meta-dir", required=True, action="append", type=Path
@@ -83,6 +95,19 @@ def _jsonl_bytes(records: Sequence[Mapping[str, Any]]) -> bytes:
 
 def _sha(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
+
+
+def validate_frozen_manifests(manifest: Path, pilot_manifest: Path) -> None:
+    observed_full = _sha(manifest.read_bytes())
+    observed_pilot = _sha(pilot_manifest.read_bytes())
+    if observed_full != FULL_MANIFEST_SHA256:
+        raise ValueError(
+            f"full manifest SHA-256 mismatch: {observed_full}"
+        )
+    if observed_pilot != PILOT_MANIFEST_SHA256:
+        raise ValueError(
+            f"pilot manifest SHA-256 mismatch: {observed_pilot}"
+        )
 
 
 def _capture(paths: Sequence[Path], *, kind: str) -> dict[Path, bytes]:
@@ -136,6 +161,49 @@ def _load_diagnostics(
     return tuple(result)
 
 
+def validate_prompt_run_bindings(
+    captured: Mapping[Path, bytes],
+    *,
+    expected_sample_count: int = 300,
+) -> None:
+    expected = {
+        "M5_SHUFFLED_PROMPT_300": SHUFFLED_MANIFEST_SHA256,
+        "M5_ORACLE_PLAN_300": PILOT_MANIFEST_SHA256,
+    }
+    observed: dict[str, str] = {}
+    for path, content in captured.items():
+        try:
+            config = json.loads(content.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError(f"invalid prompt resolved config: {path}") from exc
+        if not isinstance(config, dict):
+            raise ValueError(f"prompt resolved config must be an object: {path}")
+        methods = config.get("methods")
+        if not isinstance(methods, list) or len(methods) != 1:
+            raise ValueError("prompt resolved config bindings require one method")
+        method = str(methods[0])
+        if method not in expected or method in observed:
+            raise ValueError(
+                "prompt resolved config bindings must contain each frozen "
+                "diagnostic method exactly once"
+            )
+        manifest_hash = str(config.get("manifest_sha256", "")).lower()
+        expected_hash = str(config.get("expected_manifest_sha256", "")).lower()
+        if (
+            manifest_hash != expected[method]
+            or expected_hash != expected[method]
+            or config.get("sample_count") != expected_sample_count
+        ):
+            raise ValueError(
+                f"prompt resolved config bindings mismatch for {method}"
+            )
+        observed[method] = manifest_hash
+    if set(observed) != set(expected):
+        raise ValueError(
+            "prompt resolved config bindings must cover shuffled and oracle runs"
+        )
+
+
 def _markdown(summary: Mapping[str, Any]) -> bytes:
     metrics = summary["method_metrics"]
     primary = summary["primary"]
@@ -149,16 +217,34 @@ def _markdown(summary: Mapping[str, Any]) -> bytes:
         "",
         "## 完整方法矩阵",
         "",
-        "| 方法 | Accuracy | Macro-F1 | Physical recall | Violation recall | Failure rate |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| 方法 | Accuracy | Balanced Accuracy | Macro-F1 | Physical recall | Violation recall | Violation precision | Unknown rate | Failure rate | Physics Spearman | Mean latency (s) |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for method in FULL_METHODS:
         item = metrics[method]
+        spearman = item["physics_spearman"]
+        spearman_text = "N/A" if spearman is None else f"{spearman:.6f}"
         lines.append(
-            f"| {method} | {item['accuracy']:.6f} | {item['macro_f1']:.6f} | "
+            f"| {method} | {item['accuracy']:.6f} | "
+            f"{item['balanced_accuracy']:.6f} | {item['macro_f1']:.6f} | "
             f"{item['physical_recall']:.6f} | {item['violation_recall']:.6f} | "
-            f"{item['failure_rate']:.6f} |"
+            f"{item['violation_precision']:.6f} | {item['unknown_rate']:.6f} | "
+            f"{item['failure_rate']:.6f} | {spearman_text} | "
+            f"{item['mean_latency_sec']:.6f} |"
         )
+    sam2 = summary["sam2_production_latency"]
+    lines.extend(
+        [
+            "",
+            "## SAM2 production latency (cached provenance)",
+            "",
+            f"Valid: {sam2['valid_count']}/{sam2['expected_count']}; "
+            f"missing: {sam2['missing_count']}; "
+            f"mean: {sam2['mean_production_latency_sec']}; "
+            f"p50: {sam2['p50_production_latency_sec']}; "
+            f"p95: {sam2['p95_production_latency_sec']}.",
+        ]
+    )
     delta = primary["candidate_minus_baseline"]
     bootstrap = primary["bootstrap"]
     lines.extend(
@@ -237,17 +323,29 @@ def _build_artifacts(
     diagnostic_paths: Sequence[Path],
     pilot_manifest: Path,
     prompt_prediction_paths: Sequence[Path],
+    prompt_resolved_config_paths: Sequence[Path],
     observation_dirs: Sequence[Path],
     bootstrap_resamples: int,
     bootstrap_seed: int,
 ) -> tuple[dict[str, bytes], dict[Path, bytes]]:
     captured = _capture(
-        (manifest, *prediction_paths, *diagnostic_paths, pilot_manifest, *prompt_prediction_paths),
+        (
+            manifest,
+            *prediction_paths,
+            *diagnostic_paths,
+            pilot_manifest,
+            *prompt_prediction_paths,
+            *prompt_resolved_config_paths,
+        ),
         kind="report",
     )
     samples = tuple(sorted(load_manifest(manifest), key=lambda item: item.sample_id))
     pilot_samples = tuple(
         sorted(load_manifest(pilot_manifest), key=lambda item: item.sample_id)
+    )
+    validate_prompt_run_bindings(
+        {path: captured[path] for path in prompt_resolved_config_paths},
+        expected_sample_count=len(pilot_samples),
     )
     predictions = _load_predictions(
         {path: captured[path] for path in prediction_paths}
@@ -337,12 +435,14 @@ def _build_artifacts(
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    validate_frozen_manifests(args.manifest, args.pilot_manifest)
     artifacts, captured = _build_artifacts(
         manifest=args.manifest,
         prediction_paths=tuple(args.predictions),
         diagnostic_paths=tuple(args.diagnostics),
         pilot_manifest=args.pilot_manifest,
         prompt_prediction_paths=tuple(args.prompt_predictions),
+        prompt_resolved_config_paths=tuple(args.prompt_resolved_config),
         observation_dirs=tuple(args.observation_meta_dir),
         bootstrap_resamples=args.bootstrap_resamples,
         bootstrap_seed=args.bootstrap_seed,

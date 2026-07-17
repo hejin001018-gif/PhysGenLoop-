@@ -5,10 +5,13 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 
+import pytest
+
 from pavg_critic.benchmarking.model_cache import ModelCallEvent
 from pavg_critic.benchmarking.pavg_diagnostics import (
     build_pavg_diagnostics,
     build_pavg_failure_diagnostics,
+    validate_pavg_diagnostic,
 )
 from pavg_critic.config import QuestionGraphConfig, TrajectoryConfig
 from pavg_critic.evaluation import build_ablation_config
@@ -54,6 +57,8 @@ def test_diagnostics_cover_every_evidence_family_without_raw_plan(sample_factory
     event = ModelCallEvent(
         namespace="planner",
         model_id="qwen",
+        model_revision="a" * 64,
+        sample_id=sample.sample_id,
         cache_key="a" * 64,
         prompt_sha256="b" * 64,
         schema_sha256="c" * 64,
@@ -84,7 +89,7 @@ def test_diagnostics_cover_every_evidence_family_without_raw_plan(sample_factory
         "mechanics",
         "vlm",
     }
-    assert diagnostics["hard_violation_override"] is True
+    assert diagnostics["hard_violation_override"] is False
     assert diagnostics["rules"]["candidate_count"] >= 1
     assert diagnostics["model_calls"]["planner"]["call_count"] == 1
     serialized = json.dumps(diagnostics, allow_nan=False)
@@ -110,3 +115,26 @@ def test_failure_diagnostics_are_keyed_and_do_not_store_error_message(sample_fac
     }
     assert diagnostics["failure"] == {"error_type": "RuntimeError"}
     assert "Bearer secret" not in json.dumps(diagnostics)
+    assert validate_pavg_diagnostic(diagnostics) == diagnostics
+
+
+def test_diagnostic_validator_rejects_extra_fields_and_sensitive_content(
+    sample_factory,
+):
+    sample = sample_factory(index=1, physical=False, generator="g")
+    diagnostics = build_pavg_failure_diagnostics(
+        sample=sample,
+        method_id="M5_FULL",
+        stage_events={},
+        total_latency_sec=0.3,
+        visible_frame_count=0,
+        error=RuntimeError("hidden"),
+    )
+    diagnostics["raw_provider_payload"] = {"content": "hidden"}
+    with pytest.raises(ValueError, match="unexpected diagnostic fields"):
+        validate_pavg_diagnostic(diagnostics)
+
+    diagnostics.pop("raw_provider_payload")
+    diagnostics["failure"] = {"error_type": "Authorization: Bearer secret"}
+    with pytest.raises(ValueError, match="forbidden diagnostic content"):
+        validate_pavg_diagnostic(diagnostics)

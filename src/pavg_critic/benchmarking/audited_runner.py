@@ -12,6 +12,65 @@ from typing import Any, Mapping, Protocol, Sequence
 from .contracts import BenchmarkPrediction, BenchmarkSample
 
 
+AUDITED_METHOD_IDS = frozenset(
+    {
+        "B1_RULE",
+        "M1_GRAPH",
+        "M2_CHECKLIST",
+        "M3_MECHANICS",
+        "M4_VLM",
+        "M5_FULL",
+        "M5_SHUFFLED_PROMPT_300",
+        "M5_ORACLE_PLAN_300",
+    }
+)
+
+
+def _fsync_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _process_is_alive(pid: int | None) -> bool:
+    if pid is None or pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = (
+            wintypes.DWORD,
+            wintypes.BOOL,
+            wintypes.DWORD,
+        )
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        handle = kernel32.OpenProcess(0x1000, False, pid)
+        if handle:
+            kernel32.CloseHandle(handle)
+            return True
+        return ctypes.get_last_error() == 5
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _lock_pid(path: Path) -> int | None:
+    try:
+        return int(path.read_text(encoding="ascii").strip().removeprefix("pid="))
+    except (OSError, UnicodeError, ValueError):
+        return None
+
+
 class AuditedBenchmarkMethod(Protocol):
     method_id: str
 
@@ -53,18 +112,28 @@ class AuditedBenchmarkRunner:
 
     @contextmanager
     def _exclusive_lock(self):
-        try:
-            descriptor = os.open(
-                self.lock_path,
-                os.O_CREAT | os.O_EXCL | os.O_WRONLY,
-            )
-        except FileExistsError as exc:
-            raise RuntimeError(
-                f"benchmark run is already running; lock exists: {self.lock_path}"
-            ) from exc
+        while True:
+            try:
+                descriptor = os.open(
+                    self.lock_path,
+                    os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                )
+                break
+            except FileExistsError as exc:
+                if _process_is_alive(_lock_pid(self.lock_path)):
+                    raise RuntimeError(
+                        "benchmark run is already running; "
+                        f"lock exists: {self.lock_path}"
+                    ) from exc
+                try:
+                    self.lock_path.unlink()
+                    _fsync_directory(self.lock_path.parent)
+                except FileNotFoundError:
+                    pass
         try:
             os.write(descriptor, f"pid={os.getpid()}\n".encode("ascii"))
             os.fsync(descriptor)
+            _fsync_directory(self.lock_path.parent)
             os.close(descriptor)
             descriptor = -1
             yield
@@ -72,6 +141,7 @@ class AuditedBenchmarkRunner:
             if descriptor >= 0:
                 os.close(descriptor)
             self.lock_path.unlink(missing_ok=True)
+            _fsync_directory(self.lock_path.parent)
 
     @staticmethod
     def _prediction_key(raw: Mapping[str, Any]) -> tuple[str, str]:
@@ -144,7 +214,7 @@ class AuditedBenchmarkRunner:
         missing_diagnostics = {
             key
             for key in prediction_keys - diagnostic_keys
-            if key[1] in method_ids
+            if key[1] in AUDITED_METHOD_IDS
         }
         if orphan_diagnostics or missing_diagnostics:
             raise ValueError(
@@ -169,6 +239,7 @@ class AuditedBenchmarkRunner:
             )
             handle.flush()
             os.fsync(handle.fileno())
+        _fsync_directory(path.parent)
 
     def _write_pending(
         self,
@@ -205,12 +276,14 @@ class AuditedBenchmarkRunner:
                 os.fsync(handle.fileno())
             os.replace(raw_temporary, self.pending_path)
             raw_temporary = None
+            _fsync_directory(self.pending_path.parent)
         finally:
             if raw_temporary is not None:
                 Path(raw_temporary).unlink(missing_ok=True)
 
     def _clear_pending(self) -> None:
         self.pending_path.unlink()
+        _fsync_directory(self.pending_path.parent)
 
     def _load_pending(self) -> tuple[dict[str, Any], dict[str, Any]]:
         try:

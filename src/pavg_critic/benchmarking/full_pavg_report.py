@@ -13,6 +13,7 @@ from .full_report import (
     paired_outcomes,
     strict_method_metrics,
 )
+from .pavg_diagnostics import validate_pavg_diagnostic
 
 
 FULL_METHODS = (
@@ -44,6 +45,30 @@ SEQUENTIAL_TRANSITIONS = (
     ("M3_MECHANICS", "M4_VLM"),
     ("M4_VLM", "M5_FULL"),
 )
+PHYSICAL_SCORE_THRESHOLD = 0.6
+
+
+def _expected_hard_override(record: Mapping[str, Any]) -> bool:
+    fusion = record["fusion"]
+    rules = record["rules"]
+    if (
+        fusion["final"]["decision"] != "violation"
+        or rules["retained_violation_count"] <= 0
+    ):
+        return False
+    weighted_score = 0.0
+    effective_total = 0.0
+    for family in ("pqsg", "checklist", "mechanics"):
+        evidence = record["evidence_families"][family]
+        if evidence["status"] != "available" or evidence["score"] is None:
+            continue
+        weight = float(evidence["effective_weight"])
+        weighted_score += float(evidence["score"]) * weight
+        effective_total += weight
+    return (
+        effective_total > 0
+        and weighted_score / effective_total >= PHYSICAL_SCORE_THRESHOLD
+    )
 
 
 def _prediction_index(
@@ -98,7 +123,14 @@ def _diagnostic_index(
         key = _diagnostic_key(record)
         if key in result:
             raise ValueError(f"duplicate diagnostic key: {key}")
-        result[key] = record
+        validated = validate_pavg_diagnostic(record)
+        expected_override = _expected_hard_override(validated)
+        if validated["hard_violation_override"] is not expected_override:
+            raise ValueError(
+                "hard_violation_override mismatch for diagnostic key "
+                f"{key!r}: expected {expected_override}"
+            )
+        result[key] = validated
     if set(result) != expected:
         raise ValueError(
             "diagnostic keys must match exactly; "
@@ -127,11 +159,13 @@ def _correct(sample: BenchmarkSample, prediction: BenchmarkPrediction) -> bool:
 def _sequential_attribution(
     samples: Sequence[BenchmarkSample],
     indexed: Mapping[tuple[str, str], BenchmarkPrediction],
+    diagnostics: Mapping[tuple[str, str], Mapping[str, Any]],
 ) -> dict[str, dict[str, int]]:
     result = {}
     for baseline, candidate in SEQUENTIAL_TRANSITIONS:
         changed = gains = losses = 0
         baseline_failures = candidate_failures = 0
+        module_available = 0
         for sample in samples:
             before = indexed[(sample.sample_id, baseline)]
             after = indexed[(sample.sample_id, candidate)]
@@ -142,6 +176,22 @@ def _sequential_attribution(
             losses += before_correct and not after_correct
             baseline_failures += before.failure is not None
             candidate_failures += after.failure is not None
+            record = diagnostics[(sample.sample_id, candidate)]
+            evidence = record["evidence_families"]
+            if candidate == "M1_GRAPH":
+                available = evidence["pqsg"]["status"] == "available"
+            elif candidate == "M2_CHECKLIST":
+                available = evidence["checklist"]["status"] == "available"
+            elif candidate == "M3_MECHANICS":
+                available = evidence["mechanics"]["status"] == "available"
+            elif candidate == "M4_VLM":
+                available = evidence["vlm"]["status"] == "available"
+            else:
+                available = (
+                    record["planner"]["source"] == "model"
+                    and bool(record["question_graph"]["source"])
+                )
+            module_available += available
         result[f"{candidate}-{baseline}"] = {
             "changed": changed,
             "gains": gains,
@@ -149,6 +199,8 @@ def _sequential_attribution(
             "baseline_failures": baseline_failures,
             "candidate_failures": candidate_failures,
             "failure_change": candidate_failures - baseline_failures,
+            "module_available": module_available,
+            "module_unavailable": len(samples) - module_available,
         }
     return result
 
@@ -334,6 +386,14 @@ def build_full_pavg_report(
     prompt_index = _prediction_index(
         pilot_samples, prompt_predictions, PROMPT_METHODS
     )
+    for sample in pilot_samples:
+        primary = full_index[(sample.sample_id, "M5_FULL")]
+        diagnostic = prompt_index[(sample.sample_id, "M5_FULL")]
+        if diagnostic != primary:
+            raise ValueError(
+                "correct-prompt M5 prediction must equal the primary full-run "
+                f"subset for sample {sample.sample_id!r}"
+            )
     correct = _by_method(pilot_samples, prompt_index, "M5_FULL")
     shuffled = _by_method(
         pilot_samples, prompt_index, "M5_SHUFFLED_PROMPT_300"
@@ -371,7 +431,9 @@ def build_full_pavg_report(
             "bootstrap": primary_bootstrap,
         },
         "method_metrics": metrics,
-        "sequential_attribution": _sequential_attribution(samples, full_index),
+        "sequential_attribution": _sequential_attribution(
+            samples, full_index, diagnostic_index
+        ),
         "module_availability": _module_availability(samples, diagnostic_index),
         "model_calls": _model_call_summary(samples, diagnostic_index),
         "hard_override": {

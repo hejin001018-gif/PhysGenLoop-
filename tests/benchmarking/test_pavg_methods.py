@@ -130,6 +130,7 @@ def test_m5_injects_planner_pqsg_and_verifier_stages(
             cache_dir=tmp_path / "model-cache",
             namespace=name,
             model_id="Qwen/Qwen3-VL-8B-Instruct",
+            model_revision="a" * 64,
         )
         for name in ("planner", "pqsg", "verifier")
     }

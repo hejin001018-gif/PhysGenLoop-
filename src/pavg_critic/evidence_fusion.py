@@ -24,6 +24,47 @@ from .schemas import (
 )
 
 
+COUNTERFACTUAL_PHYSICAL_FAMILIES = ("pqsg", "checklist", "mechanics")
+
+
+def hard_violation_override_applied(
+    report: CriticReport,
+    config: FusionConfig,
+) -> bool:
+    """Return whether a retained hard violation overruled physical evidence.
+
+    A hard violation being present is not itself an override.  The diagnostic is
+    true only when the prompt/graph, checklist and mechanics evidence that was
+    actually available would have crossed the normal physical-decision threshold.
+    """
+
+    if report.decision != "violation" or not report.violations:
+        return False
+    weights = {
+        "pqsg": config.pqsg_family_weight,
+        "checklist": config.checklist_family_weight,
+        "mechanics": config.mechanics_family_weight,
+    }
+    weighted_score = 0.0
+    effective_total = 0.0
+    for bundle in report.evidence_bundles:
+        if (
+            bundle.family not in COUNTERFACTUAL_PHYSICAL_FAMILIES
+            or bundle.status != "available"
+            or bundle.score is None
+        ):
+            continue
+        effective_weight = (
+            weights[bundle.family] * bundle.coverage * bundle.confidence
+        )
+        weighted_score += bundle.score * effective_weight
+        effective_total += effective_weight
+    return (
+        effective_total > 0
+        and weighted_score / effective_total >= config.physical_score_threshold
+    )
+
+
 class CoverageAwareEvidenceFusion:
     """构造五类证据包并生成 physical/violation/unknown 三态报告。"""
 

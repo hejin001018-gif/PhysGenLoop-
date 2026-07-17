@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 from pavg_critic.api_models import OpenAIChatModel, OpenAIResponsesModel
@@ -34,6 +35,23 @@ ALLOWED_METHODS = (
     "M5_FULL",
     "M5_SHUFFLED_PROMPT_300",
     "M5_ORACLE_PLAN_300",
+)
+PILOT_MANIFEST_SHA256 = (
+    "a97762fe4033789eb14a82717c72c14e89bc75a7a67200d5890ff1647f72a670"
+)
+SHUFFLED_MANIFEST_SHA256 = (
+    "5250aea3077f9360e42e20008ee8873a9d9a5f3284e7b52270cba33b098e5848"
+)
+CACHE_ONLY_PAVG_METHODS = frozenset(
+    {
+        "M1_GRAPH",
+        "M2_CHECKLIST",
+        "M3_MECHANICS",
+        "M4_VLM",
+        "M5_FULL",
+        "M5_SHUFFLED_PROMPT_300",
+        "M5_ORACLE_PLAN_300",
+    }
 )
 
 
@@ -77,7 +95,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sam2-checkpoint", type=Path)
     parser.add_argument("--m4-detector-weight", type=float, default=0.7)
     parser.add_argument("--model-cache-dir", type=Path)
+    parser.add_argument("--model-snapshot-sha256")
     parser.add_argument("--max-new-failures", type=int, default=1)
+    parser.add_argument("--expected-manifest-sha256")
     return parser
 
 
@@ -175,11 +195,117 @@ def _redact_config(value):
     return value
 
 
+def sample_selection_sha256(samples) -> str:
+    sample_ids = sorted(str(sample.sample_id) for sample in samples)
+    if len(sample_ids) != len(set(sample_ids)):
+        raise ValueError("sample selection contains duplicate sample IDs")
+    content = json.dumps(
+        sample_ids,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(content).hexdigest()
+
+
+def _fsync_directory(path: Path) -> None:
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def write_resolved_config(path: str | Path, config: dict[str, object]) -> None:
+    destination = Path(path)
+    content = (
+        json.dumps(
+            config,
+            allow_nan=False,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+    if destination.exists():
+        if not destination.is_file() or destination.read_bytes() != content:
+            raise ValueError(
+                f"run directory contains a different resolved config: {destination}"
+            )
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    raw_temporary: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            raw_temporary = handle.name
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(raw_temporary, destination)
+        raw_temporary = None
+        _fsync_directory(destination.parent)
+    finally:
+        if raw_temporary is not None:
+            Path(raw_temporary).unlink(missing_ok=True)
+
+
+def validate_manifest_binding(
+    method_ids: tuple[str, ...],
+    actual_sha256: str,
+    expected_sha256: str | None,
+) -> None:
+    actual = actual_sha256.lower()
+    expected = "" if expected_sha256 is None else expected_sha256.lower()
+    if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
+        raise ValueError("--expected-manifest-sha256 must be a 64-character hex digest")
+    if actual != expected:
+        raise ValueError(
+            f"expected manifest SHA-256 {expected}, observed {actual}"
+        )
+    if "M5_ORACLE_PLAN_300" in method_ids and actual != PILOT_MANIFEST_SHA256:
+        raise ValueError(
+            "oracle method requires the frozen correct-prompt pilot manifest"
+        )
+    if (
+        "M5_SHUFFLED_PROMPT_300" in method_ids
+        and actual != SHUFFLED_MANIFEST_SHA256
+    ):
+        raise ValueError(
+            "shuffled method requires the frozen shuffled-prompt manifest"
+        )
+
+
+def validate_cache_only_observations(
+    method_ids: tuple[str, ...], observation_provider: str
+) -> None:
+    protected = CACHE_ONLY_PAVG_METHODS.intersection(method_ids)
+    if protected and observation_provider == "sam2":
+        raise ValueError(
+            "full PAVG evaluation is cache-only and must not propagate SAM2; "
+            f"cache misses are terminal for {sorted(protected)!r}"
+        )
+
+
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     if args.env_file is not None:
         load_benchmark_environment(args.env_file)
     method_ids = parse_methods(args.methods)
+    validate_cache_only_observations(method_ids, args.observation_provider)
+    manifest_sha256 = _sha256(args.manifest)
+    validate_manifest_binding(
+        method_ids,
+        manifest_sha256,
+        args.expected_manifest_sha256,
+    )
     samples = tuple(
         sorted(load_manifest(args.manifest), key=lambda item: item.sample_id)
     )
@@ -198,6 +324,18 @@ def main(argv=None) -> int:
     }
     if model_pavg_ids.intersection(method_ids) and args.model_cache_dir is None:
         raise ValueError("--model-cache-dir is required for M4/M5 methods")
+    if model_pavg_ids.intersection(method_ids) and (
+        args.model_snapshot_sha256 is None
+        or len(args.model_snapshot_sha256) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in args.model_snapshot_sha256.lower()
+        )
+    ):
+        raise ValueError(
+            "--model-snapshot-sha256 is required for M4/M5 methods and must "
+            "be a 64-character hex digest"
+        )
     if args.max_new_failures <= 0:
         raise ValueError("--max-new-failures must be positive")
 
@@ -274,6 +412,7 @@ def main(argv=None) -> int:
                 cache_dir=args.model_cache_dir,
                 namespace="verifier",
                 model_id=model_id or "benchmark-model",
+                model_revision=args.model_snapshot_sha256,
             )
         if any(item.startswith("M5_") or item == "M5_FULL" for item in pavg_ids):
             assert args.model_cache_dir is not None
@@ -282,12 +421,14 @@ def main(argv=None) -> int:
                 cache_dir=args.model_cache_dir,
                 namespace="planner",
                 model_id=model_id or "benchmark-model",
+                model_revision=args.model_snapshot_sha256,
             )
             stage_models["pqsg"] = AuditedCachedModel(
                 model,
                 cache_dir=args.model_cache_dir,
                 namespace="pqsg",
                 model_id=model_id or "benchmark-model",
+                model_revision=args.model_snapshot_sha256,
             )
         for item in pavg_ids:
             is_m5 = item.startswith("M5_") or item == "M5_FULL"
@@ -330,6 +471,7 @@ def main(argv=None) -> int:
             "model_cache_dir": (
                 None if args.model_cache_dir is None else str(args.model_cache_dir)
             ),
+            "model_snapshot_sha256": args.model_snapshot_sha256,
             "model_cache_namespaces": sorted(
                 {
                     name
@@ -345,14 +487,15 @@ def main(argv=None) -> int:
                 and args.sam2_checkpoint.is_file()
                 else None
             ),
-            "manifest_sha256": _sha256(args.manifest),
+            "manifest_sha256": manifest_sha256,
+            "expected_manifest_sha256": args.expected_manifest_sha256,
+            "sample_count": len(samples),
+            "sample_selection_sha256": sample_selection_sha256(samples),
+            "max_samples": args.max_samples,
             "git_revision": _git_revision(),
         }
     )
-    (args.run_dir / "resolved_config.json").write_text(
-        json.dumps(config, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_resolved_config(args.run_dir / "resolved_config.json", config)
     prediction_path = args.run_dir / "predictions.jsonl"
     direct_methods = tuple(
         method for method in ordered_methods if method.method_id.startswith("D")

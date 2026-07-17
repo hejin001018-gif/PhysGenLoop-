@@ -34,9 +34,7 @@ def _prediction_stats(path: Path, method: str) -> dict[str, int]:
                 f"invalid prediction heartbeat input line {line_number}: {path}"
             ) from exc
         if method_id != method:
-            raise ValueError(
-                f"heartbeat method mismatch in {path}: expected {method}, got {method_id}"
-            )
+            continue
         key = (sample_id, method_id)
         if key in keys:
             raise ValueError(f"duplicate heartbeat prediction key: {key}")
@@ -101,11 +99,58 @@ def build_snapshot(
     if stall_sec <= 0:
         raise ValueError("stall_sec must be positive")
     methods = {}
+    previous_methods = (
+        previous.get("methods", {})
+        if previous is not None and isinstance(previous.get("methods", {}), Mapping)
+        else {}
+    )
     for method, raw_path in sorted(run_specs.items()):
         path = Path(raw_path)
         if path.is_dir():
             path = path / "predictions.jsonl"
-        methods[method] = _prediction_stats(path, method)
+        stats = _prediction_stats(path, method)
+        previous_method = previous_methods.get(method)
+        if not isinstance(previous_method, Mapping):
+            previous_method = None
+        if previous_method is None and previous is not None and len(run_specs) == 1:
+            previous_method = previous
+        previous_method_count = (
+            None
+            if previous_method is None
+            else int(previous_method.get("prediction_count", 0))
+        )
+        method_progressed = (
+            previous_method_count is None
+            or stats["prediction_count"] > previous_method_count
+        )
+        method_last_progress = (
+            now
+            if method_progressed
+            else float(previous_method.get("last_progress_epoch", now))
+        )
+        method_eta = None
+        if (
+            previous is not None
+            and previous_method_count is not None
+            and stats["prediction_count"] > previous_method_count
+        ):
+            elapsed = now - float(previous.get("timestamp_epoch", now))
+            rate = (
+                (stats["prediction_count"] - previous_method_count) / elapsed
+                if elapsed > 0
+                else 0.0
+            )
+            if rate > 0:
+                method_eta = (
+                    expected_per_method - stats["prediction_count"]
+                ) / rate
+        methods[method] = {
+            **stats,
+            "last_progress_epoch": method_last_progress,
+            "stalled": stats["prediction_count"] < expected_per_method
+            and now - method_last_progress >= stall_sec,
+            "eta_sec": method_eta,
+        }
     prediction_count = sum(item["prediction_count"] for item in methods.values())
     failure_count = sum(item["failure_count"] for item in methods.values())
     expected_count = expected_per_method * len(methods)
@@ -134,8 +179,7 @@ def build_snapshot(
         "expected_count": expected_count,
         "failure_count": failure_count,
         "last_progress_epoch": last_progress,
-        "stalled": prediction_count < expected_count
-        and now - last_progress >= stall_sec,
+        "stalled": any(item["stalled"] for item in methods.values()),
         "eta_sec": eta_sec,
         "endpoint_healthy": bool(endpoint_probe()),
         "gpu": dict(gpu_query()),

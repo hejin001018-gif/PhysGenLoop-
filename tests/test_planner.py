@@ -453,6 +453,20 @@ def test_template_planner_detects_projectile():
     assert any(item.domain == "projectile" for item in plan.physics_constraints)
 
 
+def test_template_planner_understands_rock_rolling_down_slope_in_chinese():
+    from pavg_critic.planner import TemplatePhysicsPlanner
+
+    plan = TemplatePhysicsPlanner().generate("石头滚下坡")
+
+    assert plan.objects == ("rock", "slope")
+    assert "roll_down_slope" in plan.expected_events
+    assert any(
+        constraint.domain == "rolling"
+        and constraint.subjects == ("rock", "slope")
+        for constraint in plan.physics_constraints
+    )
+
+
 def test_template_planner_detects_collision():
     from pavg_critic.planner import TemplatePhysicsPlanner
 

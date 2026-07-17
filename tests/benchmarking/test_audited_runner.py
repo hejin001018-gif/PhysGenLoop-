@@ -154,3 +154,55 @@ def test_audited_runner_stops_after_paired_failure(
     assert _keys(predictions) == _keys(diagnostics, diagnostics=True) == {
         ("0", "M5_FULL")
     }
+
+
+def test_audited_runner_recovers_dead_owner_lock(
+    tmp_path, sample_factory, prediction_factory
+):
+    predictions = tmp_path / "predictions.jsonl"
+    diagnostics = tmp_path / "diagnostics.jsonl"
+    lock = predictions.with_suffix(".jsonl.lock")
+    lock.write_text("pid=2147483647\n", encoding="ascii")
+    sample = sample_factory(index=1, physical=True, generator="g")
+    method = AuditedMethod(prediction_factory)
+
+    AuditedBenchmarkRunner(predictions, diagnostics).run((sample,), (method,))
+
+    assert not lock.exists()
+    assert method.calls == [sample.sample_id]
+
+
+def test_audited_runner_rejects_asymmetry_from_other_pavg_method(
+    tmp_path, sample_factory, prediction_factory
+):
+    predictions = tmp_path / "predictions.jsonl"
+    diagnostics = tmp_path / "diagnostics.jsonl"
+    sample = sample_factory(index=1, physical=True, generator="g")
+    old = prediction_factory(
+        sample.sample_id, "physical", 5.0, method_id="M4_VLM"
+    )
+    predictions.write_text(json.dumps(old.to_dict()) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="asymmetric"):
+        AuditedBenchmarkRunner(predictions, diagnostics).run(
+            (sample,), (AuditedMethod(prediction_factory),)
+        )
+
+
+def test_audited_runner_fsyncs_parent_for_wal_and_projection(
+    tmp_path, sample_factory, prediction_factory, monkeypatch
+):
+    predictions = tmp_path / "predictions.jsonl"
+    diagnostics = tmp_path / "diagnostics.jsonl"
+    sample = sample_factory(index=1, physical=True, generator="g")
+    calls = []
+    monkeypatch.setattr(
+        "pavg_critic.benchmarking.audited_runner._fsync_directory",
+        lambda path: calls.append(path),
+    )
+
+    AuditedBenchmarkRunner(predictions, diagnostics).run(
+        (sample,), (AuditedMethod(prediction_factory),)
+    )
+
+    assert calls.count(tmp_path) >= 4

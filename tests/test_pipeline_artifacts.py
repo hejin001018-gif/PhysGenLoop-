@@ -65,7 +65,5 @@ def test_detailed_pipeline_exposes_fusion_keyframes_and_reviews():
         "violation",
         "unknown",
     }
-    assert artifacts.report.diagnostics["hard_violation_override"] is bool(
-        artifacts.report.violations
-    )
+    assert isinstance(artifacts.report.diagnostics["hard_violation_override"], bool)
     json.dumps(artifacts.to_dict(), allow_nan=False)

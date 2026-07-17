@@ -35,6 +35,8 @@ class ModelCallEvent:
 
     namespace: str
     model_id: str
+    model_revision: str
+    sample_id: str
     cache_key: str
     prompt_sha256: str
     schema_sha256: str
@@ -57,6 +59,7 @@ class AuditedCachedModel:
         cache_dir: str | Path,
         namespace: str,
         model_id: str,
+        model_revision: str,
         retries: int = 3,
         lock_timeout_sec: float = 300.0,
     ) -> None:
@@ -68,6 +71,8 @@ class AuditedCachedModel:
             raise ValueError("namespace must be one safe path component")
         if not model_id:
             raise ValueError("model_id must not be empty")
+        if not model_revision:
+            raise ValueError("model_revision must not be empty")
         if isinstance(retries, bool) or not isinstance(retries, int) or retries < 1:
             raise ValueError("retries must be a positive integer")
         if lock_timeout_sec <= 0:
@@ -77,9 +82,16 @@ class AuditedCachedModel:
         self.cache_dir = Path(cache_dir)
         self.namespace = namespace
         self.model_id = model_id
+        self.model_revision = model_revision
+        self.sample_id: str | None = None
         self.retries = retries
         self.lock_timeout_sec = float(lock_timeout_sec)
         self._events: list[ModelCallEvent] = []
+
+    def bind_sample(self, sample_id: str) -> None:
+        if not sample_id or not sample_id.strip():
+            raise ValueError("sample_id must not be empty")
+        self.sample_id = sample_id
 
     @property
     def event_count(self) -> int:
@@ -181,6 +193,8 @@ class AuditedCachedModel:
             "cache_key": cache_key,
             "namespace": self.namespace,
             "model_id": self.model_id,
+            "model_revision": self.model_revision,
+            "sample_id": self.sample_id,
         }
         if not isinstance(cached, dict) or any(
             cached.get(name) != value for name, value in expected.items()
@@ -236,6 +250,8 @@ class AuditedCachedModel:
             ModelCallEvent(
                 namespace=self.namespace,
                 model_id=self.model_id,
+                model_revision=self.model_revision,
+                sample_id=self.sample_id or "",
                 cache_key=cache_key,
                 prompt_sha256=prompt_sha256,
                 schema_sha256=schema_sha256,
@@ -255,6 +271,8 @@ class AuditedCachedModel:
         image_data_urls: Sequence[str],
         provider_call: Callable[[], Mapping[str, Any]],
     ) -> Mapping[str, Any]:
+        if self.sample_id is None:
+            raise RuntimeError("bind_sample() is required before a model call")
         prompt_hash = self._sha({"system": system_prompt, "user": user_prompt})
         schema_hash = self._sha(schema)
         image_hashes = tuple(
@@ -266,6 +284,8 @@ class AuditedCachedModel:
             "schema_version": "1.0",
             "namespace": self.namespace,
             "model_id": self.model_id,
+            "model_revision": self.model_revision,
+            "sample_id": self.sample_id,
             "prompt_sha256": prompt_hash,
             "schema_sha256": schema_hash,
             "input_evidence_sha256": evidence_hash,

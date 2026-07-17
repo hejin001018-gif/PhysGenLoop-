@@ -42,6 +42,12 @@ class TemplatePhysicsPlanner:
             "floor", re.compile(r"\bfloor\b|\bground\b|地面|地板", re.IGNORECASE)
         ),
         _ObjectPattern("wall", re.compile(r"\bwall\b|墙", re.IGNORECASE)),
+        _ObjectPattern(
+            "rock", re.compile(r"\b(?:rock|boulder)s?\b|石头|岩石|巨石", re.IGNORECASE)
+        ),
+        _ObjectPattern(
+            "slope", re.compile(r"\b(?:slope|hill)s?\b|斜坡|山坡|坡", re.IGNORECASE)
+        ),
     )
     _EVENT_PATTERNS = {
         "fall": re.compile(
@@ -66,6 +72,11 @@ class TemplatePhysicsPlanner:
             r"\bcollid(?:e|es|ed|ing)\b|\bcollision\b|相撞|碰撞",
             re.IGNORECASE,
         ),
+        "roll_down_slope": re.compile(
+            r"\broll(?:s|ed|ing)?\b.*\b(?:downhill|slope|hill)\b|"
+            r"滚下坡|滚下斜坡|沿坡滚动",
+            re.IGNORECASE,
+        ),
     }
     _EVENT_ORDER = (
         "leave_support",
@@ -74,8 +85,9 @@ class TemplatePhysicsPlanner:
         "rebound",
         "projectile",
         "collision",
+        "roll_down_slope",
     )
-    _STATIC_OBJECTS = frozenset({"table", "floor", "wall"})
+    _STATIC_OBJECTS = frozenset({"table", "floor", "wall", "slope"})
 
     def generate(
         self, prompt: str, partial_plan: PhysicsPlan | None = None
@@ -127,6 +139,8 @@ class TemplatePhysicsPlanner:
             found.add("projectile")
         if self._EVENT_PATTERNS["collision"].search(text):
             found.add("collision")
+        if self._EVENT_PATTERNS["roll_down_slope"].search(text):
+            found.add("roll_down_slope")
         return tuple(item for item in self._EVENT_ORDER if item in found)
 
     @staticmethod
@@ -145,6 +159,15 @@ class TemplatePhysicsPlanner:
                     primary,
                     "expected_to_collide_with",
                     "floor",
+                )
+            )
+        if primary and "slope" in objects and "roll_down_slope" in events:
+            relations.append(
+                PhysicsRelation(
+                    f"R{len(relations) + 1}",
+                    primary,
+                    "moves_down",
+                    "slope",
                 )
             )
         return tuple(relations)
@@ -194,6 +217,16 @@ class TemplatePhysicsPlanner:
                 dynamic_subject,
                 "parabolic_vertical_motion",
                 "during_free_flight",
+            )
+        if "roll_down_slope" in events:
+            rolling_subjects = dynamic_subject + (
+                ("slope",) if "slope" in objects else ()
+            )
+            add(
+                "rolling",
+                rolling_subjects,
+                "continuous_downslope_motion_without_unexplained_disappearance",
+                "while_on_slope",
             )
         return tuple(constraints)
 

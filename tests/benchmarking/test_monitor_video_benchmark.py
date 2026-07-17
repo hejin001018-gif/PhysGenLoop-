@@ -84,6 +84,48 @@ def test_snapshot_marks_no_progress_as_stalled(tmp_path):
     assert snapshot["endpoint_healthy"] is False
 
 
+def test_shared_prediction_file_is_filtered_per_method_and_one_stall_is_visible(
+    tmp_path,
+):
+    predictions = tmp_path / "predictions.jsonl"
+    _write_prediction(predictions, sample_id="m4-1", method="M4_VLM")
+    _write_prediction(predictions, sample_id="m5-1", method="M5_FULL")
+    previous = {
+        "timestamp_epoch": 900.0,
+        "prediction_count": 2,
+        "last_progress_epoch": 100.0,
+        "methods": {
+            "M4_VLM": {
+                "prediction_count": 1,
+                "failure_count": 0,
+                "last_progress_epoch": 900.0,
+            },
+            "M5_FULL": {
+                "prediction_count": 1,
+                "failure_count": 0,
+                "last_progress_epoch": 100.0,
+            },
+        },
+    }
+    _write_prediction(predictions, sample_id="m4-2", method="M4_VLM")
+
+    snapshot = build_snapshot(
+        {"M4_VLM": predictions, "M5_FULL": predictions},
+        expected_per_method=3,
+        previous=previous,
+        now=1_001.0,
+        stall_sec=900,
+        gpu_query=lambda: {},
+        endpoint_probe=lambda: True,
+    )
+
+    assert snapshot["methods"]["M4_VLM"]["prediction_count"] == 2
+    assert snapshot["methods"]["M4_VLM"]["stalled"] is False
+    assert snapshot["methods"]["M5_FULL"]["prediction_count"] == 1
+    assert snapshot["methods"]["M5_FULL"]["stalled"] is True
+    assert snapshot["stalled"] is True
+
+
 def test_heartbeat_append_is_one_fsynced_json_line(tmp_path):
     heartbeat = tmp_path / "heartbeat.jsonl"
     snapshot = {

@@ -244,6 +244,8 @@ class PAVGMethod:
         self,
         sample: BenchmarkSample,
     ) -> tuple[BenchmarkPrediction, dict[str, object]]:
+        for model in self.model_stages.values():
+            model.bind_sample(sample.sample_id)
         total_started = perf_counter()
         visible_frame_count = 0
         analysis_started = total_started

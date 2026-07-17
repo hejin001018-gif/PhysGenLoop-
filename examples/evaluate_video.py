@@ -106,6 +106,57 @@ def _probe_video_meta(video_path: str) -> tuple[int, int, int]:
     return 240, 640, 480  # 默认 640×480 @ 8s
 
 
+def _configure_sparse_vlm_fallback(
+    config: CriticConfig,
+    *,
+    total_frames: int,
+    width: int,
+    height: int,
+    num_keyframes: int,
+) -> CriticConfig:
+    """Make sparse keyframe observations explicit instead of faking continuity."""
+
+    diagonal = (width**2 + height**2) ** 0.5
+    keyframe_spacing = max(1, total_frames // max(num_keyframes - 1, 1))
+    return replace(
+        config,
+        tracker=replace(
+            config.tracker,
+            max_match_distance_px=max(
+                config.tracker.max_match_distance_px,
+                int(diagonal * 0.25),
+            ),
+            max_missed_frames=max(
+                config.tracker.max_missed_frames,
+                int(keyframe_spacing * 2),
+            ),
+        ),
+        events=replace(
+            config.events,
+            min_disappearance_frames=max(
+                config.events.min_disappearance_frames,
+                int(keyframe_spacing * 2),
+            ),
+            contact_tolerance_px=max(
+                config.events.contact_tolerance_px,
+                height * 0.05,
+            ),
+            penetration_tolerance_px=max(
+                config.events.penetration_tolerance_px,
+                height * 0.05,
+            ),
+        ),
+        rules=replace(
+            config.rules,
+            enabled=tuple(
+                rule
+                for rule in config.rules.enabled
+                if rule != "object_disappearance"
+            ),
+        ),
+    )
+
+
 # ── 核心 ────────────────────────────────────────────────────
 def evaluate_video(
     video_path: str,
@@ -132,6 +183,7 @@ def evaluate_video(
         api_key=api_cfg["api_key"],
         model=api_cfg["text_model"],
         base_url=api_cfg["base_url"],
+        strict_json_schema=True,
     )
 
     # ── 2. 配置 + VLM 通用检测器 ────────────────────────
@@ -161,12 +213,14 @@ def evaluate_video(
     total_frames, vw, vh = _probe_video_meta(video_path)
     detector = None
     sam2_used = False
+    sam2_fallback_error: Exception | None = None
     try:
         detector = SAM2ObjectDetector(vlm, video_path)
         sam2_used = True
         if verbose:
             print(f"SAM2 像素级跟踪 ({vw}×{vh})...", file=sys.stderr)
-    except Exception:
+    except Exception as exc:
+        sam2_fallback_error = exc
         # SAM2 不可用（未安装 / 无 GPU / 初始化失败）→ VLM 降级
         if verbose:
             print(f"SAM2 不可用，降级到 VLM 检测器...", file=sys.stderr)
@@ -174,7 +228,6 @@ def evaluate_video(
 
     # VLM 检测器百分比坐标精度低，需放宽阈值；SAM2 像素级精度用原生配置
     if not sam2_used:
-        diag = (vw**2 + vh**2) ** 0.5
         kf_spacing = max(1, total_frames // max(num_keyframes - 1, 1))
         if verbose:
             print(
@@ -183,34 +236,12 @@ def evaluate_video(
                 file=sys.stderr,
             )
             print(f"VLM 通用检测 ({num_keyframes} 帧)...", file=sys.stderr)
-        critic_config = replace(
+        critic_config = _configure_sparse_vlm_fallback(
             critic_config,
-            tracker=replace(
-                critic_config.tracker,
-                max_match_distance_px=max(
-                    critic_config.tracker.max_match_distance_px,
-                    int(diag * 0.25),
-                ),
-                max_missed_frames=max(
-                    critic_config.tracker.max_missed_frames,
-                    int(kf_spacing * 2),
-                ),
-            ),
-            events=replace(
-                critic_config.events,
-                min_disappearance_frames=max(
-                    critic_config.events.min_disappearance_frames,
-                    int(kf_spacing * 2),
-                ),
-                contact_tolerance_px=max(
-                    critic_config.events.contact_tolerance_px,
-                    vh * 0.05,
-                ),
-                penetration_tolerance_px=max(
-                    critic_config.events.penetration_tolerance_px,
-                    vh * 0.05,
-                ),
-            ),
+            total_frames=total_frames,
+            width=vw,
+            height=vh,
+            num_keyframes=num_keyframes,
         )
 
     # ── 3. 构建 Critic ──────────────────────────────────
@@ -372,6 +403,18 @@ def evaluate_video(
             "model": planner_meta.model if planner_meta else None,
         },
         "model_versions": {"vlm": vlm.model, "text": text_model.model},
+        "detector": {
+            "backend": "sam2" if sam2_used else "sparse_vlm_fallback",
+            "sam2_used": sam2_used,
+            "fallback_error": (
+                None
+                if sam2_fallback_error is None
+                else {
+                    "type": type(sam2_fallback_error).__name__,
+                    "message": str(sam2_fallback_error)[:300],
+                }
+            ),
+        },
         "evidence_families": [
             {
                 "family": b.family,

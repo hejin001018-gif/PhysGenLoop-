@@ -17,7 +17,10 @@ from .config import CriticConfig
 from .detector import ColorBlobDetector
 from .api_models import ModelAPIError
 from .event_detector import EventDetector
-from .evidence_fusion import CoverageAwareEvidenceFusion
+from .evidence_fusion import (
+    CoverageAwareEvidenceFusion,
+    hard_violation_override_applied,
+)
 from .fusion import ResultFusion
 from .interfaces import (
     ObjectDetector,
@@ -339,7 +342,9 @@ class PhysicsCritic:
         )
         diagnostics = dict(report.diagnostics)
         diagnostics["pre_evidence_fusion"] = pre_evidence_fusion
-        diagnostics["hard_violation_override"] = bool(report.violations)
+        diagnostics["hard_violation_override"] = hard_violation_override_applied(
+            report, self.config.fusion
+        )
         report = replace(report, diagnostics=diagnostics)
         return CriticArtifacts(
             report=report,
