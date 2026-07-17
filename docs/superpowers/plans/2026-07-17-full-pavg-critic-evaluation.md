@@ -388,7 +388,7 @@ git commit -m "feat: cache audited benchmark model stages"
 - Modify: `tests/benchmarking/test_pavg_methods.py`
 - Create: `tests/benchmarking/test_prompt_diagnostics.py`
 
-- [ ] **Step 1: Replace the old M5-rejection test with failing M5 injection tests**
+- [x] **Step 1: Replace the old M5-rejection test with failing M5 injection tests**
 
 The new constructor contract is:
 
@@ -410,7 +410,7 @@ assert diagnostics["model_calls"]["pqsg"]["call_count"] == 1
 
 Assert M5 rejects any missing one of the three explicit models. Preserve the existing M4 tests.
 
-- [ ] **Step 2: Write failing oracle-plan tests**
+- [x] **Step 2: Write failing oracle-plan tests**
 
 Use an exact model plan and rules `("rule a", "rule b")`, then assert:
 
@@ -429,7 +429,7 @@ assert plan.planner_metadata == PlannerMetadata(
 
 Also test the synthetic `scene` object and collision with an existing `oracle-rule-0` ID as a terminal `SchemaError`.
 
-- [ ] **Step 3: Write failing diagnostics-schema tests**
+- [x] **Step 3: Write failing diagnostics-schema tests**
 
 Build fixed `CriticArtifacts` and assert the record contains exactly the approved non-secret sections:
 
@@ -444,7 +444,7 @@ assert "resolved_plan" not in json.dumps(diagnostics)
 assert "image_data" not in json.dumps(diagnostics)
 ```
 
-- [ ] **Step 4: Implement the oracle adapter and diagnostic builder**
+- [x] **Step 4: Implement the oracle adapter and diagnostic builder**
 
 `OracleRulePhysicsPlanner.generate()` must call the cached normal `ModelPhysicsPlanner`, preserve objects/events/relations and existing constraints, append exact constraints, and use this implementation:
 
@@ -488,7 +488,7 @@ class OracleRulePhysicsPlanner:
 
 `build_pavg_diagnostics` must emit `schema_version`, key, Planner counts/source, question-node status counts, VideoScience status counts, mechanics applicability counts, rule candidate/retained counts, VLM claim counts, five evidence-family records with configured/effective weights, pre/final decision, hard override, stage call events and stage/total latency. Serialize with `allow_nan=False` during tests.
 
-- [ ] **Step 5: Extend `PAVGMethod` without changing M1–M4 semantics**
+- [x] **Step 5: Extend `PAVGMethod` without changing M1–M4 semantics**
 
 Extend the constructor with `planner_model=None`, `question_model=None`, `model_stages: Mapping[str, AuditedCachedModel] | None = None`, `output_method_id: str | None = None`, and `oracle_plan: bool = False`. Use this mode/output contract:
 
@@ -510,7 +510,7 @@ if oracle_plan and mode != "M5_FULL":
 
 Call `build_ablation_config(self.mode)` and `analyze_detailed`, not `analyze`. Capture `{stage: model.event_count}` before the call, then pass `{stage: model.events_since(cursor)}` to the diagnostic builder. Return `(BenchmarkPrediction, diagnostics)` from `evaluate_audited`; keep `evaluate` as `return self.evaluate_audited(sample)[0]` so existing runner callers remain compatible. M5 injects `planner_model`, `question_model` and grouped `vlm_verifier`; oracle M5 constructs `OracleRulePhysicsPlanner(ModelPhysicsPlanner(self.planner_model), sample.physical_rules, model_id=self.model_id)` and injects it as `physics_planner` instead of `planner_model`.
 
-- [ ] **Step 6: Run focused and complete tests**
+- [x] **Step 6: Run focused and complete tests**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/benchmarking/test_pavg_methods.py tests/benchmarking/test_pavg_diagnostics.py tests/benchmarking/test_prompt_diagnostics.py -q
@@ -519,7 +519,7 @@ Call `build_ablation_config(self.mode)` and `analyze_detailed`, not `analyze`. C
 
 Expected: PASS; existing B1–M4 assertions remain unchanged.
 
-- [ ] **Step 7: Commit M5 and diagnostics construction**
+- [x] **Step 7: Commit M5 and diagnostics construction**
 
 ```powershell
 git add src/pavg_critic/benchmarking/pavg_diagnostics.py src/pavg_critic/benchmarking/prompt_diagnostics.py src/pavg_critic/benchmarking/pavg_methods.py tests/benchmarking/test_pavg_diagnostics.py tests/benchmarking/test_pavg_methods.py tests/benchmarking/test_prompt_diagnostics.py
@@ -1028,3 +1028,12 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - A single platform-boundary fix uses Windows `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` and retains `os.kill(pid, 0)` on POSIX. The existing concurrent-cache test is the regression reproducer.
 - Focused cache tests passed `7/7` in 0.37 seconds; the complete local suite passed `289/289` in 15.25 seconds.
 - Cache identity includes namespace, model ID, prompt/schema hashes and ordered image-evidence hashes. Provider failures are retried up to three attempts but never cached; per-key locks prevent duplicate concurrent provider calls; telemetry contains hashes/latency only and no prompt or image bytes.
+
+### E4 — Real-video M5, oracle plan and module diagnostics
+
+- Timestamp: `2026-07-17T15:53:24+08:00`; implementation started from commit `20336f4309b1c9bf2e9e51cbf3ce0e19ca2c4108`.
+- RED evidence: the focused suite failed at collection because `pavg_diagnostics` and `prompt_diagnostics` did not exist. After the initial GREEN pass, an additional leakage test failed because the legacy prediction failure stored `Authorization: Bearer secret-value`; the minimal fix retains only the exception type.
+- `M5_FULL` now requires and injects explicit Planner, question/PQSG and grouped-verifier models. The same cached backend exposes the frozen model ID to Planner metadata while keeping the provider object private.
+- `OracleRulePhysicsPlanner` preserves the normal model plan, adds exact stable `oracle-rule-{index}` constraints, uses a synthetic `scene` only for an object-free plan, and terminates on ID collision.
+- Each PAVG evaluation now returns a same-key diagnostic record with Planner/PQSG/VideoScience/mechanics/rule/VLM/evidence-family availability, configured/effective weights, pre/final fusion state, hard override, non-secret stage events and latency. Failures never store exception messages.
+- Focused Task 4 tests passed `14/14` in 1.40 seconds; the complete local suite passed `296/296` in 10.20 seconds. No fusion weight, prompt, threshold or accepted prediction changed.

@@ -72,7 +72,8 @@ class AuditedCachedModel:
             raise ValueError("retries must be a positive integer")
         if lock_timeout_sec <= 0:
             raise ValueError("lock_timeout_sec must be positive")
-        self.model = model
+        self.backend = model
+        self.model = model_id
         self.cache_dir = Path(cache_dir)
         self.namespace = namespace
         self.model_id = model_id
@@ -355,7 +356,7 @@ class AuditedCachedModel:
             user_prompt=user_prompt,
             schema=schema,
             image_data_urls=(),
-            provider_call=lambda: self.model.generate_json(
+            provider_call=lambda: self.backend.generate_json(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 schema=schema,
@@ -375,7 +376,7 @@ class AuditedCachedModel:
             user_prompt=user_prompt,
             schema=schema,
             image_data_urls=image_data_urls,
-            provider_call=lambda: self.model.generate_json_with_images(
+            provider_call=lambda: self.backend.generate_json_with_images(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 image_data_urls=image_data_urls,
