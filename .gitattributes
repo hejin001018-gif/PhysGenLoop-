@@ -1,0 +1,7 @@
+# Byte-stable Learning Repair evidence and compatibility inputs.
+/artifacts/repair_training/** text eol=lf
+/configs/learning_repair/** text eol=lf
+
+# Cloud training entry points must remain executable by POSIX shells.
+/Blender_video/*.sh text eol=lf
+/Blender_video/scripts/*.sh text eol=lf
