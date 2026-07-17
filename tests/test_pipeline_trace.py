@@ -223,6 +223,22 @@ def test_detailed_pipeline_trace_has_every_stage_and_preserves_report():
         for check in validation.checks
     )
 
+    bounded_graph = deepcopy(trace)
+    question_graph = next(
+        node
+        for node in bounded_graph["nodes"]
+        if node["node_id"] == "question_graph"
+    )
+    graph_nodes = question_graph["outputs"]["nodes"]
+    question_graph["outputs"]["nodes"] = {
+        "count": len(graph_nodes),
+        "preview": graph_nodes,
+        "sha256": "0" * 64,
+        "truncated": True,
+    }
+
+    assert validate_trace(bounded_graph).passed
+
 
 def test_disabled_pipeline_modules_remain_visible_as_skipped_nodes():
     config = CriticConfig(

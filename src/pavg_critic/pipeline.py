@@ -658,16 +658,12 @@ class PhysicsCritic:
             report = self.fusion.fuse(candidates, keyframes, reviews)
             if stage is not None:
                 candidate_rows = []
+                retained_indices = {
+                    violation.evidence.get("candidate_index")
+                    for violation in report.violations
+                }
                 for index, candidate in enumerate(candidates):
                     review = reviews.get(index)
-                    retained = any(
-                        violation.object == candidate.object
-                        and violation.category == candidate.category
-                        and violation.start_frame == candidate.start_frame
-                        and violation.peak_frame == candidate.peak_frame
-                        and violation.end_frame == candidate.end_frame
-                        for violation in report.violations
-                    )
                     candidate_rows.append(
                         {
                             "index": index,
@@ -677,7 +673,7 @@ class PhysicsCritic:
                             if review is None
                             else review.claim_status,
                             "review_score": None if review is None else review.score,
-                            "retained": retained,
+                            "retained": index in retained_indices,
                         }
                     )
                 stage.complete(

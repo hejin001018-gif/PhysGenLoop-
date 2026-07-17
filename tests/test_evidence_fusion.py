@@ -129,6 +129,7 @@ def test_fusion_records_vlm_claim_status_in_violation_evidence():
     )
 
     assert report.violations[0].evidence["vlm_claim_status"] == "confirmed"
+    assert report.violations[0].evidence["candidate_index"] == 0
 
 
 def test_vlm_rejected_candidate_is_removed_even_when_rule_score_is_high():

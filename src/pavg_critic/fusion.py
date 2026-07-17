@@ -50,6 +50,7 @@ class ResultFusion:
             evidence = dict(candidate.evidence)
             evidence.update(
                 {
+                    "candidate_index": index,
                     "rules": list(candidate.rules),
                     "detector_score": candidate.detector_score,
                     "fused_score": score,

@@ -29,6 +29,10 @@ FORBIDDEN_TRACE_KEYS = frozenset(
         "mask",
         "masks",
         "base64",
+        "password",
+        "access_token",
+        "refresh_token",
+        "bearer_token",
     }
 )
 _COLLECTION_PREVIEW_LIMIT = 20
@@ -412,7 +416,7 @@ def _sanitize_mapping(value: Mapping[str, object]) -> dict[str, object]:
     sanitized: dict[str, object] = {}
     for key, item in value.items():
         name = str(key)
-        if name.lower() in FORBIDDEN_TRACE_KEYS:
+        if _is_forbidden_trace_key(name):
             raise TraceSafetyError(f"forbidden trace key: {name}")
         sanitized[name] = _sanitize_trace_value(item)
     return sanitized
@@ -507,17 +511,40 @@ def summarize_plan(plan: object | None) -> dict[str, object]:
             "expected_events": [],
             "relation_count": 0,
             "constraint_count": 0,
+            "relations": [],
+            "physics_constraints": [],
             "source": "none",
             "confidence": 0.0,
             "fallback_used": False,
             "model": None,
         }
     metadata = getattr(plan, "planner_metadata", None)
+    relations = tuple(getattr(plan, "relations", ()))
+    constraints = tuple(getattr(plan, "physics_constraints", ()))
     return {
         "objects": list(getattr(plan, "objects", ())),
         "expected_events": list(getattr(plan, "expected_events", ())),
-        "relation_count": len(getattr(plan, "relations", ())),
-        "constraint_count": len(getattr(plan, "physics_constraints", ())),
+        "relation_count": len(relations),
+        "constraint_count": len(constraints),
+        "relations": [
+            {
+                "id": str(getattr(item, "id", "")),
+                "subject": str(getattr(item, "subject", "")),
+                "relation": str(getattr(item, "relation", "")),
+                "object": str(getattr(item, "object", "")),
+            }
+            for item in relations
+        ],
+        "physics_constraints": [
+            {
+                "id": str(getattr(item, "id", "")),
+                "domain": str(getattr(item, "domain", "")),
+                "subjects": list(getattr(item, "subjects", ())),
+                "expectation": str(getattr(item, "expectation", "")),
+                "condition": getattr(item, "condition", None),
+            }
+            for item in constraints
+        ],
         "source": str(getattr(metadata, "source", "unknown")),
         "confidence": float(getattr(metadata, "confidence", 0.0)),
         "fallback_used": bool(getattr(metadata, "fallback_used", False)),
@@ -931,6 +958,8 @@ def validate_trace(
         None,
     )
     expected_pqsg_ids: set[str] = set()
+    expected_pqsg_count: int | None = None
+    preview_pqsg_ids: set[str] = set()
     if question_graph_node is not None and isinstance(
         question_graph_node.get("outputs"), Mapping
     ):
@@ -941,12 +970,31 @@ def validate_trace(
                 for item in graph_nodes
                 if isinstance(item, Mapping) and item.get("id")
             }
+        elif isinstance(graph_nodes, Mapping) and graph_nodes.get("truncated") is True:
+            try:
+                expected_pqsg_count = int(graph_nodes["count"])
+            except (KeyError, TypeError, ValueError):
+                expected_pqsg_count = -1
+            preview = graph_nodes.get("preview", [])
+            if isinstance(preview, list):
+                preview_pqsg_ids = {
+                    f"pqsg_node.{item.get('id')}"
+                    for item in preview
+                    if isinstance(item, Mapping) and item.get("id")
+                }
     actual_pqsg_ids = {
         node_id for node_id in node_ids if node_id.startswith("pqsg_node.")
     }
+    if expected_pqsg_count is None:
+        pqsg_coverage_ok = expected_pqsg_ids == actual_pqsg_ids
+    else:
+        pqsg_coverage_ok = (
+            expected_pqsg_count == len(actual_pqsg_ids)
+            and preview_pqsg_ids.issubset(actual_pqsg_ids)
+        )
     add(
         "pqsg.node_coverage",
-        expected_pqsg_ids == actual_pqsg_ids,
+        pqsg_coverage_ok,
         "every generated question-graph node must have exactly one child trace",
     )
     sensitive_path = _find_sensitive_path(document)
@@ -964,26 +1012,31 @@ def validate_trace(
     detector = detector if isinstance(detector, Mapping) else {}
     planner = metadata.get("planner")
     planner = planner if isinstance(planner, Mapping) else {}
-    if policy.require_sam2:
-        add(
-            "policy.sam2",
-            detector.get("sam2_used") is True,
-            "strict policy requires SAM2",
-        )
-    if policy.require_model_planner:
-        add(
-            "policy.model_planner",
-            planner.get("source") == "model",
-            "strict policy requires a model Planner",
-        )
+    add(
+        "policy.sam2",
+        detector.get("sam2_used") is True,
+        "SAM2 was used" if detector.get("sam2_used") is True else "SAM2 was not used",
+        level="error" if policy.require_sam2 else "warning",
+    )
+    add(
+        "policy.model_planner",
+        planner.get("source") == "model",
+        "model Planner was used"
+        if planner.get("source") == "model"
+        else f"Planner source is {planner.get('source', 'unknown')}",
+        level="error" if policy.require_model_planner else "warning",
+    )
     degraded = [node for node in node_maps if node.get("status") == "degraded"]
     fallback_count = metadata.get("provider_fallback_count", 0)
-    if policy.fail_on_provider_fallback:
-        add(
-            "policy.provider_fallback",
-            not degraded and fallback_count == 0,
-            "strict policy forbids provider fallback",
-        )
+    provider_ok = not degraded and fallback_count == 0
+    add(
+        "policy.provider_fallback",
+        provider_ok,
+        "no provider fallback was recorded"
+        if provider_ok
+        else "one or more degraded/provider-fallback stages were recorded",
+        level="error" if policy.fail_on_provider_fallback else "warning",
+    )
 
     fusion_node = next(
         (node for node in node_maps if node.get("node_id") == "evidence_fusion"),
@@ -1170,7 +1223,7 @@ def _find_sensitive_path(value: object, path: str = "$") -> str | None:
         for key, item in value.items():
             name = str(key)
             child_path = f"{path}.{name}"
-            if name.lower() in FORBIDDEN_TRACE_KEYS:
+            if _is_forbidden_trace_key(name):
                 return child_path
             found = _find_sensitive_path(item, child_path)
             if found is not None:
@@ -1181,3 +1234,17 @@ def _find_sensitive_path(value: object, path: str = "$") -> str | None:
             if found is not None:
                 return found
     return None
+
+
+def _is_forbidden_trace_key(key: str) -> bool:
+    normalized = key.strip().lower().replace("-", "_")
+    return (
+        normalized in FORBIDDEN_TRACE_KEYS
+        or normalized.endswith("_api_key")
+        or normalized.endswith("_headers")
+        or normalized.endswith("_authorization")
+        or normalized.endswith("_access_token")
+        or normalized.endswith("_refresh_token")
+        or normalized.endswith("_bearer_token")
+        or normalized.endswith("_password")
+    )

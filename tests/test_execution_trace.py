@@ -11,11 +11,20 @@ from pavg_critic.config import CriticConfig
 from pavg_critic.execution_trace import (
     TraceRecorder,
     TraceSafetyError,
+    TraceValidationPolicy,
     build_fusion_audit,
+    summarize_plan,
     validate_trace,
     write_trace_atomic,
 )
-from pavg_critic.schemas import CriticReport, EvidenceBundle, Violation
+from pavg_critic.schemas import (
+    CriticReport,
+    EvidenceBundle,
+    PhysicsConstraint,
+    PhysicsPlan,
+    PhysicsRelation,
+    Violation,
+)
 
 
 def test_recorder_preserves_order_status_dependencies_and_elapsed_time():
@@ -92,7 +101,17 @@ def test_node_context_can_mark_degraded_output():
 
 @pytest.mark.parametrize(
     "key",
-    ["api_key", "authorization", "headers", "raw_response", "image_bytes", "mask"],
+    [
+        "api_key",
+        "openai_api_key",
+        "authorization",
+        "request_headers",
+        "access_token",
+        "password",
+        "raw_response",
+        "image_bytes",
+        "mask",
+    ],
 )
 def test_forbidden_trace_keys_are_rejected(key):
     recorder = TraceRecorder()
@@ -119,7 +138,6 @@ def test_trace_rejects_binary_payloads_and_duplicate_node_ids():
             outputs={},
             elapsed_ms=0.0,
         )
-
     recorder.record_completed(
         "request",
         label="request",
@@ -138,6 +156,49 @@ def test_trace_rejects_binary_payloads_and_duplicate_node_ids():
             elapsed_ms=0.0,
         )
 
+
+def test_plan_summary_exposes_relationship_and_constraint_semantics():
+    plan = PhysicsPlan(
+        objects=("ball", "floor"),
+        expected_events=("fall", "floor_contact"),
+        relations=(
+            PhysicsRelation(
+                id="R1",
+                subject="ball",
+                relation="above",
+                object="floor",
+            ),
+        ),
+        physics_constraints=(
+            PhysicsConstraint(
+                id="C1",
+                domain="gravity",
+                subjects=("ball",),
+                expectation="The unsupported ball accelerates downward.",
+                condition="before floor contact",
+            ),
+        ),
+    )
+
+    summary = summarize_plan(plan)
+
+    assert summary["relations"] == [
+        {
+            "id": "R1",
+            "subject": "ball",
+            "relation": "above",
+            "object": "floor",
+        }
+    ]
+    assert summary["physics_constraints"] == [
+        {
+            "id": "C1",
+            "domain": "gravity",
+            "subjects": ["ball"],
+            "expectation": "The unsupported ball accelerates downward.",
+            "condition": "before floor contact",
+        }
+    ]
 
 def test_large_collection_has_bounded_preview_and_digest():
     recorder = TraceRecorder()
@@ -427,4 +488,33 @@ def test_validator_recomputes_decision_instead_of_trusting_two_matching_fields()
     assert any(
         check.code == "fusion.decision" and not check.passed
         for check in validation.checks
+    )
+
+
+def test_runtime_fallback_is_warning_by_default_and_error_when_strict():
+    trace = _valid_trace_document()
+    trace["metadata"]["detector"] = {
+        "backend": "sparse_vlm_fallback",
+        "sam2_used": False,
+    }
+
+    default = validate_trace(trace)
+    strict = validate_trace(
+        trace,
+        policy=TraceValidationPolicy(require_sam2=True),
+    )
+
+    assert default.passed
+    assert any(
+        check.code == "policy.sam2"
+        and check.level == "warning"
+        and not check.passed
+        for check in default.checks
+    )
+    assert not strict.passed
+    assert any(
+        check.code == "policy.sam2"
+        and check.level == "error"
+        and not check.passed
+        for check in strict.checks
     )
