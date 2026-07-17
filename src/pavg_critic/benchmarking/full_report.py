@@ -177,14 +177,17 @@ def paired_outcomes(
     samples: Sequence[BenchmarkSample],
     baseline_predictions: Sequence[BenchmarkPrediction],
     candidate_predictions: Sequence[BenchmarkPrediction],
+    *,
+    baseline_method: str = _BASELINE_METHOD,
+    candidate_method: str = _CANDIDATE_METHOD,
 ) -> dict[str, int]:
     """Count the four paired correctness outcomes for D0 versus B1."""
 
     baseline = _prediction_index(
-        samples, baseline_predictions, expected_method=_BASELINE_METHOD
+        samples, baseline_predictions, expected_method=baseline_method
     )
     candidate = _prediction_index(
-        samples, candidate_predictions, expected_method=_CANDIDATE_METHOD
+        samples, candidate_predictions, expected_method=candidate_method
     )
     outcomes = {
         "both_correct": 0,
@@ -224,6 +227,8 @@ def action_group_bootstrap(
     *,
     resamples: int = 2000,
     seed: int = 20260717,
+    baseline_method: str = _BASELINE_METHOD,
+    candidate_method: str = _CANDIDATE_METHOD,
 ) -> dict[str, float | int]:
     """Bootstrap candidate-minus-baseline Macro-F1 by action group.
 
@@ -235,10 +240,10 @@ def action_group_bootstrap(
     if isinstance(resamples, bool) or not isinstance(resamples, int) or resamples <= 0:
         raise ValueError("resamples must be a positive integer")
     baseline = _prediction_index(
-        samples, baseline_predictions, expected_method=_BASELINE_METHOD
+        samples, baseline_predictions, expected_method=baseline_method
     )
     candidate = _prediction_index(
-        samples, candidate_predictions, expected_method=_CANDIDATE_METHOD
+        samples, candidate_predictions, expected_method=candidate_method
     )
     ordered_samples = tuple(sorted(samples, key=lambda sample: sample.sample_id))
     groups: dict[str, list[BenchmarkSample]] = defaultdict(list)
@@ -300,14 +305,17 @@ def build_slices(
     samples: Sequence[BenchmarkSample],
     baseline_predictions: Sequence[BenchmarkPrediction],
     candidate_predictions: Sequence[BenchmarkPrediction],
+    *,
+    baseline_method: str = _BASELINE_METHOD,
+    candidate_method: str = _CANDIDATE_METHOD,
 ) -> dict[str, dict[str, dict[str, Any]]]:
     """Build deterministic generator, action and source-rule-family slices."""
 
     baseline = _prediction_index(
-        samples, baseline_predictions, expected_method=_BASELINE_METHOD
+        samples, baseline_predictions, expected_method=baseline_method
     )
     candidate = _prediction_index(
-        samples, candidate_predictions, expected_method=_CANDIDATE_METHOD
+        samples, candidate_predictions, expected_method=candidate_method
     )
     ordered_samples = tuple(sorted(samples, key=lambda sample: sample.sample_id))
     dimensions: dict[str, dict[str, list[BenchmarkSample]]] = {

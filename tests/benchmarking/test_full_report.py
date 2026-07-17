@@ -23,6 +23,64 @@ from pavg_critic.benchmarking.full_report import (
 METHODS = ("D0_DIRECT_VLM", "B1_RULE")
 
 
+def test_paired_helpers_accept_explicit_method_ids(
+    sample_factory, prediction_factory
+):
+    gold = (True, True, False, False)
+    samples = tuple(
+        sample_factory(index=index, physical=physical, generator="g")
+        for index, physical in enumerate(gold)
+    )
+    baseline_labels = ("physical", "violation", "physical", "violation")
+    candidate_labels = ("physical", "physical", "violation", "violation")
+    baseline = tuple(
+        prediction_factory(
+            str(index), label, 5.0 if label == "physical" else 2.0
+        )
+        for index, label in enumerate(baseline_labels)
+    )
+    candidate = tuple(
+        prediction_factory(
+            str(index),
+            label,
+            5.0 if label == "physical" else 2.0,
+            method_id="M5_FULL",
+        )
+        for index, label in enumerate(candidate_labels)
+    )
+
+    assert paired_outcomes(
+        samples,
+        baseline,
+        candidate,
+        baseline_method="D0_DIRECT_VLM",
+        candidate_method="M5_FULL",
+    ) == {
+        "both_correct": 2,
+        "baseline_only_correct": 0,
+        "candidate_only_correct": 2,
+        "both_wrong": 0,
+    }
+    bootstrap = action_group_bootstrap(
+        samples,
+        baseline,
+        candidate,
+        baseline_method="D0_DIRECT_VLM",
+        candidate_method="M5_FULL",
+        resamples=20,
+        seed=20260717,
+    )
+    assert bootstrap["point_estimate"] > 0
+    slices = build_slices(
+        samples,
+        baseline,
+        candidate,
+        baseline_method="D0_DIRECT_VLM",
+        candidate_method="M5_FULL",
+    )
+    assert slices["generator"]["g"]["candidate_minus_baseline"]["macro_f1"] > 0
+
+
 def _write_jsonl(path: Path, records: tuple[object, ...]) -> None:
     path.write_text(
         "".join(

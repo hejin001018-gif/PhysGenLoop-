@@ -701,7 +701,7 @@ git commit -m "feat: expose frozen prompt-conditioned M5 runs"
 - Create: `tests/benchmarking/test_full_pavg_report.py`
 - Create: `tests/benchmarking/test_full_pavg_report_cli.py`
 
-- [ ] **Step 1: Write backward-compatibility and generic-method tests**
+- [x] **Step 1: Write backward-compatibility and generic-method tests**
 
 Keep every existing D0/B1 assertion. Add explicit method parameters:
 
@@ -717,7 +717,7 @@ build_slices(samples, d0, m5,
 
 Expected values must match a hand-computed four-sample fixture.
 
-- [ ] **Step 2: Write failing multi-method attribution tests**
+- [x] **Step 2: Write failing multi-method attribution tests**
 
 Create exact predictions for D0, B1, M1–M5 and diagnostics for M1–M5. Assert:
 
@@ -731,7 +731,7 @@ assert report["material_decision"]["gates"]["macro_f1_delta"]["threshold"] == 0.
 
 Reject missing/extra/duplicate prediction or diagnostic keys, non-finite numbers and diagnostics whose method/sample keys disagree with predictions.
 
-- [ ] **Step 3: Generalize helper signatures with old defaults**
+- [x] **Step 3: Generalize helper signatures with old defaults**
 
 Add keyword-only defaults to `paired_outcomes`, `action_group_bootstrap` and `build_slices`:
 
@@ -742,11 +742,11 @@ candidate_method: str = _CANDIDATE_METHOD
 
 Use those names in `_prediction_index`; do not change default results or output shape.
 
-- [ ] **Step 4: Implement strict full-PAVG aggregation**
+- [x] **Step 4: Implement strict full-PAVG aggregation**
 
 `build_full_pavg_report` validates exact full coverage for `D0_DIRECT_VLM`, `B1_RULE`, `D1_STRUCTURED_VLM`, `M1_GRAPH`, `M2_CHECKLIST`, `M3_MECHANICS`, `M4_VLM`, `M5_FULL`; diagnostics are exact for M1–M5 only. Compute per-method strict metrics, D0→M5 primary bootstrap/slices/gates, the five sequential transitions, module availability, model-call/cache-hit/latency summaries, hard overrides and provider failures. Prompt diagnostic300 validates `M5_FULL`, `M5_SHUFFLED_PROMPT_300`, `M5_ORACLE_PLAN_300` on the same 300 sample IDs and reports both paired differences as diagnostic only.
 
-- [ ] **Step 5: Implement immutable atomic report publication**
+- [x] **Step 5: Implement immutable atomic report publication**
 
 The CLI writes exactly:
 
@@ -764,7 +764,7 @@ summary.md
 
 It captures input bytes before parsing, hashes every input/output, writes into a sibling staging directory, fsyncs files, atomically renames the directory, and refuses to replace a different existing bundle. Regenerating to a second path must be byte-identical.
 
-- [ ] **Step 6: Run focused, legacy and complete tests**
+- [x] **Step 6: Run focused, legacy and complete tests**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/benchmarking/test_full_report.py tests/benchmarking/test_full_pavg_report.py tests/benchmarking/test_full_pavg_report_cli.py -q
@@ -773,7 +773,7 @@ It captures input bytes before parsing, hashes every input/output, writes into a
 
 Expected: PASS; the accepted `report_full_video_benchmark` tests remain byte-compatible.
 
-- [ ] **Step 7: Commit reporting support**
+- [x] **Step 7: Commit reporting support**
 
 ```powershell
 git add src/pavg_critic/benchmarking/full_report.py src/pavg_critic/benchmarking/full_pavg_report.py benchmarks/report_full_pavg_critic.py tests/benchmarking/test_full_report.py tests/benchmarking/test_full_pavg_report.py tests/benchmarking/test_full_pavg_report_cli.py
@@ -1054,3 +1054,12 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - The CLI now exposes `M5_FULL`, `M5_SHUFFLED_PROMPT_300` and `M5_ORACLE_PLAN_300`, requires an explicit model-cache directory for M4/M5, records the stage namespaces and uses a one-new-failure default. Direct methods retain the ordinary runner; PAVG methods use paired audited output.
 - The deterministic label-blind bipartite matcher produced 300 unique prompt donors with zero same-sample, same-exact-prompt or same-action matches. Shuffled manifest SHA-256: `5250aea3077f9360e42e20008ee8873a9d9a5f3284e7b52270cba33b098e5848`; donor-map SHA-256: `c43ae712a41513e0443233bf400d0f2d976846cc31beb6a858d0a91300f46049`.
 - Focused Task 6 tests passed `13/13`. The first complete-suite attempt had one transient Windows `PermissionError` atomically renaming an old report-test directory; that exact test passed alone in a fresh basetemp, and the complete suite then passed `307/307` in 10.48 seconds in a fresh basetemp. No production change was made for the transient lock.
+
+### E7 — Complete-PAVG statistics and immutable report bundle
+
+- Timestamp: `2026-07-17T16:30:21+08:00`; implementation started from commit `f50d85c4892498a1aa826bda816c98e01deaebaa`.
+- RED evidence: focused collection failed because both `full_pavg_report` and `report_full_pavg_critic` were absent.
+- Existing paired/bootstrap/slice helpers now accept explicit method IDs but retain D0/B1 defaults. The complete legacy report suite remained green.
+- The new aggregator requires exact coverage for eight methods and exact sidecars for M1–M5, computes D0→M5 strict metrics/gates, all five sequential transitions, M5 module availability, stage calls, provider failures, hard overrides and diagnostic-only correct/shuffled/oracle comparisons.
+- The new CLI freezes and re-verifies input bytes, emits exactly nine core files through an atomic directory publication, refuses a different existing bundle, and reproduced byte-identical files in a second output directory.
+- Focused report tests passed `84/84` in 0.78 seconds; the complete local suite passed `311/311` in 8.59 seconds.
