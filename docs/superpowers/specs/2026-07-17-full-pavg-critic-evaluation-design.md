@@ -1,7 +1,7 @@
 # Full PAVG Critic Evaluation Design
 
 **Date:** 2026-07-17
-**Status:** Design approved in conversation; awaiting written-spec confirmation
+**Status:** Approved in writing by the user
 **Primary scope:** Complete prompt-conditioned Critic pipeline on frozen VideoPhy-2
 **Explicit non-scope:** Generator/Repairer/Selector loop, VideoPhy-1 OOD, fine-tuning, and a paid GPT full run
 
