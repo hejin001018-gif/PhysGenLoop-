@@ -786,7 +786,7 @@ git commit -m "feat: report complete PAVG critic attribution"
 - Create: `benchmarks/monitor_video_benchmark.py`
 - Create: `tests/benchmarking/test_monitor_video_benchmark.py`
 
-- [ ] **Step 1: Write failing heartbeat/stall tests**
+- [x] **Step 1: Write failing heartbeat/stall tests**
 
 Use a fake `nvidia-smi` runner and fixed clock. Assert the monitor appends one JSON object containing timestamp, host, method counts, failure count, endpoint health, GPU utilization/memory and ETA; it must set `stalled=true` only when prediction count is unchanged for 15 minutes while expected keys remain.
 
@@ -798,7 +798,7 @@ assert snapshot["prediction_count"] == 20
 assert snapshot["stalled"] is False
 ```
 
-- [ ] **Step 2: Run the test and verify import failure**
+- [x] **Step 2: Run the test and verify import failure**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/benchmarking/test_monitor_video_benchmark.py -q
@@ -806,11 +806,11 @@ assert snapshot["stalled"] is False
 
 Expected: FAIL with missing module.
 
-- [ ] **Step 3: Implement the read-only monitor**
+- [x] **Step 3: Implement the read-only monitor**
 
 CLI arguments are repeatable `--run METHOD=PATH`, `--expected-per-method`, `--endpoint`, `--heartbeat`, `--interval-sec` (default 300), `--stall-sec` (default 900) and `--once`. Read only JSONL line/key/failure counts; query `nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits`; probe `/health`; never inspect process command lines, environment or provider bodies. Append heartbeat via one UTF-8 JSON line and fsync.
 
-- [ ] **Step 4: Run focused and complete tests**
+- [x] **Step 4: Run focused and complete tests**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/benchmarking/test_monitor_video_benchmark.py -q
@@ -819,7 +819,7 @@ CLI arguments are repeatable `--run METHOD=PATH`, `--expected-per-method`, `--en
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit supervision support**
+- [x] **Step 5: Commit supervision support**
 
 ```powershell
 git add benchmarks/monitor_video_benchmark.py tests/benchmarking/test_monitor_video_benchmark.py
@@ -1063,3 +1063,11 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - The new aggregator requires exact coverage for eight methods and exact sidecars for M1–M5, computes D0→M5 strict metrics/gates, all five sequential transitions, M5 module availability, stage calls, provider failures, hard overrides and diagnostic-only correct/shuffled/oracle comparisons.
 - The new CLI freezes and re-verifies input bytes, emits exactly nine core files through an atomic directory publication, refuses a different existing bundle, and reproduced byte-identical files in a second output directory.
 - Focused report tests passed `84/84` in 0.78 seconds; the complete local suite passed `311/311` in 8.59 seconds.
+
+### E8 — Non-secret progress supervision
+
+- Timestamp: `2026-07-17T16:37:39+08:00`; implementation started from commit `ac9b1825c6fa9d66ecda7ca3ce80dda835106c2c`.
+- RED evidence: focused collection failed with `ModuleNotFoundError: No module named 'benchmarks.monitor_video_benchmark'`.
+- The monitor appends one fsynced heartbeat every configured interval (300 seconds remotely), counting exact prediction keys/failures per method and recording endpoint health, GPU utilization/memory, last progress time and short-window ETA.
+- A run is marked stalled only when expected keys remain and no count progress occurs for 900 seconds. The monitor reads no process command lines, environment variables, prompts, images, diagnostics or provider bodies and writes `secrets_recorded=false` explicitly.
+- Focused monitor tests passed `3/3` in 0.07 seconds; the complete local suite passed `314/314` in 8.64 seconds.
