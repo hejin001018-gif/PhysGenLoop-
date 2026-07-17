@@ -104,9 +104,9 @@ Expected: one commit containing exactly those three paths.
 **Files:**
 - Modify: `src/pavg_critic/schemas.py`
 - Modify: `src/pavg_critic/pipeline.py`
-- Test: `tests/test_pipeline.py`
+- Create: `tests/test_pipeline_artifacts.py`
 
-- [ ] **Step 1: Write failing tests for pre-fusion state, keyframes and reviews**
+- [x] **Step 1: Write failing tests for pre-fusion state, keyframes and reviews**
 
 Add tests that construct a critic with fixed observations and a fake verifier, then assert:
 
@@ -124,17 +124,17 @@ assert artifacts.report.diagnostics["hard_violation_override"] is bool(
 
 Also round-trip with `json.dumps(artifacts.to_dict(), allow_nan=False)`.
 
-- [ ] **Step 2: Run the focused tests and verify the missing fields fail**
+- [x] **Step 2: Run the focused tests and verify the missing fields fail**
 
 Run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests/test_pipeline.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_pipeline_artifacts.py -q
 ```
 
 Expected: FAIL because `CriticArtifacts` has no `keyframes` or `reviews` and the report lacks `pre_evidence_fusion`.
 
-- [ ] **Step 3: Add audit-only fields with backward-compatible defaults**
+- [x] **Step 3: Add audit-only fields with backward-compatible defaults**
 
 Add after `candidates` in `CriticArtifacts`:
 
@@ -173,19 +173,19 @@ keyframes={index: tuple(frames) for index, frames in keyframes.items()},
 reviews=dict(reviews),
 ```
 
-- [ ] **Step 4: Run focused and complete tests**
+- [x] **Step 4: Run focused and complete tests**
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests/test_pipeline.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_pipeline_artifacts.py -q
 .\.venv\Scripts\python.exe -m pytest --basetemp outputs/.pytest-full-pavg -q
 ```
 
 Expected: both commands PASS.
 
-- [ ] **Step 5: Commit the typed audit boundary**
+- [x] **Step 5: Commit the typed audit boundary**
 
 ```powershell
-git add src/pavg_critic/schemas.py src/pavg_critic/pipeline.py tests/test_pipeline.py
+git add src/pavg_critic/schemas.py src/pavg_critic/pipeline.py tests/test_pipeline_artifacts.py docs/superpowers/plans/2026-07-17-full-pavg-critic-evaluation.md
 git commit -m "feat: expose critic fusion audit artifacts"
 ```
 
@@ -1011,3 +1011,11 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - Full VideoPhy-2 manifest SHA-256 verified as `d8be5fe97ddf6902515c09ccbb53f394b25230213db7c3058d61f84748624906`.
 - The frozen pilot manifest was uniquely located by hash at `/root/pavg-benchmark/runs/videophy2-pilot300-qwen3vl8b/manifest.json`, copied with key-only SSH, and verified locally as `a97762fe4033789eb14a82717c72c14e89bc75a7a67200d5890ff1647f72a670`. No sample was regenerated or replaced.
 - Local Python 3.12 baseline: `281 passed in 12.13s` using ignored basetemp `outputs/.pytest-full-pavg`.
+
+### E2 — Typed pipeline audit boundary
+
+- Timestamp: `2026-07-17T15:25:39+08:00`; implementation started from commit `3443afa601c972308af700e2d5255d8314bc80e6`.
+- Plan review found that the proposed `tests/test_pipeline.py` path did not exist. It was corrected before production edits to the focused new file `tests/test_pipeline_artifacts.py`; production scope remained `schemas.py` and `pipeline.py` only.
+- RED evidence: the focused test failed with `AttributeError: 'CriticArtifacts' object has no attribute 'keyframes'`.
+- GREEN evidence: the focused audit test passed `1/1`; the complete local suite passed `282/282` in 14.38 seconds.
+- `CriticArtifacts` now exposes typed keyframe/review maps, and reports record the pre-evidence-fusion public decision fields plus the deterministic hard-violation override flag. No weights, thresholds or decisions were tuned.

@@ -323,6 +323,12 @@ class PhysicsCritic:
                 diagnostics=diagnostics,
                 score_breakdown=score_breakdown,
             )
+        pre_evidence_fusion = {
+            "decision": report.decision,
+            "physics_score": report.physics_score,
+            "confidence": report.confidence,
+            "coverage": report.coverage,
+        }
         report = self.evidence_fusion.enrich(
             report,
             tracks=tracks,
@@ -331,11 +337,19 @@ class PhysicsCritic:
             checklist_summary=checklist_summary,
             mechanics_summary=mechanics_summary,
         )
+        diagnostics = dict(report.diagnostics)
+        diagnostics["pre_evidence_fusion"] = pre_evidence_fusion
+        diagnostics["hard_violation_override"] = bool(report.violations)
+        report = replace(report, diagnostics=diagnostics)
         return CriticArtifacts(
             report=report,
             tracks=tracks,
             events=events,
             candidates=candidates,
+            keyframes={
+                index: tuple(frames) for index, frames in keyframes.items()
+            },
+            reviews=dict(reviews),
             question_graph=question_graph,
             node_results=node_results,
             checklist_results=checklist_results,

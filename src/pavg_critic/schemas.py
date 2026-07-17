@@ -878,6 +878,8 @@ class CriticArtifacts:
     tracks: tuple[TrackSequence, ...]
     events: tuple[Event, ...]
     candidates: tuple[ViolationCandidate, ...] = ()
+    keyframes: dict[int, tuple[int, ...]] = field(default_factory=dict)
+    reviews: dict[int, VLMReview | None] = field(default_factory=dict)
     question_graph: QuestionGraph | None = None
     node_results: tuple[NodeResult, ...] = ()
     checklist_results: tuple[ChecklistResult, ...] = ()
