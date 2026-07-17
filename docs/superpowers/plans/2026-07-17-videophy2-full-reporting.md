@@ -67,11 +67,11 @@
 - Modify: `src/pavg_critic/benchmarking/full_report.py`
 - Modify: `tests/benchmarking/test_full_report.py`
 
-- [ ] Add failing tests for mean/p50/p95 `production_latency_sec`, missing metadata accounting, identical duplicate acceptance and conflicting duplicate rejection.
-- [ ] Add failing tests for every VideoPhy-2 decision gate and for the mandatory `not_evaluable_ood_deferred` overall verdict.
-- [ ] Implement observation metadata aggregation without loading mask tensors or videos.
-- [ ] Implement explicit arithmetic fields rather than a prose-only verdict.
-- [ ] Run focused tests and commit the latency/decision layer.
+- [x] Add failing tests for mean/p50/p95 `production_latency_sec`, missing metadata accounting, identical duplicate acceptance and conflicting duplicate rejection.
+- [x] Add failing tests for every VideoPhy-2 decision gate and for the mandatory `not_evaluable_ood_deferred` overall verdict.
+- [x] Implement observation metadata aggregation without loading mask tensors or videos.
+- [x] Implement explicit arithmetic fields rather than a prose-only verdict.
+- [x] Run focused tests and commit the latency/decision layer.
 
 ## Task 5: Build the deterministic full-report CLI and Chinese renderer
 
@@ -160,3 +160,12 @@ Append immutable checkpoints here as each task completes. Do not replace prior e
 - Shard B completed without restart and released its prediction lock at `2026-07-17 12:18:05 +08:00`. It contains 3,396 terminal records over 1,698 samples: 1,698 `D0_DIRECT_VLM`, 1,698 `B1_RULE`, 3 failures, zero duplicate/missing/extra keys. Prediction SHA-256: `14e8ca76c1a942ddea73daa29af2943e30af02d1ad82934f952499a587e781f8`; shard-manifest SHA-256: `34807db8acdc47af9147171ac94090f161a6d991f2d51b53d0af06231fbb224c`.
 - Combined terminal coverage is 6,794 method-level predictions with 5 retained failures (`0.0736%`). Both evaluator processes exited, both locks are absent and both GPUs returned to 0% utilization. Approximate elapsed times from each frozen `resolved_config.json` timestamp to the final prediction write were 15 h 23 min for A and 15 h 13 min for B.
 - The local five-minute monitor was stopped only after both locks released. Both idle vLLM services remain resident until deterministic full-report acceptance; no training has begun.
+
+### R5 — SAM2 latency audit and frozen decision arithmetic
+
+- Observation audit recursively reads only `*.meta.json`; it never loads videos or mask tensors. It reports valid/missing counts, stable missing IDs and mean/p50/p95 `production_latency_sec`, accepts only content-identical duplicates and rejects conflicts, unknown IDs, malformed JSON and non-finite/negative/bool latencies.
+- The five frozen VideoPhy-2 gates are explicit machine-readable arithmetic: Macro-F1 delta `>=0.05`, bootstrap lower bound `>0`, both candidate class recalls `>0`, failure-rate increase `<=0.01`, and at least two generators with positive Macro-F1 delta. `videophy2_support` is their boolean conjunction; the overall verdict remains `not_evaluable_ood_deferred` because VideoPhy-1 is deferred.
+- Exact threshold subtraction uses `Decimal(str(value))`; boundary `0.05`/`0.01` passes while slight violations fail. Metrics/failure rates are constrained to `[0,1]`; confidence bounds and generator deltas to `[-1,1]`; inverted confidence intervals are rejected.
+- Strict TDD began with missing-function collection failures. Specification review found and closed binary-float threshold errors; quality review found and closed impossible-domain/interval acceptance. Both final reviews passed.
+- Final verification: `80 passed` in the focused report tests, `139 passed` across benchmark tests and `261 passed` for the complete local suite; compile-all, JSON serialization probes and `git diff --check` passed.
+- Implementation commits: `2e6a853`, `d3c4e0f`, and `84ffde3`.
