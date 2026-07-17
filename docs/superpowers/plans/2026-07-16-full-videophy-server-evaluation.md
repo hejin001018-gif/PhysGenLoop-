@@ -104,10 +104,10 @@
 - Modify: this plan under `Execution results`
 
 - [x] Launch the full matched D0/B1 matrix in a resumable session with one process owning the prediction lock.
-- [ ] Monitor progress, GPU state, failure count and ETA at least once per hour without altering prompts, thresholds or sample membership.
-- [ ] Resume interrupted work from valid sample×method keys until every manifest row has a terminal prediction for both methods.
-- [ ] Generate summaries, 2,000 action-group bootstrap confidence intervals, paired outcomes and generator/action/rule-family slices.
-- [ ] Apply the material-improvement arithmetic exactly as frozen in the design.
+- [x] Monitor progress, GPU state, failure count and ETA at least once per hour without altering prompts, thresholds or sample membership.
+- [x] Resume interrupted work from valid sample×method keys until every manifest row has a terminal prediction for both methods.
+- [x] Generate summaries, 2,000 action-group bootstrap confidence intervals, paired outcomes and generator/action/rule-family slices.
+- [x] Apply the material-improvement arithmetic exactly as frozen in the design.
 
 ## Task 9: Run frozen VideoPhy-1 OOD
 
@@ -132,11 +132,11 @@
 - Modify: this plan under `Execution results`
 - Create: `outputs/benchmarks/server-audit/artifact-audit.json`
 
-- [ ] Synchronize manifests, predictions, summaries, resolved configs and non-secret logs; do not copy videos or model weights into git-tracked paths.
-- [ ] Verify manifest/prediction key alignment, duplicate absence, checksums and terminal status for every sample×method pair.
-- [ ] Scan synchronized artifacts for the SSH password, API key prefixes, authorization headers, `.env` contents and raw provider payloads.
-- [ ] Run the local full pytest suite and regenerate the Chinese result narrative with exact tables, confidence intervals, runtime and negative results.
-- [ ] Commit only source, tests, manifests and documentation; preserve user-owned dirty files.
+- [x] Synchronize manifests, predictions, summaries, resolved configs and non-secret logs; do not copy videos or model weights into git-tracked paths.
+- [x] Verify manifest/prediction key alignment, duplicate absence, checksums and terminal status for every sample×method pair.
+- [x] Scan synchronized artifacts for the SSH password, API key prefixes, authorization headers, `.env` contents and raw provider payloads.
+- [x] Run the local full pytest suite and regenerate the Chinese result narrative with exact tables, confidence intervals, runtime and negative results.
+- [x] Commit only source, tests, manifests and documentation; preserve user-owned dirty files.
 
 ## Execution results
 
@@ -262,3 +262,12 @@ Results are appended here after every task checkpoint. Existing results are immu
 - Shard A contains exactly 3,398 terminal records over 1,699 samples: 1,699 `D0_DIRECT_VLM`, 1,699 `B1_RULE`, 2 retained failures, and zero duplicate/missing/extra keys. Prediction SHA-256: `8722836330d6fa31c446184973c216f1481f4b97dabfb9d73ba246f91d72bff6`.
 - Shard B contains exactly 3,396 terminal records over 1,698 samples: 1,698 `D0_DIRECT_VLM`, 1,698 `B1_RULE`, 3 retained failures, and zero duplicate/missing/extra keys. Prediction SHA-256: `14e8ca76c1a942ddea73daa29af2943e30af02d1ad82934f952499a587e781f8`.
 - Combined inference therefore reached all 6,794 frozen sample×method terminal keys with 5 failures (`0.0736%`). Both evaluator processes exited normally, both append locks disappeared and both GPUs returned to 0% utilization. Idle vLLM services remain resident only until the deterministic report is regenerated and accepted; fine-tuning has not started.
+
+### E16 — Accepted full VideoPhy-2 report
+
+- The formal report was generated from source commit `f3719819bb61aacab249bf6ba83ad6d229986faa`; the remote clean snapshot passed `281/281` tests. Strict merge accepted exactly 6,794/6,794 keys with zero duplicate, missing or extra keys and five retained B1 failures.
+- Observation provenance is complete for 3,397 samples. A pre-split shared cache explained 33 shard-B metadata files on cloud2; the immutable final view uses shard-owner metadata where present and 32 exact cloud2 fallbacks where cloud1 had no metadata. No original cache or prediction was rewritten.
+- D0 accuracy/Macro-F1 is `0.551663/0.548897`; B1+SAM2 is `0.544598/0.544539`. Macro-F1 delta is `-0.004359`; the action-group bootstrap 95% interval is `[-0.031613, +0.020693]`. B1 improves violation recall by `+0.041563` but reduces physical recall by `-0.050980`.
+- The two primary material-improvement gates fail (`delta < 0.05`, interval lower bound `< 0`), so `videophy2_support=false`. VideoPhy-1 remains deferred and unchecked; the overall verdict is `not_evaluable_ood_deferred`.
+- The six remote report artifacts were stable under an identical second invocation. A local clean-room regeneration reproduced the five non-self-referential report files byte-for-byte and independently confirmed 6,794 keys with zero alignment errors. Synchronized artifacts passed a zero-hit credential/provider-payload scan.
+- The full Chinese report is `outputs/benchmarks/videophy2-full-qwen3vl8b/summary.md`; detailed results and limitations are appended to `docs/results/criticbenchmark.md`. This accepted negative result freezes the H0 baseline for the separately approved Qwen3-VL LoRA plan.

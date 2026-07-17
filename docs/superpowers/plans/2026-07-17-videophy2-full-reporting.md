@@ -103,11 +103,11 @@
 **Remote output:**
 - `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/final-report/`
 
-- [ ] Copy only completed shard B predictions, its frozen manifest and observation `.meta.json` files to a separate cloud2 import directory; do not copy videos or model weights.
-- [ ] Transfer the tested reporting commit/source to cloud2 and rerun the complete remote pytest suite.
-- [ ] Run the full-report CLI against the frozen full manifest, shard A/B predictions and both observation metadata directories.
-- [ ] Require exactly 6,794 merged keys, zero duplicates/extras/missing keys and deterministic rerun hashes before accepting metrics.
-- [ ] Record the formal result and every negative outcome without tuning prompts, thresholds, rules or sample membership.
+- [x] Copy only completed shard B predictions, its frozen manifest and observation `.meta.json` files to a separate cloud2 import directory; do not copy videos or model weights.
+- [x] Transfer the tested reporting commit/source to cloud2 and rerun the complete remote pytest suite.
+- [x] Run the full-report CLI against the frozen full manifest, shard A/B predictions and both observation metadata directories.
+- [x] Require exactly 6,794 merged keys, zero duplicates/extras/missing keys and deterministic rerun hashes before accepting metrics.
+- [x] Record the formal result and every negative outcome without tuning prompts, thresholds, rules or sample membership.
 
 ## Task 8: Synchronize, security-audit and publish the VideoPhy-2 report
 
@@ -116,12 +116,12 @@
 - Modify: `docs/results/criticbenchmark.md`
 - Modify: `docs/superpowers/plans/2026-07-16-full-videophy-server-evaluation.md`
 
-- [ ] Synchronize manifests, predictions, summaries, slices, resolved non-secret configs, observation latency metadata and logs required for audit; exclude videos, weights, `.env` and provider payloads.
-- [ ] Recompute local hashes and key alignment, then scan artifacts for SSH passwords, API-key prefixes, authorization headers and `.env` content.
-- [ ] Update the Chinese benchmark narrative with exact full-population metrics, confidence interval, paired outcomes, generator/action/rule-family evidence, runtime, failures and limitations.
-- [ ] Mark Task 8 and VideoPhy-2 portions of Task 10 complete; leave VideoPhy-1 Task 9 explicitly deferred and unchecked.
-- [ ] Run the complete local pytest suite and a clean-room report regeneration check before claiming completion.
-- [ ] Commit only source, tests, non-secret result artifacts and documentation; preserve unrelated user files.
+- [x] Synchronize manifests, predictions, summaries, slices, resolved non-secret configs, observation latency metadata and logs required for audit; exclude videos, weights, `.env` and provider payloads.
+- [x] Recompute local hashes and key alignment, then scan artifacts for SSH passwords, API-key prefixes, authorization headers and `.env` content.
+- [x] Update the Chinese benchmark narrative with exact full-population metrics, confidence interval, paired outcomes, generator/action/rule-family evidence, runtime, failures and limitations.
+- [x] Mark Task 8 and VideoPhy-2 portions of Task 10 complete; leave VideoPhy-1 Task 9 explicitly deferred and unchecked.
+- [x] Run the complete local pytest suite and a clean-room report regeneration check before claiming completion.
+- [x] Commit only source, tests, non-secret result artifacts and documentation; preserve unrelated user files.
 
 ## Execution results
 
@@ -179,3 +179,20 @@ Append immutable checkpoints here as each task completes. Do not replace prior e
 - The artifact audit hashes all five non-self-referential outputs and explicitly records the exclusion of `artifact_audit.json`. The Chinese report distinguishes model/rule prediction latency from SAM2 production latency, lists retained failures and all five gates, and states that VideoPhy-1 OOD is deferred and the architecture is not yet proven.
 - Independent specification and quality reviews passed after closing atomic-publication, TOCTOU and failure-injection findings. Final verification: CLI `20/20`, benchmark `159/159`, complete suite `281/281`; the quality reviewer additionally passed `100/100` focused tests and `15/15` targeted probes. Compile-all, deterministic rerun hashes, staging cleanup and `git diff --check` passed.
 - Implementation commits: `4c321b3` and hardening commit `81dbd12`.
+
+### R7 — Formal cloud2 merge and immutable report
+
+- Tested source commit `f3719819bb61aacab249bf6ba83ad6d229986faa` was transferred as a complete git bundle (SHA-256 `09d29a1cdb16f21eeb8b58181b050f97f1d54161d4cb95e6b19d3d2a7165b64a`) and cloned only under `/root/pavg-benchmark/report-src`. The independent remote suite passed `281/281` in 2.75 seconds.
+- Shard B transfer hashes matched their frozen sources: predictions `14e8ca76…781f8`, manifest `34807db8…224c`, metadata archive `083e794a…f285`; the archive contained only 1,666 `.meta.json` files. No videos, masks or weights were transferred.
+- The first strict report attempt correctly failed without creating an output bundle because the pre-split cloud2 observation directory contained 33 shard-B members and one conflicted with cloud1 only in `production_latency_sec`. Root-cause membership audit showed: shard-A metadata 1,699 owned + 33 shard-B extras; shard-B metadata 1,666 owned + 32 missing; one overlap; no unknown IDs; the union exactly covered all 3,397 samples.
+- The immutable reporting view retained original bytes and provenance: shard A uses its 1,699 members only; shard B prefers its 1,666 shard-owner files and uses 32 exact pre-split cloud2 fallbacks. Provenance SHA-256 is `3b8d2605e00df30105d80ffbcd31abb3d1d5bce0be5f27a2e7064b5a4d2f911a`; 3,397 copied metadata hashes match, with zero duplicate/unknown/missing IDs. Original caches and prediction files were not changed.
+- The accepted report contains exactly 6,794 merged keys with zero duplicate/missing/extra keys and five retained B1 failures. An identical second invocation returned 0 and left all six report SHA-256 values unchanged.
+
+### R8 — VideoPhy-2 result, local clean-room audit and publication
+
+- D0 accuracy/Macro-F1 is `0.551663/0.548897`; B1 is `0.544598/0.544539`. B1−D0 Macro-F1 is `-0.004359`, and the 2,000-resample action-group 95% interval is `[-0.031613, +0.020693]`.
+- Paired cells are both-correct 1,036, D0-only 838, B1-only 814 and both-wrong 709. B1 raises violation recall from `0.498759` to `0.540323` but lowers physical recall from `0.599440` to `0.548459`.
+- Material gates fail on the required Macro-F1 delta and positive bootstrap lower bound. Three secondary gates pass, but `videophy2_support=false`; overall remains `not_evaluable_ood_deferred` because VideoPhy-1 is explicitly deferred.
+- Local artifacts include the full manifest, merged predictions, summaries, slices, paired outcomes, non-secret resolved configs and per-observation provenance. A 10-file scan found zero credential/API-key/authorization/`.env`/raw-payload pattern hits.
+- A local clean-room run used the byte-identical full manifest, both frozen prediction shards, all 3,397 provenance-filtered metadata files and placeholder video paths used only to satisfy manifest existence validation. Its merged predictions, paired outcomes, slices, JSON summary and Chinese Markdown SHA-256 values matched the remote report byte-for-byte; its strict audit again reported 6,794/6,794 and zero duplicate/missing/extra keys.
+- The complete result narrative is appended to `docs/results/criticbenchmark.md`. This negative full-population result is the frozen H0 for the approved LoRA cycle; no threshold, prompt, rule or membership was tuned after reading it.
