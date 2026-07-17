@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 from pathlib import Path
 import re
 import shutil
+import tarfile
 import textwrap
 from typing import Any, Mapping
 
@@ -195,19 +197,52 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--archive", required=True, type=Path)
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--target-branch", default="hj")
     return parser.parse_args()
+
+
+def build_deterministic_archive(source: Path, archive: Path) -> tuple[Path, str]:
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    members = sorted(item for item in source.rglob("*") if item.is_file())
+    with archive.open("xb") as raw:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as compressed:
+            with tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as bundle:
+                for path in members:
+                    relative = path.relative_to(source).as_posix()
+                    info = bundle.gettarinfo(str(path), arcname=relative)
+                    info.uid = 0
+                    info.gid = 0
+                    info.uname = ""
+                    info.gname = ""
+                    info.mtime = 0
+                    info.pax_headers = {}
+                    with path.open("rb") as handle:
+                        bundle.addfile(info, handle)
+    with tarfile.open(archive, mode="r:gz") as bundle:
+        archived = tuple(item.name for item in bundle.getmembers() if item.isfile())
+    expected = tuple(path.relative_to(source).as_posix() for path in members)
+    if archived != expected:
+        raise RuntimeError("archive inventory does not match the release directory")
+    digest = sha256(archive)
+    checksum = Path(f"{archive}.sha256")
+    checksum.write_text(f"{digest}  {archive.name}\n", encoding="utf-8")
+    return checksum, digest
 
 
 def main() -> int:
     args = parse_args()
     source = args.source.resolve()
     output = args.output.resolve()
+    archive = args.archive.resolve()
+    checksum = Path(f"{archive}.sha256")
     if not source.is_dir():
         raise FileNotFoundError(f"source release directory is missing: {source}")
     if output.exists():
         raise FileExistsError(f"release output already exists: {output}")
+    if archive.exists() or checksum.exists():
+        raise FileExistsError(f"release archive or checksum already exists: {archive}")
     if not re.fullmatch(r"[0-9a-f]{40}", args.source_revision):
         raise ValueError("source-revision must be a full lowercase Git SHA")
 
@@ -270,6 +305,7 @@ def main() -> int:
         encoding="utf-8",
     )
     verify_source_release(output)
+    checksum, archive_sha256 = build_deterministic_archive(output, archive)
     print(
         json.dumps(
             {
@@ -278,6 +314,9 @@ def main() -> int:
                 "file_count": len(manifest["files"]),
                 "model_id": manifest["model_id"],
                 "source_revision": manifest["release_source_revision"],
+                "archive": str(archive),
+                "archive_sha256": archive_sha256,
+                "checksum": str(checksum),
             }
         )
     )
