@@ -461,6 +461,32 @@ def _sanitize_collection(values: Sequence[object]) -> object:
     }
 
 
+def write_trace_atomic(
+    path: str | Path,
+    document: Mapping[str, object],
+) -> None:
+    """Persist one UTF-8 trace through an atomic same-directory replacement."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(destination.name + ".tmp")
+    try:
+        temporary.write_text(
+            json.dumps(
+                document,
+                ensure_ascii=False,
+                indent=2,
+                allow_nan=False,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        temporary.replace(destination)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
 def summarize_request(request: object) -> dict[str, object]:
     """Return the prompt-conditioned request fields needed for an audit."""
 
@@ -1020,6 +1046,7 @@ def _validate_fusion_outputs(
     calculated_contribution = 0.0
     coverage_numerator = 0.0
     total_configured = 0.0
+    available_count = 0
     for row in families:
         if not isinstance(row, Mapping):
             effective_ok = contribution_ok = False
@@ -1040,6 +1067,8 @@ def _validate_fusion_outputs(
             if row.get("status") == "available" and row.get("score") is not None
             else 0.0
         )
+        if row.get("status") == "available" and row.get("score") is not None:
+            available_count += 1
         score = 0.0 if row.get("score") is None else float(row["score"])
         expected_contribution = score * expected_effective
         effective_ok &= _close(stored_effective, expected_effective, tolerance)
@@ -1082,6 +1111,30 @@ def _validate_fusion_outputs(
         "fusion.aggregates",
         aggregate_ok,
         "fusion aggregate totals and pre-hard score are reproducible",
+    )
+    try:
+        minimum_coverage = float(outputs["minimum_coverage"])
+        physical_threshold = float(outputs["physical_score_threshold"])
+    except (KeyError, TypeError, ValueError):
+        minimum_coverage = math.inf
+        physical_threshold = math.inf
+    if available_count == 0 or expected_coverage < minimum_coverage:
+        expected_pre_decision = "unknown"
+    elif expected_score < physical_threshold:
+        expected_pre_decision = "violation"
+    else:
+        expected_pre_decision = "physical"
+    expected_final_decision = (
+        "violation" if outputs.get("hard_violation") is True else expected_pre_decision
+    )
+    decision_ok = (
+        outputs.get("decision_before_hard_violation") == expected_pre_decision
+        and outputs.get("final_decision") == expected_final_decision
+    )
+    add(
+        "fusion.decision",
+        decision_ok,
+        "final decision must be independently implied by coverage, score threshold and hard violations",
     )
     if isinstance(final_outputs, Mapping):
         final_ok = (

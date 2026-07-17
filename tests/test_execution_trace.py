@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 import pavg_critic
@@ -11,6 +13,7 @@ from pavg_critic.execution_trace import (
     TraceSafetyError,
     build_fusion_audit,
     validate_trace,
+    write_trace_atomic,
 )
 from pavg_critic.schemas import CriticReport, EvidenceBundle, Violation
 
@@ -180,6 +183,18 @@ def test_trace_recorder_and_validation_types_are_public_api():
     assert pavg_critic.TraceRecorder is TraceRecorder
     assert pavg_critic.TraceValidationPolicy.__name__ == "TraceValidationPolicy"
     assert pavg_critic.validate_trace is validate_trace
+
+
+def test_atomic_writer_creates_utf8_json_without_temporary_file(tmp_path):
+    recorder = TraceRecorder(metadata={"prompt": "石头滚下坡"})
+    recorder.set_outcome({"status": "completed"})
+    destination = tmp_path / "nested" / "video.trace.json"
+
+    write_trace_atomic(destination, recorder.to_dict())
+
+    document = json.loads(destination.read_text(encoding="utf-8"))
+    assert document["metadata"]["prompt"] == "石头滚下坡"
+    assert not destination.with_name(destination.name + ".tmp").exists()
 
 
 def _missing_bundle(family: str) -> EvidenceBundle:
@@ -391,5 +406,25 @@ def test_validator_rejects_review_filtered_candidate_in_final_violations():
     assert not validation.passed
     assert any(
         check.code == "fusion.review_filter" and not check.passed
+        for check in validation.checks
+    )
+
+
+def test_validator_recomputes_decision_instead_of_trusting_two_matching_fields():
+    trace = _valid_trace_document()
+    fusion = next(
+        node for node in trace["nodes"] if node["node_id"] == "evidence_fusion"
+    )
+    final = next(
+        node for node in trace["nodes"] if node["node_id"] == "final_report"
+    )
+    fusion["outputs"]["final_decision"] = "violation"
+    final["outputs"]["decision"] = "violation"
+
+    validation = validate_trace(trace)
+
+    assert not validation.passed
+    assert any(
+        check.code == "fusion.decision" and not check.passed
         for check in validation.checks
     )

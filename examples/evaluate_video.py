@@ -11,6 +11,10 @@
     # 指定 VLM 复核帧窗口 + 保存结果
     python examples/evaluate_video.py --video 1n.mp4 --pre-frames 5 --post-frames 5 -o result.json -v
 
+    # 展示并保存每个节点的输入/输出，再独立复算融合结果
+    python examples/evaluate_video.py --video 2n.mp4 --prompt "石头滚下坡" --trace --trace-output outputs/2n.trace.json
+    python examples/validate_pipeline_trace.py outputs/2n.trace.json --require-sam2 --require-model-planner
+
 配置（``.env`` 或环境变量）::
 
     API_KEY=sk-your-key
@@ -45,9 +49,11 @@ from pavg_critic import (
     OpenAIChatModel,
     PhysicsCritic,
     SAM2ObjectDetector,
+    TraceRecorder,
     VLMObjectDetector,
 )
 from pavg_critic.api_models import ModelAPIError
+from pavg_critic.execution_trace import write_trace_atomic
 from pavg_critic.schemas import SchemaError
 
 
@@ -86,6 +92,33 @@ def _print_header(title: str) -> None:
 
 def _print_kv(key: str, value: str) -> None:
     print(f"  {key}: {value}", file=sys.stderr)
+
+
+def _render_trace_node(record: dict[str, object]) -> None:
+    """Render one bounded live trace line without provider payloads."""
+
+    outputs = record.get("outputs")
+    outputs = outputs if isinstance(outputs, dict) else {}
+    summary_keys = (
+        "decision",
+        "physics_score",
+        "track_count",
+        "event_count",
+        "candidate_count",
+        "node_count",
+        "score",
+        "coverage",
+    )
+    summary = " ".join(
+        f"{key}={outputs[key]}" for key in summary_keys if key in outputs
+    )
+    suffix = f" {summary}" if summary else ""
+    print(
+        f"[TRACE {int(record['sequence']):02d}] "
+        f"{record['node_id']} {record['status']} "
+        f"{float(record['elapsed_ms']):.1f}ms{suffix}",
+        file=sys.stderr,
+    )
 
 
 # ── 视频探测 ────────────────────────────────────────────────
@@ -181,6 +214,7 @@ def evaluate_video(
     post_frames: int | None = None,
     num_keyframes: int = 8,
     verbose: bool = False,
+    trace: TraceRecorder | None = None,
 ) -> dict[str, Any]:
     """运行完整 PhysicsCritic Pipeline，使用 VLM 通用物体检测。"""
 
@@ -275,6 +309,22 @@ def evaluate_video(
     # ── 4. 运行 Pipeline ────────────────────────────────
     request = CriticRequest(video_path=video_path, prompt=prompt or "")
 
+    if trace is not None:
+        trace.update_metadata(
+            detector={
+                "backend": "sam2" if sam2_used else "sparse_vlm_fallback",
+                "sam2_used": sam2_used,
+                "checkpoint": str(_resolve_sam2_checkpoint()) if sam2_used else None,
+            },
+            models={"vlm": vlm.model, "text": text_model.model},
+            video={
+                "path": str(Path(video_path).resolve()),
+                "frame_count": total_frames,
+                "width": vw,
+                "height": vh,
+            },
+        )
+
     if verbose:
         _print_header(f"PAVG Pipeline: {Path(video_path).name}")
         _print_kv("Prompt", prompt or "(无 — 规则检测)")
@@ -287,7 +337,7 @@ def evaluate_video(
         print("  [1/6] PhysicsPlan 解析...", file=sys.stderr)
 
     try:
-        artifacts = critic.analyze_detailed(request)
+        artifacts = critic.analyze_detailed(request, trace=trace)
     except ModelAPIError as exc:
         if verbose:
             print(f"  ⚠ 模型 API 失败 → 降级为纯规则基线", file=sys.stderr)
@@ -404,6 +454,19 @@ def evaluate_video(
         else None
     )
 
+    if trace is not None:
+        provider_failures = report.diagnostics.get("provider_failures", ())
+        trace.update_metadata(
+            planner={
+                "source": planner_meta.source if planner_meta else "unknown",
+                "fallback_used": bool(
+                    planner_meta.fallback_used if planner_meta else False
+                ),
+                "model": planner_meta.model if planner_meta else None,
+            },
+            provider_fallback_count=len(provider_failures),
+        )
+
     output: dict[str, Any] = {
         "video_path": str(Path(video_path).resolve()),
         "prompt": prompt or None,
@@ -506,6 +569,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="输出进度信息到 stderr"
     )
+    parser.add_argument(
+        "--trace",
+        action="store_true",
+        help="逐节点输出结构化执行状态到 stderr",
+    )
+    parser.add_argument(
+        "--trace-output",
+        type=Path,
+        default=None,
+        help="保存完整节点输入/输出与融合算术的 JSON trace",
+    )
     return parser
 
 
@@ -514,14 +588,32 @@ def main() -> int:
     args = parser.parse_args()
 
     video_path = str(args.video.resolve())
+    trace = (
+        TraceRecorder(
+            metadata={"video_path": video_path},
+            on_record=_render_trace_node if args.trace else None,
+        )
+        if args.trace or args.trace_output is not None
+        else None
+    )
     if not args.video.is_file():
         print(f"错误: 视频文件不存在: {video_path}", file=sys.stderr)
+        if trace is not None:
+            trace.set_outcome(
+                {"status": "error", "error_type": "FileNotFoundError"}
+            )
+            if args.trace_output is not None:
+                write_trace_atomic(args.trace_output, trace.to_dict())
         return 1
 
     try:
         api_cfg = load_config()
     except ValueError as exc:
         print(f"配置错误: {exc}", file=sys.stderr)
+        if trace is not None:
+            trace.set_outcome({"status": "error", "error_type": "ValueError"})
+            if args.trace_output is not None:
+                write_trace_atomic(args.trace_output, trace.to_dict())
         return 1
 
     try:
@@ -534,13 +626,37 @@ def main() -> int:
             post_frames=args.post_frames,
             num_keyframes=args.keyframes,
             verbose=args.verbose,
+            trace=trace,
         )
     except (ModelAPIError, SchemaError, RuntimeError) as exc:
         print(f"Pipeline 错误: {exc}", file=sys.stderr)
+        if trace is not None:
+            trace.set_outcome(
+                {"status": "error", "error_type": type(exc).__name__}
+            )
+            if args.trace_output is not None:
+                write_trace_atomic(args.trace_output, trace.to_dict())
         return 2
     except Exception as exc:
         print(f"未预期错误: {type(exc).__name__}: {exc}", file=sys.stderr)
+        if trace is not None:
+            trace.set_outcome(
+                {"status": "error", "error_type": type(exc).__name__}
+            )
+            if args.trace_output is not None:
+                write_trace_atomic(args.trace_output, trace.to_dict())
         return 3
+
+    if trace is not None:
+        trace.set_outcome(
+            {
+                "status": "completed",
+                "decision": result.get("decision"),
+                "physics_score": result.get("physics_score"),
+            }
+        )
+        if args.trace_output is not None:
+            write_trace_atomic(args.trace_output, trace.to_dict())
 
     text = json.dumps(result, ensure_ascii=False, indent=2)
     if args.output:
