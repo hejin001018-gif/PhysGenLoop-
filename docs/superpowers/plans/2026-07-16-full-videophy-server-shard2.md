@@ -68,3 +68,11 @@
 - Duplicate keys, out-of-shard sample IDs and unknown methods were all zero on both workers. Each worker had one B1 terminal failure: `videophy2-1a4d8e4b16713ff507aa` on A and `videophy2-220b8130a3c7f8a6db0a` on B. Both failures were `ValueError: VLM produced no object seeds for SAM2 tracking`; neither was an OOM, decode failure or process crash.
 - The observed B1 failure rate at this checkpoint was 2/598 (0.33%). Under the frozen terminal-failure policy these records remain in the append-only results and no prompt, seed rule, sample or threshold was changed.
 - The 21:39–23:02 combined rate was approximately 7.7 prediction keys per minute. A provisional completion estimate is another 12–13 hours, subject to video-length variation.
+
+### E6 — 08:47 overnight checkpoint
+
+- Direct server checks found both original evaluator PIDs still live. Server 1 used 100% GPU with 27.7 GiB allocated and server 2 used 95% GPU with 25.0 GiB allocated; both prediction files were updated within seconds of inspection.
+- Progress reached 2,781/3,398 shard-A keys and 2,649/3,396 shard-B keys, or 5,430/6,794 total (79.9%). The key audit found zero duplicates, out-of-shard IDs or unknown methods.
+- Method counts immediately before the monitor write were A `D0=1,390/B1=1,389` and B `D0=1,324/B1=1,323`, representing 2,712 fully paired videos plus the in-flight samples.
+- A second shard-A B1 sample produced the same terminal `VLM produced no object seeds for SAM2 tracking` condition. Total failures are now three B1 keys, approximately 0.11% of completed B1 evaluations; there are no D0, OOM, decode or process failures.
+- The local five-minute logger paused when the Windows workstation slept after 00:16, but remote evaluation continued uninterrupted. A direct 08:47 record was appended after wake. Based on the overnight rate, approximately 3–3.5 hours remain, with provisional completion near noon on July 17.
