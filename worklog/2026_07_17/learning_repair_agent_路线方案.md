@@ -53,6 +53,18 @@ Executor Trial 数仍为 0，`source_revision=unknown`，所以
 3. 用 Actual Trial 重新训练并切换为 `action_value` selection。
 4. 分离 Hunyuan calibration/test，评估真实 physics gain、语义保持、质量、成本和失败率。
 
+## Canonical v3.1 发布包
+
+- 发布版本：`3.1.0`，GitHub Release 应标记为 pre-release。
+- canonical namespace：`physgenloop.learning_repair`。
+- release source revision：`775cab63372bbeb58a4b52fe58be5c8cf907ee0a`。
+- 压缩包：`repair_agent_repair_1200g_v3_1_canonical.tar.gz`。
+- 压缩包大小：763,570 bytes。
+- SHA-256：`4a30812e3ba383faeb2971bf4dcdb5010eeca5005e706b6b38508960e402cf27`。
+- 原始发布目录与全新解压目录均通过四动作 CPU smoke test。
+- 包内 11 个文件的大小和 SHA-256 均通过 manifest 校验。
+- 权重与部署包仍不进入 Git；通过 GitHub Release asset 分发。
+
 ---
 
 署名：hejin
