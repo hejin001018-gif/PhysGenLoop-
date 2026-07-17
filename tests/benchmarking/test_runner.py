@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -85,3 +86,44 @@ def test_runner_rejects_concurrent_lock(tmp_path):
     path.with_suffix(".jsonl.lock").write_text("occupied", encoding="utf-8")
     with pytest.raises(RuntimeError, match="already running"):
         BenchmarkRunner(path).run((), ())
+
+
+def test_runner_stops_after_fsyncing_new_failure_budget(
+    tmp_path, sample_factory, prediction_factory
+):
+    class FailingMethod:
+        method_id = "D0_DIRECT_VLM"
+
+        def __init__(self):
+            self.calls = []
+
+        def evaluate(self, sample):
+            self.calls.append(sample.sample_id)
+            return replace(
+                prediction_factory(sample.sample_id, "unknown", None),
+                failure={"type": "TimeoutError"},
+            )
+
+    method = FailingMethod()
+    samples = tuple(
+        sample_factory(index=index, physical=True, generator="g")
+        for index in range(2)
+    )
+    output = tmp_path / "predictions.jsonl"
+
+    with pytest.raises(RuntimeError, match="failure budget"):
+        BenchmarkRunner(output).run(
+            samples,
+            (method,),
+            max_new_failures=1,
+        )
+
+    assert method.calls == ["0"]
+    assert len(output.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_runner_rejects_nonpositive_failure_budget(tmp_path):
+    with pytest.raises(ValueError, match="positive integer"):
+        BenchmarkRunner(tmp_path / "predictions.jsonl").run(
+            (), (), max_new_failures=0
+        )

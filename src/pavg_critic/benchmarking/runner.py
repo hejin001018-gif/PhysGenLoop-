@@ -69,11 +69,23 @@ class BenchmarkRunner:
         self,
         samples: Sequence[BenchmarkSample],
         methods: Sequence[BenchmarkMethod],
+        *,
+        max_new_failures: int | None = None,
     ) -> tuple[BenchmarkPrediction, ...]:
+        if (
+            max_new_failures is not None
+            and (
+                isinstance(max_new_failures, bool)
+                or not isinstance(max_new_failures, int)
+                or max_new_failures < 1
+            )
+        ):
+            raise ValueError("max_new_failures must be a positive integer")
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         with self._exclusive_lock():
             completed = self._completed()
             new_records: list[BenchmarkPrediction] = []
+            new_failures = 0
             with self.output_path.open("a", encoding="utf-8") as handle:
                 for sample in samples:
                     for method in methods:
@@ -92,6 +104,13 @@ class BenchmarkRunner:
                         os.fsync(handle.fileno())
                         completed.add(key)
                         new_records.append(prediction)
+                        if prediction.failure is not None:
+                            new_failures += 1
+                            if (
+                                max_new_failures is not None
+                                and new_failures >= max_new_failures
+                            ):
+                                raise RuntimeError("new failure budget reached")
         return tuple(new_records)
 
 

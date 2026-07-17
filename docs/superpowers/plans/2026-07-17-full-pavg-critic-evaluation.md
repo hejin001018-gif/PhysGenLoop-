@@ -534,7 +534,7 @@ git commit -m "feat: add audited full PAVG benchmark method"
 - Modify: `src/pavg_critic/benchmarking/runner.py`
 - Modify: `tests/benchmarking/test_runner.py`
 
-- [ ] **Step 1: Write failing recovery and failure-budget tests**
+- [x] **Step 1: Write failing recovery and failure-budget tests**
 
 Cover normal append, resume, duplicate rejection, a crash after the prediction append, a crash after the diagnostics append, stale pending recovery and failure-budget stop. Use this invariant:
 
@@ -548,7 +548,7 @@ assert method.calls == 1
 
 For ordinary `BenchmarkRunner`, add `max_new_failures=1` and assert it stops immediately after the first new failed prediction instead of consuming later samples.
 
-- [ ] **Step 2: Run focused tests and verify failures**
+- [x] **Step 2: Run focused tests and verify failures**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/benchmarking/test_audited_runner.py tests/benchmarking/test_runner.py -q
@@ -556,7 +556,7 @@ For ordinary `BenchmarkRunner`, add `max_new_failures=1` and assert it stops imm
 
 Expected: FAIL because paired output and failure budgets do not exist.
 
-- [ ] **Step 3: Implement the paired write-ahead record**
+- [x] **Step 3: Implement the paired write-ahead record**
 
 Create `AuditedBenchmarkRunner` with the exact public signatures below; `_recover_pending`, `_load_key_index`, `_exclusive_lock`, `_write_pending`, `_append_fsync` and `_validate_pair` are private helpers in the same file and are individually exercised by the crash-injection tests:
 
@@ -596,11 +596,11 @@ class AuditedBenchmarkRunner:
 
 Use one exclusive `self.prediction_path.with_suffix(self.prediction_path.suffix + ".lock")`. Before either append, atomically write `self.prediction_path.with_suffix(self.prediction_path.suffix + ".pending.json")` containing both complete JSON objects. Append/fsync the missing prediction and diagnostic records, then delete pending. On startup, replay a valid pending record; without pending, any asymmetric key set is an error. Count newly appended `failure` records and raise `RuntimeError("new failure budget reached")` once the configured budget is reached. Never delete completed JSONL lines.
 
-- [ ] **Step 4: Add the same bounded failure policy to the ordinary runner**
+- [x] **Step 4: Add the same bounded failure policy to the ordinary runner**
 
 Extend `BenchmarkRunner.run(self, samples, methods, *, max_new_failures: int | None = None)` while preserving `None` as the old unlimited default. Validate positive integers and stop only after fsyncing the terminal failure record.
 
-- [ ] **Step 5: Run focused and complete tests**
+- [x] **Step 5: Run focused and complete tests**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/benchmarking/test_audited_runner.py tests/benchmarking/test_runner.py -q
@@ -609,7 +609,7 @@ Extend `BenchmarkRunner.run(self, samples, methods, *, max_new_failures: int | N
 
 Expected: PASS, including injected crash recovery.
 
-- [ ] **Step 6: Commit paired resumability**
+- [x] **Step 6: Commit paired resumability**
 
 ```powershell
 git add src/pavg_critic/benchmarking/audited_runner.py src/pavg_critic/benchmarking/runner.py tests/benchmarking/test_audited_runner.py tests/benchmarking/test_runner.py
@@ -1037,3 +1037,12 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - `OracleRulePhysicsPlanner` preserves the normal model plan, adds exact stable `oracle-rule-{index}` constraints, uses a synthetic `scene` only for an object-free plan, and terminates on ID collision.
 - Each PAVG evaluation now returns a same-key diagnostic record with Planner/PQSG/VideoScience/mechanics/rule/VLM/evidence-family availability, configured/effective weights, pre/final fusion state, hard override, non-secret stage events and latency. Failures never store exception messages.
 - Focused Task 4 tests passed `14/14` in 1.40 seconds; the complete local suite passed `296/296` in 10.20 seconds. No fusion weight, prompt, threshold or accepted prediction changed.
+
+### E5 — Crash-recoverable paired output and bounded failures
+
+- Timestamp: `2026-07-17T16:02:04+08:00`; implementation started from commit `12be12d440120eda7a3335b38c7e3e32af971901`.
+- RED evidence: focused collection failed with `ModuleNotFoundError: No module named 'pavg_critic.benchmarking.audited_runner'` before implementation.
+- `AuditedBenchmarkRunner` now writes one fsynced pending transaction before appending prediction and diagnostics. Tests inject crashes after the prediction append and after both appends; restart fills only the missing side, clears pending state and never re-invokes the method.
+- Existing unrecoverable asymmetric/duplicate keys remain terminal. Prediction and diagnostics keys are validated before writing, and one exclusive writer lock protects the pair.
+- Both ordinary and audited runners now stop after fsyncing the configured number of new terminal failures. The default legacy ordinary runner remains unlimited; the audited runner defaults to one failure.
+- Focused runner tests passed `13/13` in 0.26 seconds; the complete local suite passed `303/303` in 10.46 seconds.
