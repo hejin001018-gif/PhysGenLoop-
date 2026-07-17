@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
-from typing import Mapping, Sequence
+from time import perf_counter
+from typing import Callable, Mapping, Sequence
 
 from .physics_rules import RULE_ID_TO_CATEGORY
 from .question_graph import QuestionGraphValidator
@@ -69,6 +70,18 @@ class QuestionGraphExecutor:
         self,
         graph: QuestionGraph,
         context: QuestionExecutionContext,
+        *,
+        node_observer: Callable[
+            [
+                QuestionNode,
+                Mapping[str, NodeResult],
+                NodeResult | None,
+                BaseException | None,
+                float,
+            ],
+            None,
+        ]
+        | None = None,
     ) -> tuple[NodeResult, ...]:
         """按稳定拓扑序执行全部节点，并返回与拓扑序一致的结果。"""
 
@@ -77,29 +90,53 @@ class QuestionGraphExecutor:
         ordered_results: list[NodeResult] = []
 
         for node in ordered_nodes:
-            blocked_by = tuple(
-                parent_id
-                for parent_id in node.parent_ids
-                if results_by_id[parent_id].status != "yes"
-            )
-            if blocked_by:
-                # blocked 不是对节点内容的 No 判断，而是“没有执行”的结构化记录。
-                parent_statuses = {
-                    parent_id: results_by_id[parent_id].status for parent_id in blocked_by
-                }
-                result = NodeResult(
-                    node_id=node.id,
-                    category=node.category,
-                    status="blocked",
-                    direct_score=None,
-                    confidence=1.0,
-                    reason="One or more prerequisite questions were not satisfied.",
-                    verifier="dependency_graph",
-                    blocked_by=blocked_by,
-                    evidence={"parent_statuses": parent_statuses},
+            parent_results = {
+                parent_id: results_by_id[parent_id] for parent_id in node.parent_ids
+            }
+            started = perf_counter()
+            try:
+                blocked_by = tuple(
+                    parent_id
+                    for parent_id in node.parent_ids
+                    if results_by_id[parent_id].status != "yes"
                 )
-            else:
-                result = self._verify(node, context)
+                if blocked_by:
+                    # blocked 不是对节点内容的 No 判断，而是“没有执行”的结构化记录。
+                    parent_statuses = {
+                        parent_id: results_by_id[parent_id].status
+                        for parent_id in blocked_by
+                    }
+                    result = NodeResult(
+                        node_id=node.id,
+                        category=node.category,
+                        status="blocked",
+                        direct_score=None,
+                        confidence=1.0,
+                        reason="One or more prerequisite questions were not satisfied.",
+                        verifier="dependency_graph",
+                        blocked_by=blocked_by,
+                        evidence={"parent_statuses": parent_statuses},
+                    )
+                else:
+                    result = self._verify(node, context)
+            except Exception as exc:
+                if node_observer is not None:
+                    node_observer(
+                        node,
+                        parent_results,
+                        None,
+                        exc,
+                        max(0.0, (perf_counter() - started) * 1_000.0),
+                    )
+                raise
+            if node_observer is not None:
+                node_observer(
+                    node,
+                    parent_results,
+                    result,
+                    None,
+                    max(0.0, (perf_counter() - started) * 1_000.0),
+                )
             results_by_id[node.id] = result
             ordered_results.append(result)
 
