@@ -39,6 +39,8 @@ Executor Trial 数仍为 0，`source_revision=unknown`，所以
 - canonical CLI sample manifest 审计：valid。
 - v3 baseline 文件大小与 SHA-256：valid。
 - Critic config/schema/feature schema compatibility：valid。
+- clean checkout 曾暴露 Windows CRLF 会改变冻结文件 SHA；已用定向
+  `.gitattributes` 强制 repair evidence/config 使用 LF，并在第二个全新 checkout 复核通过。
 - 全仓可运行测试：180 passed（176 + schema 非 generator 4）。
 - 团队分支现有 `tests/test_schemas.py` 中两个 generator schema 测试未运行通过，原因是
   `schemas/generator_request.schema.json` 在当前团队基线不存在；本次没有越权新增共享
