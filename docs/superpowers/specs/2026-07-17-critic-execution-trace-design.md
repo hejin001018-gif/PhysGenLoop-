@@ -61,7 +61,7 @@ Each node record contains:
 - `source_nodes` identifying upstream data dependencies;
 - terminal `status`: `completed`, `skipped`, `degraded` or `error`;
 - `elapsed_ms` measured with a monotonic clock;
-- bounded `input` and `output` summaries;
+- bounded `inputs` and `outputs` summaries;
 - sanitized warnings or an error containing only exception type and a maximum 300-character message.
 
 The fixed stage nodes are:
