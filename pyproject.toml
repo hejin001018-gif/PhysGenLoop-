@@ -22,10 +22,12 @@ env = ["python-dotenv>=1.0"]
 # provides the compatible runtime tensors and never pulls the unrelated PyPI
 # package named ``sam2``.
 sam2 = ["torch>=2.5.1", "torchvision>=0.20.1", "numpy>=1.24"]
+train = ["torch>=2.7.1"]
 test = ["pytest>=8,<9"]
 
 [project.scripts]
 pavg-critic = "pavg_critic.cli:main"
+pavg-repair = "physgenloop.learning_repair.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

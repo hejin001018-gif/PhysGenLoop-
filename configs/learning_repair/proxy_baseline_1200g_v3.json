@@ -1,0 +1,46 @@
+{
+  "schema_version": "proxy-baseline-archive/1.0",
+  "baseline_id": "repair_1200g_v3_action_value",
+  "label_type": "blender_proxy_selected_action_only",
+  "files": [
+    {
+      "path": "artifacts/repair_training/repair_1200g_v3_report.md",
+      "bytes": 4373,
+      "sha256": "b38c98ef691f7bb237563fee8423c6a80a06bd1c641f0e499d185abfeece4ab1"
+    },
+    {
+      "path": "artifacts/repair_training/repair_1200g_v3_report.json",
+      "bytes": 179957,
+      "sha256": "44c20892b14e2b839cf48271d82899cf0b3632aea541246fa2d010b61c281126"
+    },
+    {
+      "path": "artifacts/repair_training/diagnostics/v3_training_report.json",
+      "bytes": 143410,
+      "sha256": "b4fe54beef862ad4508d484894828671ca77e996ce9de04ffb725bc9b6a87ccf"
+    },
+    {
+      "path": "artifacts/repair_training/diagnostics/v3_release_smoke_seed101.json",
+      "bytes": 873,
+      "sha256": "e7497f76cfba17961036df20c9365590a38b2575b7e8b9a2184dd1a714a0d02f"
+    },
+    {
+      "path": "artifacts/repair_training/diagnostics/v3_evaluation_test.json",
+      "bytes": 14509,
+      "sha256": "84d2f0ef5748e994c0819f810493c85f7643694abcfc2b3b0dff8b814cff4940"
+    }
+  ],
+  "metrics": {
+    "groups": 1200,
+    "samples": 22200,
+    "held_out_macro_f1": 1.0,
+    "held_out_value_mae": 0.026106,
+    "model_id": "repair-value-78304cfff2fa",
+    "selection_mode": "classification_proxy",
+    "actual_trial_count": 0
+  },
+  "limitations": [
+    "Labels are selected-action Blender proxy labels, not actual Executor trial outcomes.",
+    "The compatibility source_revision is unknown and deployment_ready is false.",
+    "Held-out proxy metrics must not be reported as HunyuanVideo repair success."
+  ]
+}

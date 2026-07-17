@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pavg.local/schemas/repair_sample.schema.json",
+  "title": "PhysGenLoop Learning Repair Sample",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "sample_id",
+    "group_id",
+    "prompt",
+    "critic_report",
+    "target",
+    "outcome",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "sample_id": {"type": "string", "minLength": 1},
+    "group_id": {"type": "string", "minLength": 1},
+    "split": {
+      "anyOf": [
+        {"enum": ["train", "validation", "test"]},
+        {"type": "null"}
+      ]
+    },
+    "prompt": {"type": "string"},
+    "critic_report": {"type": "object"},
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempt_index": {"type": "integer", "minimum": 0},
+        "max_attempts": {"type": "integer", "minimum": 1},
+        "prompt_repair_available": {"type": "boolean"},
+        "global_regeneration_available": {"type": "boolean"},
+        "local_editor_available": {"type": "boolean"},
+        "semantic_score": {
+          "anyOf": [
+            {"type": "number", "minimum": 0, "maximum": 1},
+            {"type": "null"}
+          ]
+        },
+        "quality_score": {
+          "anyOf": [
+            {"type": "number", "minimum": 0, "maximum": 1},
+            {"type": "null"}
+          ]
+        },
+        "previous_actions": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "prompt_repair",
+              "global_regeneration",
+              "local_editing",
+              "reject"
+            ]
+          }
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "strategy"],
+      "properties": {
+        "action": {
+          "enum": [
+            "prompt_repair",
+            "global_regeneration",
+            "local_editing",
+            "reject"
+          ]
+        },
+        "strategy": {"type": "string"}
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before_score", "after_score", "successful"],
+      "properties": {
+        "before_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "after_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "successful": {"type": "boolean"}
+        ,"semantic_score": {
+          "anyOf": [
+            {"type": "number", "minimum": 0, "maximum": 1},
+            {"type": "null"}
+          ]
+        }
+        ,"quality_score": {
+          "anyOf": [
+            {"type": "number", "minimum": 0, "maximum": 1},
+            {"type": "null"}
+          ]
+        }
+        ,"repair_cost": {
+          "anyOf": [
+            {"type": "number", "minimum": 0},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "metadata": {"type": "object"}
+  }
+}
