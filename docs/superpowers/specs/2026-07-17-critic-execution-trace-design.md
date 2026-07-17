@@ -163,6 +163,7 @@ The sanitizer recursively rejects forbidden key names and replaces unsupported o
 
 - `src/pavg_critic/execution_trace.py`: trace schema objects, recorder, bounded sanitizers, fusion-audit construction and validation functions.
 - `src/pavg_critic/pipeline.py`: optional recorder hooks at actual stage boundaries; no decision-logic changes.
+- `src/pavg_critic/question_executor.py`: optional read-only node observer so every executed PQSG node has its real input dependency summary, output and elapsed time; the default remains disabled.
 - `examples/evaluate_video.py`: trace CLI flags, live stderr renderer and atomic trace persistence.
 - `examples/validate_pipeline_trace.py`: standalone human-readable validator CLI.
 - `schemas/critic_trace.schema.json`: machine-readable structural contract.
@@ -184,4 +185,3 @@ Implementation follows test-driven development. Acceptance requires:
 - a repository scan proving no `.env`, API secret, video, checkpoint, model weight or generated trace is staged;
 - only Critic-related source, tests, schema and documentation committed and pushed to GitHub branch `sy`;
 - final handoff reporting the exact commit SHA and verification commands/results.
-
