@@ -54,12 +54,12 @@
 - Modify: `src/pavg_critic/benchmarking/full_report.py`
 - Modify: `tests/benchmarking/test_full_report.py`
 
-- [ ] Add failing tests for the four paired-outcome cells and for unknown/failure records counting as incorrect.
-- [ ] Add a small hand-computed action-cluster example proving bootstrap resamples entire groups, is deterministic at seed `20260717`, uses exactly the requested resample count and returns ordered bounds.
-- [ ] Add failing tests for generator/action slices and safe parsing of exact, multi-label, malformed and missing source rule-family metadata.
-- [ ] Implement per-method full metrics, paired Macro-F1 delta/bootstrap, paired outcomes and deterministic generator/action/rule-family tables.
-- [ ] Keep single-class or small slices visible with counts; do not silently filter inconvenient strata.
-- [ ] Run focused tests and commit the statistics layer.
+- [x] Add failing tests for the four paired-outcome cells and for unknown/failure records counting as incorrect.
+- [x] Add a small hand-computed action-cluster example proving bootstrap resamples entire groups, is deterministic at seed `20260717`, uses exactly the requested resample count and returns ordered bounds.
+- [x] Add failing tests for generator/action slices and safe parsing of exact, multi-label, malformed and missing source rule-family metadata.
+- [x] Implement per-method full metrics, paired Macro-F1 delta/bootstrap, paired outcomes and deterministic generator/action/rule-family tables.
+- [x] Keep single-class or small slices visible with counts; do not silently filter inconvenient strata.
+- [x] Run focused tests and commit the statistics layer.
 
 ## Task 4: Add SAM2 end-to-end latency audit and decision arithmetic
 
@@ -144,3 +144,12 @@ Append immutable checkpoints here as each task completes. Do not replace prior e
 - Prediction parsing now rejects invalid label vocabularies, booleans masquerading as numeric values, fractional frame counts, non-finite values and integer overflow with source/line context.
 - Independent specification review passed after four corrections. Independent quality review passed after two correctness fixes and one temporary-file cleanup fix.
 - Final verification: `26 passed` in `tests/benchmarking/test_full_report.py`; the complete local suite passed `207/207` in 7.04 seconds, followed by a successful compile-all check. Implementation commit: `5a362a1`.
+
+### R3 — Paired statistics and frozen slices
+
+- Strict paired outcomes cover all four D0/B1 correctness cells. Unknown labels and terminal failures remain in the population and count as incorrect rather than being dropped.
+- Candidate-minus-baseline Macro-F1 is bootstrapped by complete `prompt_group_id` action clusters with replacement, preserving every selected cluster's row multiplicity. The frozen default is 2,000 resamples at seed `20260717` with linear percentile interpolation.
+- The hand-computed regression fixture uses asymmetric clusters of sizes 1/2/4 and freezes point estimate `-0.4277777777777779` with interval `[-0.75, 0.0]`. Independent recomputation showed that incorrect row sampling or discarded cluster multiplicity produces different bounds.
+- Generator, action and exact source rule-family slices are deterministic and retain single-class/small groups. Rule metadata is parsed only with `ast.literal_eval`; malformed or missing values map to `__unmapped__`.
+- Independent specification and code-quality reviews passed. Final focused verification: `35 passed`; all benchmark tests: `94 passed`; compile-all and `git diff --check` passed.
+- Implementation commits: `8b30c78` and test-hardening commit `99292a6`.
