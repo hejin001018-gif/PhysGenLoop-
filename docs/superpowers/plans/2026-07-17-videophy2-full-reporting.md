@@ -80,12 +80,12 @@
 - Create: `tests/benchmarking/test_full_report_cli.py`
 - Modify: `src/pavg_critic/benchmarking/full_report.py`
 
-- [ ] Add a failing end-to-end CLI test using a temporary two-method manifest, two disjoint prediction shards and observation metadata.
-- [ ] Expose required `--manifest`, repeatable `--predictions`, `--output-dir`, fixed/default method IDs, bootstrap count/seed and repeatable `--observation-meta-dir` arguments.
-- [ ] Write `merged_predictions.jsonl`, `artifact_audit.json`, `summary.json`, `summary.md`, `paired_outcomes.json` and `slices.json` atomically after validation.
-- [ ] Render a Chinese Markdown report that distinguishes prediction latency from SAM2 production latency, lists all failures, reports bootstrap settings and prominently states that VideoPhy-1 OOD is deferred.
-- [ ] Run the CLI test, all benchmark tests and the complete local pytest suite using `outputs/.pytest-tmp`.
-- [ ] Commit the tested reporting CLI.
+- [x] Add a failing end-to-end CLI test using a temporary two-method manifest, two disjoint prediction shards and observation metadata.
+- [x] Expose required `--manifest`, repeatable `--predictions`, `--output-dir`, fixed/default method IDs, bootstrap count/seed and repeatable `--observation-meta-dir` arguments.
+- [x] Write `merged_predictions.jsonl`, `artifact_audit.json`, `summary.json`, `summary.md`, `paired_outcomes.json` and `slices.json` atomically after validation.
+- [x] Render a Chinese Markdown report that distinguishes prediction latency from SAM2 production latency, lists all failures, reports bootstrap settings and prominently states that VideoPhy-1 OOD is deferred.
+- [x] Run the CLI test, all benchmark tests and the complete local pytest suite using `outputs/.pytest-tmp`.
+- [x] Commit the tested reporting CLI.
 
 ## Task 6: Complete both existing inference shards without restart
 
@@ -169,3 +169,13 @@ Append immutable checkpoints here as each task completes. Do not replace prior e
 - Strict TDD began with missing-function collection failures. Specification review found and closed binary-float threshold errors; quality review found and closed impossible-domain/interval acceptance. Both final reviews passed.
 - Final verification: `80 passed` in the focused report tests, `139 passed` across benchmark tests and `261 passed` for the complete local suite; compile-all, JSON serialization probes and `git diff --check` passed.
 - Implementation commits: `2e6a853`, `d3c4e0f`, and `84ffde3`.
+
+### R6 — Deterministic full-report CLI
+
+- The CLI uses the formal manifest loader, repeatable prediction/meta inputs and frozen D0/B1 method IDs. It emits exactly six core artifacts: merged predictions, artifact audit, JSON/Chinese summaries, paired outcomes and slices.
+- All inputs are frozen as path/content/SHA snapshots. Analysis reads only those bytes; manifest, prediction and metadata inventories/hashes are recaptured before publication and any modification/addition/deletion aborts without output. Prediction merge hashes are cross-checked against the same snapshot.
+- Publication is an immutable bundle: all six files are staged in one sibling directory and exposed with a single same-filesystem directory rename. A byte-identical existing bundle is a no-op; different, partial, symlink or non-directory destinations fail closed. Fault injection verifies stage/rename failures leave no output or temporary directory.
+- Prediction `failure` accepts only `null` or a finite JSON object with source/line diagnostics. The JSON report preserves original values, while Markdown renders deterministic reasons with control-character, Markdown and HTML escaping.
+- The artifact audit hashes all five non-self-referential outputs and explicitly records the exclusion of `artifact_audit.json`. The Chinese report distinguishes model/rule prediction latency from SAM2 production latency, lists retained failures and all five gates, and states that VideoPhy-1 OOD is deferred and the architecture is not yet proven.
+- Independent specification and quality reviews passed after closing atomic-publication, TOCTOU and failure-injection findings. Final verification: CLI `20/20`, benchmark `159/159`, complete suite `281/281`; the quality reviewer additionally passed `100/100` focused tests and `15/15` targeted probes. Compile-all, deterministic rerun hashes, staging cleanup and `git diff --check` passed.
+- Implementation commits: `4c321b3` and hardening commit `81dbd12`.
