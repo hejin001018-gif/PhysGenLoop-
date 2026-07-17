@@ -97,3 +97,27 @@ Results are appended after each checkpoint. Existing entries are immutable once 
 - The functional gate correctly failed despite the terminal prediction: Planner returned a schema-valid all-empty plan and was recorded as `source=empty`; PQSG consequently had zero nodes. The cached response confirmed all four arrays were empty, so this was model output accepted too permissively rather than a parser or transport failure.
 - A regression test was added before implementation and failed because the empty output was accepted after one call. The fix rejects an all-empty plan only when the generation prompt is non-empty and no authoritative partial plan exists, issues one repair request with bounded feedback, and explicitly instructs the model to extract at least one physically relevant entity. Empty prompts retain their previous valid empty-plan behavior.
 - Planner tests passed `34/34`. The first local full run had one unrelated Windows atomic-directory rename denial; that exact test passed alone on a fresh basetemp, then the complete suite passed `383/383` in 8.79 seconds and compileall passed.
+
+### E5 — Planner-reference and PQSG boundary defects
+
+- Commit `cb56095904c7e3e4fbc317686fd28178265f5e4b` fixed the empty-plan defect and was pushed to `origin/sy`; the same sample then produced a model plan with three objects, two relations and one constraint plus a seven-node hybrid question graph.
+- Smoke attempt 1 was paused after 5/20 immutable records because one Planner response twice referenced `player` from a relation without listing it in `objects`. The rest of the model plan was valid. Commit `168f2de8c7c3d88f2becee6e749e1c28d946e47c` retains the strict first validation and one model repair, then conservatively removes only relations/constraints whose references remain unknown. Structural errors still fail closed. Remote tests passed `383/383`.
+- Smoke attempt 2 was paused after 7/20 immutable records because Qwen emitted four PQSG nodes with weight zero even though the response schema used `exclusiveMinimum: 0`. Commit `473d2cfb457fa42f796844a97214b2b0098fbc77` normalizes non-finite/non-positive model weights to the conservative default 1.0 and marks the model graph sanitized. All other invalid-node fields remain strict. Remote tests passed `384/384`.
+- Both stopped attempts and their caches were preserved. Each final retry used a new journal directory, so no failed/fallback record was edited or deleted.
+
+### E6 — Final smoke20 result
+
+- Final source and pushed `sy` head: `473d2cfb457fa42f796844a97214b2b0098fbc77`.
+- Final run: `/root/benchmark/pavg-benchmark/runs/prompted-critic-smoke20-c8d1810/m5-full-final`.
+- Runtime: 507 seconds. GPU peak: 21,519MiB, 100% utilization and 59°C; no OOM. vLLM was stopped after synchronization, returning the GPU to 0MiB / 0% utilization.
+- Integrity: 20 predictions, 20 diagnostics, exact expected keys, zero duplicates/missing/extra keys, zero pending journal, zero failures and zero provider fallbacks.
+- Module availability: 20/20 Planner sources were `model`, object counts 1–4; PQSG node counts 1–18, with four graphs explicitly marked sanitized; Planner/PQSG/Verifier error counts were all zero.
+- Model events: Planner 24 calls (14 provider / 10 cache), PQSG 20 (12 / 8), Verifier 196 (135 / 61). VLM reviews were 4 confirmed, 187 rejected and 5 uncertain. No hard-violation override fired.
+- Diagnostic-only metrics: Accuracy 0.700, Balanced Accuracy 0.700, Macro-F1 0.697, physical recall 0.800, violation recall 0.600, violation precision 0.750 and Physics Spearman 0.324. Mean/p50/p95 latency was 25.31/7.66/117.70 seconds.
+- On the same smoke20 membership, this is +0.148 Macro-F1 over the old D0 direct result (0.549) and equal to the old B1 result (0.697). These 20 samples validate operation and catch integration defects; they do not establish a benchmark claim or replace the frozen full-population comparison.
+
+### E7 — Artifact and leakage audit
+
+- Local synchronized directory: `outputs/benchmarks/prompted-critic-smoke20-qwen3vl8b/`; only the manifest, predictions, diagnostics, resolved configuration, summaries and GPU telemetry were copied. No video, model weight, image data or raw provider payload was copied.
+- SHA-256: predictions `6c73361eaf65c15a7311d7d68119d050fb5d180406d46bab87771db076ec07af`; diagnostics `44337d3a7aa24f3f5513f18190bb98e2912e8c955a033b24f54f8032e8717ad5`; resolved config `2f6b3117064c3aab27ff41a6053445f6fd5bc9bf47af932ac9f6ec092412d5a0`; summary JSON `308d09e64ef639ad96bc72ca1cfa9646e27917c8a76ed04637baae3fe6b9fd0f`; summary Markdown `5acbb1d122864093a40507446b39ba6eb0acef8840e5840b726008125aa9c3d7`.
+- All final artifacts passed the credential/header/image-data scan. All 250 immutable model-cache records passed the label, human-rule, credential and image-data scan.
