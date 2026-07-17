@@ -1,0 +1,683 @@
+{
+  "audit": {
+    "valid": true,
+    "sample_count": 175,
+    "group_count": 5,
+    "action_counts": {
+      "reject": 70,
+      "local_editing": 30,
+      "global_regeneration": 55,
+      "prompt_repair": 20
+    },
+    "split_counts": {
+      "unassigned": 175
+    },
+    "successful_count": 175,
+    "group_leakage": {},
+    "missing_artifacts": []
+  },
+  "semantic_gate": {
+    "valid": true,
+    "checked": 65,
+    "failure_count": 0,
+    "failures": [],
+    "results": [
+      {
+        "sample_id": "group_001155--multi_corrupt",
+        "injected_category": "multi_violation",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "surface_penetration",
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--normal",
+        "injected_category": "physical",
+        "decision": "physical",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--object_disappearance_mild",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--object_disappearance_severe",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--premature_rebound_mild",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--premature_rebound_severe",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--reverse_gravity_mild",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--reverse_gravity_severe",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--surface_penetration_mild",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "surface_penetration"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--surface_penetration_severe",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "surface_penetration",
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--teleportation_mild",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--teleportation_severe",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001155--unknown_occluded",
+        "injected_category": "unknown",
+        "decision": "unknown",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--multi_corrupt",
+        "injected_category": "multi_violation",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "surface_penetration",
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--normal",
+        "injected_category": "physical",
+        "decision": "physical",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--object_disappearance_mild",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--object_disappearance_severe",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--premature_rebound_mild",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--premature_rebound_severe",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--reverse_gravity_mild",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--reverse_gravity_severe",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--surface_penetration_mild",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "surface_penetration"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--surface_penetration_severe",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "surface_penetration"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--teleportation_mild",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--teleportation_severe",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001156--unknown_occluded",
+        "injected_category": "unknown",
+        "decision": "unknown",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--multi_corrupt",
+        "injected_category": "multi_violation",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "surface_penetration",
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--normal",
+        "injected_category": "physical",
+        "decision": "physical",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--object_disappearance_mild",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--object_disappearance_severe",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--premature_rebound_mild",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--premature_rebound_severe",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--reverse_gravity_mild",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--reverse_gravity_severe",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--surface_penetration_mild",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "surface_penetration"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--surface_penetration_severe",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "surface_penetration"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--teleportation_mild",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--teleportation_severe",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001157--unknown_occluded",
+        "injected_category": "unknown",
+        "decision": "unknown",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--multi_corrupt",
+        "injected_category": "multi_violation",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "surface_penetration",
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--normal",
+        "injected_category": "physical",
+        "decision": "physical",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--object_disappearance_mild",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--object_disappearance_severe",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--premature_rebound_mild",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--premature_rebound_severe",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--reverse_gravity_mild",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--reverse_gravity_severe",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--surface_penetration_mild",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "surface_penetration"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--surface_penetration_severe",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "surface_penetration"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--teleportation_mild",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--teleportation_severe",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001158--unknown_occluded",
+        "injected_category": "unknown",
+        "decision": "unknown",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--multi_corrupt",
+        "injected_category": "multi_violation",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "surface_penetration",
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--normal",
+        "injected_category": "physical",
+        "decision": "physical",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--object_disappearance_mild",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance",
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--object_disappearance_severe",
+        "injected_category": "object_disappearance",
+        "decision": "violation",
+        "observed_categories": [
+          "object_disappearance"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--premature_rebound_mild",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--premature_rebound_severe",
+        "injected_category": "premature_rebound",
+        "decision": "violation",
+        "observed_categories": [
+          "premature_rebound"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--reverse_gravity_mild",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--reverse_gravity_severe",
+        "injected_category": "reverse_gravity",
+        "decision": "violation",
+        "observed_categories": [
+          "reverse_gravity"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--surface_penetration_mild",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "surface_penetration"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--surface_penetration_severe",
+        "injected_category": "surface_penetration",
+        "decision": "violation",
+        "observed_categories": [
+          "surface_penetration"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--teleportation_mild",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--teleportation_severe",
+        "injected_category": "teleportation",
+        "decision": "violation",
+        "observed_categories": [
+          "teleportation"
+        ],
+        "valid": true,
+        "reasons": []
+      },
+      {
+        "sample_id": "group_001159--unknown_occluded",
+        "injected_category": "unknown",
+        "decision": "unknown",
+        "observed_categories": [],
+        "valid": true,
+        "reasons": []
+      }
+    ]
+  },
+  "critic_decisions": {
+    "violation": 55,
+    "physical": 5,
+    "unknown": 5
+  },
+  "manifest": "/workspace/pavg/campaigns/repair_hard_45g_v3_node_b_v11/shards/shard_0000/repair_manifest.jsonl"
+}

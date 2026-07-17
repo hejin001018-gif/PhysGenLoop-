@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0",
+  "status": "generating",
+  "created_at_unix": 1784251239.6062975,
+  "config": {
+    "total_groups": 150,
+    "groups_per_shard": 5,
+    "start_group": 900,
+    "seed": 20260717,
+    "frames": 48,
+    "width": 640,
+    "height": 360,
+    "samples": 8,
+    "difficulty_profile": "hard-v1",
+    "variants_per_group": 13,
+    "records_per_group": 35,
+    "source_fingerprint": {
+      "Blender_video/scripts/generate_repair_shard.py": "90e0570e27673bc735f6eadff3f07bac181df2495f6625cf229e6dcffc61b64d",
+      "Blender_video/scripts/finalize_repair_shard.py": "be558a60b23f3b23e5e028649dd14d4e6230c2e1a5ac6bc0b6750e4f0162bf8d",
+      "Blender_video/run_cloud_shard.sh": "8b490e8e25f3d7a09778e784ec6dc26d95f8327d2ac7f34c5e0918572c2e1197",
+      "configs/default.yaml": "f8945bbb675f34215a8440793d25fd3f0df907a44aee5252e994fb666e91d4f4"
+    }
+  },
+  "shards": {
+    "shard_0000": {
+      "status": "complete",
+      "start_group": 900,
+      "group_count": 5,
+      "started_at_unix": 1784251239.606771,
+      "elapsed_sec": 233.397,
+      "manifest_sha256": "c8270f1ae7cbe3f6d9d461e98b98f6086ea09a94c9deddf240d99d52388db86e",
+      "record_count": 175,
+      "completed_at_unix": 1784251473.0037565
+    },
+    "shard_0001": {
+      "status": "complete",
+      "start_group": 905,
+      "group_count": 5,
+      "started_at_unix": 1784251473.0042665,
+      "elapsed_sec": 261.803,
+      "manifest_sha256": "9edd6c4aade3aa1522f968e0f0022c4797c4f0afb2e2777539f027dd8c2cb6fd",
+      "record_count": 175,
+      "completed_at_unix": 1784251734.8072374
+    },
+    "shard_0002": {
+      "status": "complete",
+      "start_group": 910,
+      "group_count": 5,
+      "started_at_unix": 1784251734.80791,
+      "elapsed_sec": 285.89,
+      "manifest_sha256": "a4e1b74a98d1918abceb544f52e95ed0f3aac37ba1775d4e0f26d73581217cf0",
+      "record_count": 175,
+      "completed_at_unix": 1784252020.6980095
+    },
+    "shard_0003": {
+      "status": "complete",
+      "start_group": 915,
+      "group_count": 5,
+      "started_at_unix": 1784252020.6986887,
+      "elapsed_sec": 284.684,
+      "manifest_sha256": "7917b54b04156742ca70d280acaacdbf1141573492275be8d453446d5309e4ea",
+      "record_count": 175,
+      "completed_at_unix": 1784252305.3835683
+    },
+    "shard_0004": {
+      "status": "complete",
+      "start_group": 920,
+      "group_count": 5,
+      "started_at_unix": 1784252305.384259,
+      "elapsed_sec": 252.863,
+      "manifest_sha256": "1055859b20e6d5303235f48c8f3b7dc1fae61639eaa19c49b948f54c5a9bafcc",
+      "record_count": 175,
+      "completed_at_unix": 1784252558.2473588
+    },
+    "shard_0005": {
+      "status": "complete",
+      "start_group": 925,
+      "group_count": 5,
+      "started_at_unix": 1784252558.247839,
+      "elapsed_sec": 234.913,
+      "manifest_sha256": "d59ae5538cbdd163676183725e8ce5ab25ca8a941670734d5e422384174ea4ee",
+      "record_count": 175,
+      "completed_at_unix": 1784252793.16138
+    },
+    "shard_0006": {
+      "status": "complete",
+      "start_group": 930,
+      "group_count": 5,
+      "started_at_unix": 1784252793.1618254,
+      "elapsed_sec": 235.356,
+      "manifest_sha256": "cdb7beffb1ac4ce85685d327b81bc1757aa63a7f30e535f01eb8fac02a146635",
+      "record_count": 175,
+      "completed_at_unix": 1784253028.5181298
+    },
+    "shard_0007": {
+      "status": "complete",
+      "start_group": 935,
+      "group_count": 5,
+      "started_at_unix": 1784253028.5188727,
+      "elapsed_sec": 239.44,
+      "manifest_sha256": "d8a449672cd50ed29cae7244adda9a5918e4236f3430a15c22f5995aee474dce",
+      "record_count": 175,
+      "completed_at_unix": 1784253267.9591799
+    },
+    "shard_0008": {
+      "status": "complete",
+      "start_group": 940,
+      "group_count": 5,
+      "started_at_unix": 1784253267.9599965,
+      "elapsed_sec": 235.6,
+      "manifest_sha256": "2ff1be24593ff5263f192ff09bd88d437dc8ac79cea60f08b24547eadad0ee72",
+      "record_count": 175,
+      "completed_at_unix": 1784253503.5605032
+    },
+    "shard_0009": {
+      "status": "complete",
+      "start_group": 945,
+      "group_count": 5,
+      "started_at_unix": 1784253503.5610788,
+      "elapsed_sec": 236.563,
+      "manifest_sha256": "a4173921cfc761f3905c69e3aef1dc54524d824ca408f80bf44e1e8f7cdd0478",
+      "record_count": 175,
+      "completed_at_unix": 1784253740.1243172
+    },
+    "shard_0010": {
+      "status": "complete",
+      "start_group": 950,
+      "group_count": 5,
+      "started_at_unix": 1784253740.1248722,
+      "elapsed_sec": 238.415,
+      "manifest_sha256": "4dab6e48e1e3c7fe4fd5489ca631dff55660d0889d38daffd5191d0639959d32",
+      "record_count": 175,
+      "completed_at_unix": 1784253978.5400834
+    },
+    "shard_0011": {
+      "status": "failed",
+      "start_group": 955,
+      "group_count": 5,
+      "started_at_unix": 1784253978.5406826,
+      "returncode": 2
+    }
+  }
+}
