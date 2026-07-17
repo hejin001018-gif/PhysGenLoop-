@@ -650,6 +650,67 @@ def test_action_group_bootstrap_is_deterministic_and_samples_groups(
     assert first["lower"] <= first["point_estimate"] <= first["upper"]
 
 
+def test_action_group_bootstrap_freezes_asymmetric_cluster_ci(
+    sample_factory, prediction_factory
+):
+    """The frozen seed exposes group (not row) resampling and multiplicity."""
+
+    samples = []
+    group_sizes = (("group-a", 1), ("group-b", 2), ("group-c", 4))
+    index = 0
+    for group_id, size in group_sizes:
+        for position in range(size):
+            sample = sample_factory(
+                index=index,
+                physical=position % 2 == 0,
+                generator="g",
+            )
+            samples.append(replace(sample, prompt_group_id=group_id))
+            index += 1
+
+    baseline = []
+    candidate = []
+    for sample in samples:
+        # Group A is baseline-correct/candidate-wrong; group B swaps its
+        # two labels; group C is baseline-correct/candidate-all-physical.
+        baseline_label = (
+            "physical" if sample.prompt_group_id == "group-b" else sample.physics_label
+        )
+        candidate_label = (
+            "violation"
+            if sample.prompt_group_id in {"group-a", "group-b"}
+            else "physical"
+        )
+        baseline.append(
+            prediction_factory(
+                sample.sample_id,
+                baseline_label,
+                5.0 if baseline_label == "physical" else 2.0,
+            )
+        )
+        candidate.append(
+            prediction_factory(
+                sample.sample_id,
+                candidate_label,
+                5.0 if candidate_label == "physical" else 2.0,
+                method_id="B1_RULE",
+            )
+        )
+
+    result = action_group_bootstrap(samples, baseline, candidate)
+
+    # Hand calculation uses 3 sorted clusters of sizes 1/2/4; each draw
+    # selects exactly 3 clusters with replacement and appends every row of
+    # each selected cluster. The frozen 2,000-draw linear percentiles are
+    # intentionally unlike the row-level bootstrap distribution.
+    assert result["resamples"] == 2000
+    assert result["seed"] == 20260717
+    assert result["group_count"] == 3
+    assert result["point_estimate"] == pytest.approx(-0.4277777777777779)
+    assert result["lower"] == -0.75
+    assert result["upper"] == 0.0
+
+
 @pytest.mark.parametrize(
     ("raw_metadata", "expected"),
     (
