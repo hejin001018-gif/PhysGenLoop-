@@ -156,6 +156,23 @@ def _strict_metrics(
     return metrics
 
 
+def strict_method_metrics(
+    samples: Sequence[BenchmarkSample],
+    predictions: Sequence[BenchmarkPrediction],
+    *,
+    expected_method: str,
+) -> dict[str, float | int | None]:
+    """Return full strict metrics after exact one-method coverage validation."""
+
+    indexed = _prediction_index(
+        samples,
+        predictions,
+        expected_method=expected_method,
+    )
+    ordered = tuple(indexed[sample.sample_id] for sample in samples)
+    return _strict_metrics(samples, ordered)
+
+
 def paired_outcomes(
     samples: Sequence[BenchmarkSample],
     baseline_predictions: Sequence[BenchmarkPrediction],
