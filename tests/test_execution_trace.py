@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+import pavg_critic
 from pavg_critic.config import CriticConfig
 from pavg_critic.execution_trace import (
     TraceRecorder,
@@ -151,6 +152,34 @@ def test_large_collection_has_bounded_preview_and_digest():
     assert frames["preview"] == list(range(20))
     assert len(frames["sha256"]) == 64
     assert frames["truncated"] is True
+
+
+def test_live_render_callback_failure_does_not_change_traced_operation():
+    def broken_renderer(record):
+        raise RuntimeError("terminal renderer failed")
+
+    recorder = TraceRecorder(on_record=broken_renderer)
+
+    recorder.record_completed(
+        "request",
+        label="request",
+        source_nodes=(),
+        inputs={},
+        outputs={"accepted": True},
+        elapsed_ms=0.0,
+    )
+
+    document = recorder.to_dict()
+    assert document["nodes"][0]["status"] == "completed"
+    assert document["warnings"] == [
+        "trace callback RuntimeError: terminal renderer failed"
+    ]
+
+
+def test_trace_recorder_and_validation_types_are_public_api():
+    assert pavg_critic.TraceRecorder is TraceRecorder
+    assert pavg_critic.TraceValidationPolicy.__name__ == "TraceValidationPolicy"
+    assert pavg_critic.validate_trace is validate_trace
 
 
 def _missing_bundle(family: str) -> EvidenceBundle:

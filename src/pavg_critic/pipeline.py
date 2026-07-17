@@ -8,9 +8,10 @@ VLM 都通过 Protocol 注入；其余确定性模块可通过配置调整阈值
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import replace
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 from .checklist import VideoScienceChecklistEvaluator
 from .config import CriticConfig
@@ -20,6 +21,24 @@ from .event_detector import EventDetector
 from .evidence_fusion import (
     CoverageAwareEvidenceFusion,
     hard_violation_override_applied,
+)
+from .execution_trace import (
+    TraceRecorder,
+    build_fusion_audit,
+    summarize_candidates,
+    summarize_checklist,
+    summarize_events,
+    summarize_graph,
+    summarize_keyframes,
+    summarize_mechanics,
+    summarize_node_result,
+    summarize_plan,
+    summarize_question_node,
+    summarize_report,
+    summarize_request,
+    summarize_reviews,
+    summarize_states,
+    summarize_tracks,
 )
 from .fusion import ResultFusion
 from .interfaces import (
@@ -159,138 +178,556 @@ class PhysicsCritic:
         *,
         observations: Iterable[FrameState] | None = None,
         floor_y: float | None = None,
+        trace: TraceRecorder | None = None,
     ) -> CriticArtifacts:
         """执行完整流水线，并额外返回富化轨迹和离散事件供调试审计。"""
 
-        # Planner 必须先于问题图执行；后续所有阶段共享同一个 resolved_request，避免
-        # 模板图、规则、力学模块和插件看到互相矛盾的计划版本。
+        if trace is not None:
+            trace.update_metadata(
+                modules={
+                    "question_graph": self.config.question_graph.enabled,
+                    "checklist": self.config.checklist.enabled,
+                    "mechanics": self.config.mechanics.enabled,
+                },
+                fusion={
+                    "detector_weight": self.config.fusion.detector_weight,
+                    "vlm_weight": self.config.fusion.vlm_weight,
+                    "physical_score_threshold": self.config.fusion.physical_score_threshold,
+                    "minimum_coverage": self.config.fusion.minimum_coverage,
+                },
+            )
+        with _trace_node(
+            trace,
+            "request",
+            label="输入请求",
+            source_nodes=(),
+            inputs=lambda: summarize_request(request),
+        ) as stage:
+            if stage is not None:
+                stage.complete(outputs={"accepted": True})
+
         provider_failures: list[dict[str, object]] = []
         floor_geometry_calibrated = floor_y is not None
-        resolution = self.physics_plan_resolver.resolve(request)
-        resolved_request = replace(request, physics_plan=resolution.plan)
-        request = resolved_request
-        if resolution.provider_failure is not None:
-            provider_failures.append(resolution.provider_failure)
+        with _trace_node(
+            trace,
+            "physics_planner",
+            label="Physics Planner",
+            source_nodes=("request",),
+            inputs=lambda: {
+                "prompt": request.prompt,
+                "partial_plan": summarize_plan(request.physics_plan),
+            },
+        ) as stage:
+            resolution = self.physics_plan_resolver.resolve(request)
+            resolved_request = replace(request, physics_plan=resolution.plan)
+            request = resolved_request
+            if resolution.provider_failure is not None:
+                provider_failures.append(resolution.provider_failure)
+            if stage is not None:
+                outputs = summarize_plan(resolution.plan)
+                if resolution.provider_failure is not None:
+                    stage.degrade(
+                        outputs=outputs,
+                        warnings=(_failure_warning(resolution.provider_failure),),
+                    )
+                else:
+                    stage.complete(outputs=outputs)
 
-        # 问题图仅依赖已解析请求，可与视频解码并行；当前同步实现先生成图以便尽早发现
-        # 非法外部 QG 输出。关闭图层时保持原 1.0 规则流水线行为。
         if self.config.question_graph.enabled:
-            try:
-                question_graph = self.question_graph_generator.generate(request)
-            except _OPTIONAL_PROVIDER_ERRORS as exc:
-                if not self.question_model_enabled:
-                    raise
-                question_graph = self.template_question_graph_generator.generate(request)
-                provider_failures.append(_provider_failure("question_graph", exc))
+            with _trace_node(
+                trace,
+                "question_graph",
+                label="问题图生成",
+                source_nodes=("physics_planner",),
+                inputs=lambda: summarize_plan(request.physics_plan),
+            ) as stage:
+                graph_failure = None
+                try:
+                    question_graph = self.question_graph_generator.generate(request)
+                except _OPTIONAL_PROVIDER_ERRORS as exc:
+                    if not self.question_model_enabled:
+                        raise
+                    question_graph = self.template_question_graph_generator.generate(request)
+                    graph_failure = _provider_failure("question_graph", exc)
+                    provider_failures.append(graph_failure)
+                if stage is not None:
+                    outputs = summarize_graph(question_graph)
+                    if graph_failure is not None:
+                        stage.degrade(
+                            outputs=outputs,
+                            warnings=(_failure_warning(graph_failure),),
+                        )
+                    else:
+                        stage.complete(outputs=outputs)
         else:
             question_graph = None
-        if observations is None:
-            # 视频路径会同时推断画面高度对应的地面像素坐标。
-            states, inferred_floor = self._observe_video(request.video_path)
-            floor_y = inferred_floor if floor_y is None else floor_y
-        else:
-            # 立即物化迭代器，避免后续多个阶段读取时数据已经被消费。
-            states = tuple(observations)
+            if trace is not None:
+                trace.record_skipped(
+                    "question_graph",
+                    label="问题图生成",
+                    source_nodes=("physics_planner",),
+                    inputs=summarize_plan(request.physics_plan),
+                    reason="disabled_by_config",
+                )
 
-        # 以下阶段保持显式顺序，每个中间对象均可序列化并在 artifacts 中审计。
-        tracks = self.trajectory.extract(states, floor_y=floor_y)
-        events = self.event_detector.detect(tracks)
+        observation_source = (
+            "video_detector" if observations is None else "provided_observations"
+        )
+        with _trace_node(
+            trace,
+            "video_observation",
+            label="视频观测与跟踪",
+            source_nodes=("request",),
+            inputs={
+                "video_path": request.video_path,
+                "source": observation_source,
+                "detector": type(self.detector).__name__,
+            },
+        ) as stage:
+            if observations is None:
+                states, inferred_floor = self._observe_video(request.video_path)
+                floor_y = inferred_floor if floor_y is None else floor_y
+            else:
+                states = tuple(observations)
+            if stage is not None:
+                stage.complete(
+                    outputs={
+                        **summarize_states(states),
+                        "source": observation_source,
+                        "detector": type(self.detector).__name__,
+                        "floor_y": floor_y,
+                    }
+                )
+
+        with _trace_node(
+            trace,
+            "trajectory",
+            label="轨迹提取",
+            source_nodes=("video_observation",),
+            inputs=lambda: {**summarize_states(states), "floor_y": floor_y},
+        ) as stage:
+            tracks = self.trajectory.extract(states, floor_y=floor_y)
+            if stage is not None:
+                stage.complete(outputs=summarize_tracks(tracks))
+
+        with _trace_node(
+            trace,
+            "event_detection",
+            label="事件检测",
+            source_nodes=("trajectory",),
+            inputs=lambda: summarize_tracks(tracks),
+        ) as stage:
+            events = self.event_detector.detect(tracks)
+            if stage is not None:
+                stage.complete(outputs=summarize_events(events))
+
         if self.config.mechanics.enabled:
-            mechanics_results, mechanics_summary = self.mechanics.evaluate(
-                request=request,
-                tracks=tracks,
-                events=events,
-            )
+            with _trace_node(
+                trace,
+                "mechanics",
+                label="Morpheus 力学",
+                source_nodes=("physics_planner", "trajectory", "event_detection"),
+                inputs=lambda: {
+                    "plan": summarize_plan(request.physics_plan),
+                    **summarize_tracks(tracks),
+                    **summarize_events(events),
+                },
+            ) as stage:
+                mechanics_results, mechanics_summary = self.mechanics.evaluate(
+                    request=request,
+                    tracks=tracks,
+                    events=events,
+                )
+                if stage is not None:
+                    stage.complete(
+                        outputs=summarize_mechanics(
+                            mechanics_results, mechanics_summary
+                        )
+                    )
         else:
             mechanics_results, mechanics_summary = (), None
-        context = RuleContext(
-            request=request,
-            tracks=tracks,
-            events=events,
-            floor_geometry_calibrated=floor_geometry_calibrated,
-        )
-        raw_candidates = self.rule_engine.evaluate(context)
-        localized_candidates = tuple(
-            self.localizer.localize(item, events) for item in raw_candidates
-        )
-        if isinstance(self.vlm_verifier, NoOpVLMVerifier):
-            candidates = localized_candidates
-        else:
-            candidates = tuple(
-                with_track_evidence(candidate, tracks)
-                for candidate in localized_candidates
-            )
+            if trace is not None:
+                trace.record_skipped(
+                    "mechanics",
+                    label="Morpheus 力学",
+                    source_nodes=("physics_planner", "trajectory", "event_detection"),
+                    inputs={"event_count": len(events), "track_count": len(tracks)},
+                    reason="disabled_by_config",
+                )
 
-        visual_evidence = tuple(
-            evidence
-            for extractor in self.visual_evidence_extractors
-            for evidence in extractor.extract(request, tracks, events)
-        )
-
-        if self.config.checklist.enabled:
-            checklist_results, checklist_summary = self.checklist.evaluate(
+        with _trace_node(
+            trace,
+            "rule_engine",
+            label="确定性规则引擎",
+            source_nodes=("physics_planner", "trajectory", "event_detection"),
+            inputs=lambda: {
+                "plan": summarize_plan(request.physics_plan),
+                "track_count": len(tracks),
+                "event_count": len(events),
+                "floor_geometry_calibrated": floor_geometry_calibrated,
+            },
+        ) as stage:
+            context = RuleContext(
                 request=request,
                 tracks=tracks,
                 events=events,
-                candidates=candidates,
-                external_evidence=visual_evidence,
+                floor_geometry_calibrated=floor_geometry_calibrated,
             )
-        else:
-            checklist_results, checklist_summary = (), None
+            raw_candidates = self.rule_engine.evaluate(context)
+            if stage is not None:
+                stage.complete(outputs=summarize_candidates(raw_candidates))
 
-        # 用候选索引关联关键帧与 VLM 结果，支持同对象同类别出现多个异常区间。
-        keyframes = {
-            index: self.keyframe_selector.select(candidate, tracks)
-            for index, candidate in enumerate(candidates)
-        }
+        with _trace_node(
+            trace,
+            "temporal_localization",
+            label="候选定位与轨迹证据",
+            source_nodes=("rule_engine", "event_detection", "trajectory"),
+            inputs=lambda: summarize_candidates(raw_candidates),
+        ) as stage:
+            localized_candidates = tuple(
+                self.localizer.localize(item, events) for item in raw_candidates
+            )
+            if isinstance(self.vlm_verifier, NoOpVLMVerifier):
+                candidates = localized_candidates
+            else:
+                candidates = tuple(
+                    with_track_evidence(candidate, tracks)
+                    for candidate in localized_candidates
+                )
+            if stage is not None:
+                stage.complete(outputs=summarize_candidates(candidates))
 
-        if question_graph is not None:
-            # 第一阶段节点验证复用同一批轨迹、事件、规则候选和关键帧，不重复运行视觉
-            # 前端。节点结果在融合后附加到报告，不改变原有最强违规风险的判定语义。
-            node_results = self.question_executor.execute(
-                question_graph,
-                QuestionExecutionContext(
+        with _trace_node(
+            trace,
+            "visual_evidence",
+            label="外部视觉证据",
+            source_nodes=("trajectory", "event_detection"),
+            inputs={"extractor_count": len(self.visual_evidence_extractors)},
+        ) as stage:
+            visual_evidence = tuple(
+                evidence
+                for extractor in self.visual_evidence_extractors
+                for evidence in extractor.extract(request, tracks, events)
+            )
+            if stage is not None:
+                stage.complete(
+                    outputs={
+                        "evidence_count": len(visual_evidence),
+                        "dimensions": sorted(
+                            {
+                                str(getattr(item, "dimension", ""))
+                                for item in visual_evidence
+                            }
+                        ),
+                        "sources": sorted(
+                            {
+                                str(getattr(item, "source", ""))
+                                for item in visual_evidence
+                            }
+                        ),
+                    }
+                )
+
+        if self.config.checklist.enabled:
+            with _trace_node(
+                trace,
+                "checklist",
+                label="VideoScience Checklist",
+                source_nodes=(
+                    "physics_planner",
+                    "trajectory",
+                    "event_detection",
+                    "temporal_localization",
+                    "visual_evidence",
+                ),
+                inputs={
+                    "track_count": len(tracks),
+                    "event_count": len(events),
+                    "candidate_count": len(candidates),
+                    "external_evidence_count": len(visual_evidence),
+                },
+            ) as stage:
+                checklist_results, checklist_summary = self.checklist.evaluate(
+                    request=request,
                     tracks=tracks,
                     events=events,
                     candidates=candidates,
-                    candidate_keyframes=keyframes,
+                    external_evidence=visual_evidence,
+                )
+                if stage is not None:
+                    stage.complete(
+                        outputs=summarize_checklist(
+                            checklist_results, checklist_summary
+                        )
+                    )
+        else:
+            checklist_results, checklist_summary = (), None
+            if trace is not None:
+                trace.record_skipped(
+                    "checklist",
+                    label="VideoScience Checklist",
+                    source_nodes=("trajectory", "event_detection"),
+                    inputs={
+                        "track_count": len(tracks),
+                        "event_count": len(events),
+                    },
+                    reason="disabled_by_config",
+                )
+
+        with _trace_node(
+            trace,
+            "keyframe_selection",
+            label="关键帧选择",
+            source_nodes=("temporal_localization", "trajectory"),
+            inputs={
+                "candidate_count": len(candidates),
+                "track_count": len(tracks),
+            },
+        ) as stage:
+            keyframes = {
+                index: self.keyframe_selector.select(candidate, tracks)
+                for index, candidate in enumerate(candidates)
+            }
+            if stage is not None:
+                stage.complete(outputs=summarize_keyframes(keyframes))
+
+        pqsg_observations: list[tuple[object, object, object, object, float]] = []
+        if question_graph is not None:
+            with _trace_node(
+                trace,
+                "pqsg_execution",
+                label="PQSG 节点执行",
+                source_nodes=(
+                    "question_graph",
+                    "trajectory",
+                    "event_detection",
+                    "temporal_localization",
+                    "keyframe_selection",
                 ),
-            )
+                inputs=lambda: {
+                    **summarize_graph(question_graph),
+                    "track_count": len(tracks),
+                    "event_count": len(events),
+                    "candidate_count": len(candidates),
+                },
+            ) as stage:
+                def observe_node(node, parent_results, result, error, elapsed_ms):
+                    pqsg_observations.append(
+                        (node, parent_results, result, error, elapsed_ms)
+                    )
+
+                node_results = self.question_executor.execute(
+                    question_graph,
+                    QuestionExecutionContext(
+                        tracks=tracks,
+                        events=events,
+                        candidates=candidates,
+                        candidate_keyframes=keyframes,
+                    ),
+                    node_observer=observe_node if trace is not None else None,
+                )
+                if stage is not None:
+                    stage.complete(
+                        outputs={
+                            "node_count": len(node_results),
+                            "results": [
+                                summarize_node_result(result)
+                                for result in node_results
+                            ],
+                        }
+                    )
+            if trace is not None:
+                for node, parent_results, result, error, elapsed_ms in pqsg_observations:
+                    inputs = {
+                        "node": summarize_question_node(node),
+                        "parent_results": {
+                            parent_id: summarize_node_result(parent_result)
+                            for parent_id, parent_result in parent_results.items()
+                        },
+                    }
+                    node_id = f"pqsg_node.{node.id}"
+                    if error is not None:
+                        trace.record_error(
+                            node_id,
+                            label=f"PQSG {node.id}",
+                            parent_id="pqsg_execution",
+                            source_nodes=("pqsg_execution",),
+                            inputs=inputs,
+                            error=error,
+                            elapsed_ms=elapsed_ms,
+                        )
+                    else:
+                        trace.record_completed(
+                            node_id,
+                            label=f"PQSG {node.id}",
+                            parent_id="pqsg_execution",
+                            source_nodes=("pqsg_execution",),
+                            inputs=inputs,
+                            outputs=summarize_node_result(result),
+                            elapsed_ms=elapsed_ms,
+                        )
         else:
             node_results = ()
-
-        reviews = {}
-        verify_many = getattr(self.vlm_verifier, "verify_many", None)
-        if callable(verify_many) and candidates:
-            try:
-                batch_reviews = verify_many(request, candidates, keyframes)
-                reviews.update(
-                    {index: batch_reviews.get(index) for index in range(len(candidates))}
+            if trace is not None:
+                trace.record_skipped(
+                    "pqsg_execution",
+                    label="PQSG 节点执行",
+                    source_nodes=("question_graph",),
+                    inputs={"node_count": 0},
+                    reason="question_graph_disabled",
                 )
-            except _OPTIONAL_PROVIDER_ERRORS as exc:
-                reviews.update({index: None for index in range(len(candidates))})
-                failure = _provider_failure("vlm_review_batch", exc)
-                failure["candidate_count"] = len(candidates)
-                provider_failures.append(failure)
+
+        reviews: dict[int, object] = {}
+        if not candidates:
+            if trace is not None:
+                trace.record_skipped(
+                    "vlm_verification",
+                    label="VLM 候选复核",
+                    source_nodes=("temporal_localization", "keyframe_selection"),
+                    inputs={"candidate_count": 0},
+                    reason="no_candidates",
+                )
         else:
-            for index, candidate in enumerate(candidates):
-                try:
-                    reviews[index] = self.vlm_verifier.verify(
-                        request, candidate, keyframes[index]
+            with _trace_node(
+                trace,
+                "vlm_verification",
+                label="VLM 候选复核",
+                source_nodes=("temporal_localization", "keyframe_selection"),
+                inputs=lambda: {
+                    **summarize_candidates(candidates),
+                    **summarize_keyframes(keyframes),
+                    "verifier": type(self.vlm_verifier).__name__,
+                },
+            ) as stage:
+                failures_before = len(provider_failures)
+                verify_many = getattr(self.vlm_verifier, "verify_many", None)
+                if callable(verify_many):
+                    try:
+                        batch_reviews = verify_many(request, candidates, keyframes)
+                        reviews.update(
+                            {
+                                index: batch_reviews.get(index)
+                                for index in range(len(candidates))
+                            }
+                        )
+                    except _OPTIONAL_PROVIDER_ERRORS as exc:
+                        reviews.update(
+                            {index: None for index in range(len(candidates))}
+                        )
+                        failure = _provider_failure("vlm_review_batch", exc)
+                        failure["candidate_count"] = len(candidates)
+                        provider_failures.append(failure)
+                else:
+                    for index, candidate in enumerate(candidates):
+                        try:
+                            reviews[index] = self.vlm_verifier.verify(
+                                request, candidate, keyframes[index]
+                            )
+                        except _OPTIONAL_PROVIDER_ERRORS as exc:
+                            reviews[index] = None
+                            failure = _provider_failure("vlm_review", exc)
+                            failure["candidate_index"] = index
+                            failure["category"] = candidate.category
+                            provider_failures.append(failure)
+                if stage is not None:
+                    outputs = summarize_reviews(candidates, reviews)
+                    if len(provider_failures) > failures_before:
+                        stage.degrade(
+                            outputs=outputs,
+                            warnings=tuple(
+                                _failure_warning(item)
+                                for item in provider_failures[failures_before:]
+                            ),
+                        )
+                    else:
+                        stage.complete(outputs=outputs)
+
+        with _trace_node(
+            trace,
+            "candidate_fusion",
+            label="候选规则/VLM 融合",
+            source_nodes=("temporal_localization", "vlm_verification"),
+            inputs=lambda: {
+                **summarize_candidates(candidates),
+                **summarize_reviews(candidates, reviews),
+                "detector_weight": self.config.fusion.detector_weight,
+                "vlm_weight": self.config.fusion.vlm_weight,
+                "violation_threshold": self.config.fusion.violation_threshold,
+            },
+        ) as stage:
+            report = self.fusion.fuse(candidates, keyframes, reviews)
+            if stage is not None:
+                candidate_rows = []
+                for index, candidate in enumerate(candidates):
+                    review = reviews.get(index)
+                    retained = any(
+                        violation.object == candidate.object
+                        and violation.category == candidate.category
+                        and violation.start_frame == candidate.start_frame
+                        and violation.peak_frame == candidate.peak_frame
+                        and violation.end_frame == candidate.end_frame
+                        for violation in report.violations
                     )
-                except _OPTIONAL_PROVIDER_ERRORS as exc:
-                    reviews[index] = None
-                    failure = _provider_failure("vlm_review", exc)
-                    failure["candidate_index"] = index
-                    failure["category"] = candidate.category
-                    provider_failures.append(failure)
-        report = self.fusion.fuse(candidates, keyframes, reviews)
+                    candidate_rows.append(
+                        {
+                            "index": index,
+                            "category": candidate.category,
+                            "detector_score": candidate.detector_score,
+                            "review_status": "unavailable"
+                            if review is None
+                            else review.claim_status,
+                            "review_score": None if review is None else review.score,
+                            "retained": retained,
+                        }
+                    )
+                stage.complete(
+                    outputs={
+                        "candidates": candidate_rows,
+                        "report": summarize_report(report),
+                    }
+                )
+
         if question_graph is not None:
-            report = self.question_scorer.enrich_report(
-                report,
-                question_graph,
-                node_results,
+            with _trace_node(
+                trace,
+                "question_scoring",
+                label="PQSG 图评分",
+                source_nodes=("candidate_fusion", "pqsg_execution"),
+                inputs=lambda: {
+                    "node_count": len(node_results),
+                    "results": [
+                        summarize_node_result(result) for result in node_results
+                    ],
+                    "pre_score": summarize_report(report),
+                },
+            ) as stage:
+                report = self.question_scorer.enrich_report(
+                    report,
+                    question_graph,
+                    node_results,
+                )
+                if stage is not None:
+                    stage.complete(
+                        outputs={
+                            "report": summarize_report(report),
+                            "graph_evaluation": None
+                            if report.graph_evaluation is None
+                            else {
+                                "physics_plausibility_score": report.graph_evaluation.physics_plausibility_score,
+                                "prompt_fulfillment_score": report.graph_evaluation.prompt_fulfillment_score,
+                                "physics_coverage": report.graph_evaluation.physics_coverage,
+                            },
+                        }
+                    )
+        elif trace is not None:
+            trace.record_skipped(
+                "question_scoring",
+                label="PQSG 图评分",
+                source_nodes=("candidate_fusion", "pqsg_execution"),
+                inputs={"node_count": 0},
+                reason="question_graph_disabled",
             )
+
         diagnostics = dict(report.diagnostics)
         metadata = request.physics_plan.planner_metadata
         diagnostics["planner"] = {
@@ -338,20 +775,60 @@ class PhysicsCritic:
             "confidence": report.confidence,
             "coverage": report.coverage,
         }
-        report = self.evidence_fusion.enrich(
-            report,
-            tracks=tracks,
-            candidates=candidates,
-            reviews=reviews,
-            checklist_summary=checklist_summary,
-            mechanics_summary=mechanics_summary,
-        )
-        diagnostics = dict(report.diagnostics)
-        diagnostics["pre_evidence_fusion"] = pre_evidence_fusion
-        diagnostics["hard_violation_override"] = hard_violation_override_applied(
-            report, self.config.fusion
-        )
-        report = replace(report, diagnostics=diagnostics)
+        with _trace_node(
+            trace,
+            "evidence_fusion",
+            label="覆盖感知证据融合",
+            source_nodes=(
+                "candidate_fusion",
+                "question_scoring",
+                "checklist",
+                "mechanics",
+                "vlm_verification",
+            ),
+            inputs=lambda: {
+                "pre_fusion_report": summarize_report(report),
+                "track_count": len(tracks),
+                "candidate_count": len(candidates),
+            },
+        ) as stage:
+            report = self.evidence_fusion.enrich(
+                report,
+                tracks=tracks,
+                candidates=candidates,
+                reviews=reviews,
+                checklist_summary=checklist_summary,
+                mechanics_summary=mechanics_summary,
+            )
+            diagnostics = dict(report.diagnostics)
+            diagnostics["pre_evidence_fusion"] = pre_evidence_fusion
+            diagnostics["hard_violation_override"] = hard_violation_override_applied(
+                report, self.config.fusion
+            )
+            report = replace(report, diagnostics=diagnostics)
+            if stage is not None:
+                stage.complete(
+                    outputs=build_fusion_audit(self.config.fusion, report)
+                )
+
+        with _trace_node(
+            trace,
+            "final_report",
+            label="最终 Critic 报告",
+            source_nodes=("evidence_fusion",),
+            inputs={"schema_version": report.schema_version},
+        ) as stage:
+            if stage is not None:
+                stage.complete(outputs=summarize_report(report))
+        if trace is not None:
+            trace.set_outcome(
+                {
+                    "status": "completed",
+                    "decision": report.decision,
+                    "physics_score": report.physics_score,
+                }
+            )
+
         return CriticArtifacts(
             report=report,
             tracks=tracks,
@@ -436,6 +913,35 @@ class PhysicsCritic:
                 "inject an ObjectDetector when constructing PhysicsCritic."
             )
         return ColorBlobDetector(self.config.detector)
+
+
+def _trace_node(
+    trace: TraceRecorder | None,
+    node_id: str,
+    *,
+    label: str,
+    source_nodes: tuple[str, ...],
+    inputs: dict[str, object] | Callable[[], dict[str, object]],
+):
+    """Return a real trace context or a zero-cost null context."""
+
+    if trace is None:
+        return nullcontext(None)
+    resolved_inputs = inputs() if callable(inputs) else inputs
+    return trace.node(
+        node_id,
+        label=label,
+        source_nodes=source_nodes,
+        inputs=resolved_inputs,
+    )
+
+
+def _failure_warning(failure: dict[str, object]) -> str:
+    """Render one bounded provider failure without headers or request payloads."""
+
+    error_type = str(failure.get("error_type", "ProviderError"))
+    message = str(failure.get("message", ""))
+    return f"{error_type}: {message}"[:300]
 
 
 _OPTIONAL_PROVIDER_ERRORS = (

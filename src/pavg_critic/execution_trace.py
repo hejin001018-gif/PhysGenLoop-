@@ -391,7 +391,14 @@ class TraceRecorder:
         self._node_ids.add(node_id)
         self._records.append(record)
         if self._on_record is not None:
-            self._on_record(record.to_dict())
+            try:
+                self._on_record(record.to_dict())
+            except Exception as exc:
+                self._warnings.append(
+                    f"trace callback {type(exc).__name__}: {exc}"[
+                        :_ERROR_MESSAGE_LIMIT
+                    ]
+                )
 
 
 def _sanitize_error(error: Mapping[str, str]) -> dict[str, str]:
@@ -451,6 +458,255 @@ def _sanitize_collection(values: Sequence[object]) -> object:
         "preview": sanitized[:_COLLECTION_PREVIEW_LIMIT],
         "sha256": sha256(canonical).hexdigest(),
         "truncated": True,
+    }
+
+
+def summarize_request(request: object) -> dict[str, object]:
+    """Return the prompt-conditioned request fields needed for an audit."""
+
+    prompt = str(getattr(request, "prompt", ""))
+    plan = getattr(request, "physics_plan", None)
+    return {
+        "video_path": str(getattr(request, "video_path", "")),
+        "prompt": prompt,
+        "prompt_sha256": sha256(prompt.encode("utf-8")).hexdigest(),
+        "explicit_plan": summarize_plan(plan),
+    }
+
+
+def summarize_plan(plan: object | None) -> dict[str, object]:
+    if plan is None:
+        return {
+            "objects": [],
+            "expected_events": [],
+            "relation_count": 0,
+            "constraint_count": 0,
+            "source": "none",
+            "confidence": 0.0,
+            "fallback_used": False,
+            "model": None,
+        }
+    metadata = getattr(plan, "planner_metadata", None)
+    return {
+        "objects": list(getattr(plan, "objects", ())),
+        "expected_events": list(getattr(plan, "expected_events", ())),
+        "relation_count": len(getattr(plan, "relations", ())),
+        "constraint_count": len(getattr(plan, "physics_constraints", ())),
+        "source": str(getattr(metadata, "source", "unknown")),
+        "confidence": float(getattr(metadata, "confidence", 0.0)),
+        "fallback_used": bool(getattr(metadata, "fallback_used", False)),
+        "model": getattr(metadata, "model", None),
+    }
+
+
+def summarize_graph(graph: object | None) -> dict[str, object]:
+    if graph is None:
+        return {"source": None, "node_count": 0, "nodes": []}
+    nodes = tuple(getattr(graph, "nodes", ()))
+    return {
+        "source": str(getattr(graph, "source", "unknown")),
+        "node_count": len(nodes),
+        "nodes": [summarize_question_node(node) for node in nodes],
+    }
+
+
+def summarize_question_node(node: object) -> dict[str, object]:
+    return {
+        "id": str(getattr(node, "id", "")),
+        "category": str(getattr(node, "category", "")),
+        "question": str(getattr(node, "question", "")),
+        "parent_ids": list(getattr(node, "parent_ids", ())),
+        "target_objects": list(getattr(node, "target_objects", ())),
+        "expected_events": list(getattr(node, "expected_events", ())),
+        "rule_ids": list(getattr(node, "rule_ids", ())),
+    }
+
+
+def summarize_states(states: Sequence[object]) -> dict[str, object]:
+    frames = sorted({int(getattr(state, "frame", 0)) for state in states})
+    objects = sorted({str(getattr(state, "object", "")) for state in states})
+    return {
+        "state_count": len(states),
+        "frame_count": len(frames),
+        "frame_range": [] if not frames else [frames[0], frames[-1]],
+        "objects": objects,
+        "visible_state_count": sum(bool(getattr(state, "visible", False)) for state in states),
+    }
+
+
+def summarize_tracks(tracks: Sequence[object]) -> dict[str, object]:
+    return {
+        "track_count": len(tracks),
+        "tracks": [
+            {
+                "track_id": str(getattr(track, "track_id", "")),
+                "object": str(getattr(track, "object", "")),
+                "state_count": len(getattr(track, "states", ())),
+                "visible_state_count": sum(
+                    bool(getattr(state, "visible", False))
+                    for state in getattr(track, "states", ())
+                ),
+            }
+            for track in tracks
+        ],
+    }
+
+
+def summarize_events(events: Sequence[object]) -> dict[str, object]:
+    return {
+        "event_count": len(events),
+        "events": [
+            {
+                "event_type": str(getattr(event, "event_type", "")),
+                "object": str(getattr(event, "object", "")),
+                "track_id": str(getattr(event, "track_id", "")),
+                "start_frame": int(getattr(event, "start_frame", 0)),
+                "peak_frame": int(getattr(event, "peak_frame", 0)),
+                "end_frame": int(getattr(event, "end_frame", 0)),
+                "confidence": float(getattr(event, "confidence", 0.0)),
+            }
+            for event in events
+        ],
+    }
+
+
+def summarize_candidates(candidates: Sequence[object]) -> dict[str, object]:
+    return {
+        "candidate_count": len(candidates),
+        "candidates": [
+            {
+                "index": index,
+                "object": str(getattr(candidate, "object", "")),
+                "track_id": str(getattr(candidate, "track_id", "")),
+                "category": str(getattr(candidate, "category", "")),
+                "start_frame": int(getattr(candidate, "start_frame", 0)),
+                "peak_frame": int(getattr(candidate, "peak_frame", 0)),
+                "end_frame": int(getattr(candidate, "end_frame", 0)),
+                "detector_score": float(getattr(candidate, "detector_score", 0.0)),
+                "evidence_frames": list(getattr(candidate, "evidence_frames", ())),
+            }
+            for index, candidate in enumerate(candidates)
+        ],
+    }
+
+
+def summarize_mechanics(
+    results: Sequence[object], summary: object | None
+) -> dict[str, object]:
+    return {
+        "result_count": len(results),
+        "results": [
+            {
+                "evaluator": str(getattr(result, "evaluator", "")),
+                "applicability": str(getattr(result, "applicability", "")),
+                "score": getattr(result, "score", None),
+                "is_plausible": getattr(result, "is_plausible", None),
+                "reason": str(getattr(result, "reason", "")),
+            }
+            for result in results
+        ],
+        "summary": None
+        if summary is None
+        else {
+            "score": getattr(summary, "score", None),
+            "coverage": float(getattr(summary, "coverage", 0.0)),
+            "applicable": int(getattr(summary, "applicable", 0)),
+            "not_applicable": int(getattr(summary, "not_applicable", 0)),
+            "failed": int(getattr(summary, "failed", 0)),
+        },
+    }
+
+
+def summarize_checklist(
+    results: Sequence[object], summary: object | None
+) -> dict[str, object]:
+    return {
+        "dimension_count": len(results),
+        "dimensions": [
+            {
+                "dimension": str(getattr(result, "dimension", "")),
+                "status": str(getattr(result, "status", "")),
+                "score": getattr(result, "score", None),
+                "confidence": float(getattr(result, "confidence", 0.0)),
+                "reason": str(getattr(result, "reason", "")),
+                "critical_frames": list(getattr(result, "critical_frames", ())),
+            }
+            for result in results
+        ],
+        "summary": None
+        if summary is None
+        else {
+            "score": getattr(summary, "score", None),
+            "coverage": float(getattr(summary, "coverage", 0.0)),
+            "passed": int(getattr(summary, "passed", 0)),
+            "failed": int(getattr(summary, "failed", 0)),
+            "unknown": int(getattr(summary, "unknown", 0)),
+        },
+    }
+
+
+def summarize_keyframes(keyframes: Mapping[int, Sequence[int]]) -> dict[str, object]:
+    return {
+        "candidate_count": len(keyframes),
+        "candidate_keyframes": [
+            {"index": int(index), "frames": [int(frame) for frame in frames]}
+            for index, frames in sorted(keyframes.items())
+        ],
+    }
+
+
+def summarize_node_result(result: object) -> dict[str, object]:
+    return {
+        "node_id": str(getattr(result, "node_id", "")),
+        "category": str(getattr(result, "category", "")),
+        "status": str(getattr(result, "status", "")),
+        "direct_score": getattr(result, "direct_score", None),
+        "confidence": float(getattr(result, "confidence", 0.0)),
+        "reason": str(getattr(result, "reason", "")),
+        "verifier": str(getattr(result, "verifier", "")),
+        "critical_frames": list(getattr(result, "critical_frames", ())),
+        "blocked_by": list(getattr(result, "blocked_by", ())),
+    }
+
+
+def summarize_reviews(
+    candidates: Sequence[object], reviews: Mapping[int, object | None]
+) -> dict[str, object]:
+    rows = []
+    for index, candidate in enumerate(candidates):
+        review = reviews.get(index)
+        rows.append(
+            {
+                "index": index,
+                "category": str(getattr(candidate, "category", "")),
+                "key": f"{getattr(candidate, 'track_id', '')}:{index}",
+                "review_status": "unavailable"
+                if review is None
+                else str(getattr(review, "claim_status", "uncertain")),
+                "score": None if review is None else float(getattr(review, "score", 0.0)),
+                "model": None if review is None else str(getattr(review, "model", "")),
+                "reason": None if review is None else str(getattr(review, "reason", "")),
+            }
+        )
+    return {"review_count": sum(reviews.get(i) is not None for i in range(len(candidates))), "reviews": rows}
+
+
+def summarize_report(report: object) -> dict[str, object]:
+    return {
+        "decision": str(getattr(report, "decision", "unknown")),
+        "physics_score": float(getattr(report, "physics_score", 0.0)),
+        "confidence": float(getattr(report, "confidence", 0.0)),
+        "coverage": float(getattr(report, "coverage", 0.0)),
+        "violations": [
+            {
+                "object": str(getattr(item, "object", "")),
+                "category": str(getattr(item, "category", "")),
+                "start_frame": int(getattr(item, "start_frame", 0)),
+                "peak_frame": int(getattr(item, "peak_frame", 0)),
+                "end_frame": int(getattr(item, "end_frame", 0)),
+            }
+            for item in getattr(report, "violations", ())
+        ],
     }
 
 
@@ -643,6 +899,29 @@ def validate_trace(
         "graph.error_terminal",
         no_completion_after_error,
         "no completed stage may follow an error stage",
+    )
+    question_graph_node = next(
+        (node for node in node_maps if node.get("node_id") == "question_graph"),
+        None,
+    )
+    expected_pqsg_ids: set[str] = set()
+    if question_graph_node is not None and isinstance(
+        question_graph_node.get("outputs"), Mapping
+    ):
+        graph_nodes = question_graph_node["outputs"].get("nodes", [])
+        if isinstance(graph_nodes, list):
+            expected_pqsg_ids = {
+                f"pqsg_node.{item.get('id')}"
+                for item in graph_nodes
+                if isinstance(item, Mapping) and item.get("id")
+            }
+    actual_pqsg_ids = {
+        node_id for node_id in node_ids if node_id.startswith("pqsg_node.")
+    }
+    add(
+        "pqsg.node_coverage",
+        expected_pqsg_ids == actual_pqsg_ids,
+        "every generated question-graph node must have exactly one child trace",
     )
     sensitive_path = _find_sensitive_path(document)
     add(
