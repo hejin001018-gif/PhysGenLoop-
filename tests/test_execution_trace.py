@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from pavg_critic.execution_trace import TraceRecorder, TraceSafetyError
+from pavg_critic.config import CriticConfig
+from pavg_critic.execution_trace import (
+    TraceRecorder,
+    TraceSafetyError,
+    build_fusion_audit,
+    validate_trace,
+)
+from pavg_critic.schemas import CriticReport, EvidenceBundle, Violation
 
 
 def test_recorder_preserves_order_status_dependencies_and_elapsed_time():
@@ -145,3 +152,215 @@ def test_large_collection_has_bounded_preview_and_digest():
     assert len(frames["sha256"]) == 64
     assert frames["truncated"] is True
 
+
+def _missing_bundle(family: str) -> EvidenceBundle:
+    return EvidenceBundle(
+        family=family,
+        source=f"{family}_source",
+        status="not_applicable",
+        score=None,
+        confidence=0.0,
+        coverage=0.0,
+    )
+
+
+def _physical_report() -> CriticReport:
+    return CriticReport(
+        is_physical=True,
+        decision="physical",
+        physics_score=0.914894,
+        confidence=0.282,
+        coverage=0.4,
+        evidence_bundles=(
+            EvidenceBundle(
+                family="rules",
+                source="deterministic_rules",
+                status="available",
+                score=1.0,
+                coverage=0.8,
+                confidence=0.75,
+            ),
+            _missing_bundle("pqsg"),
+            EvidenceBundle(
+                family="checklist",
+                source="video_science_checklist",
+                status="available",
+                score=2 / 3,
+                coverage=0.6,
+                confidence=0.6,
+            ),
+            _missing_bundle("mechanics"),
+            _missing_bundle("vlm"),
+        ),
+    )
+
+
+def test_fusion_audit_recomputes_effective_weights_and_score():
+    report = _physical_report()
+
+    audit = build_fusion_audit(CriticConfig().fusion, report)
+
+    families = {row["family"]: row for row in audit["families"]}
+    assert families["rules"]["effective_weight"] == pytest.approx(0.21)
+    assert families["rules"]["weighted_contribution"] == pytest.approx(0.21)
+    assert families["checklist"]["effective_weight"] == pytest.approx(0.072)
+    assert audit["total_effective_weight"] == pytest.approx(0.282)
+    assert audit["score_before_hard_violation"] == pytest.approx(0.914893617)
+    assert audit["weighted_coverage"] == pytest.approx(0.4)
+    assert audit["final_score"] == pytest.approx(report.physics_score)
+    assert audit["final_confidence"] == pytest.approx(report.confidence)
+    assert audit["final_decision"] == "physical"
+    assert audit["hard_violation"] is False
+
+
+def test_fusion_audit_caps_score_when_hard_violation_is_retained():
+    supporting = tuple(
+        EvidenceBundle(
+            family=family,
+            source=f"{family}_source",
+            status="available",
+            score=0.9,
+            confidence=1.0,
+            coverage=1.0,
+        )
+        for family in ("rules", "pqsg", "checklist", "mechanics", "vlm")
+    )
+    violation = Violation(
+        object="ball",
+        category="object_disappearance",
+        start_frame=1,
+        peak_frame=2,
+        end_frame=3,
+        critical_frames=(1, 2, 3),
+        reason="confirmed",
+        repair_instruction="keep visible",
+        evidence={},
+    )
+    report = CriticReport(
+        is_physical=False,
+        decision="violation",
+        physics_score=0.2,
+        confidence=0.8,
+        coverage=1.0,
+        violations=(violation,),
+        evidence_bundles=supporting,
+    )
+
+    audit = build_fusion_audit(CriticConfig().fusion, report)
+
+    assert audit["score_before_hard_violation"] == pytest.approx(0.9)
+    assert audit["hard_violation"] is True
+    assert audit["hard_violation_score_cap"] == pytest.approx(0.2)
+    assert audit["final_score"] == pytest.approx(0.2)
+    assert audit["final_decision"] == "violation"
+
+
+def _valid_trace_document() -> dict[str, object]:
+    recorder = TraceRecorder(
+        metadata={
+            "detector": {"backend": "sam2", "sam2_used": True},
+            "planner": {"source": "model"},
+            "provider_fallback_count": 0,
+        }
+    )
+    recorder.record_completed(
+        "request",
+        label="request",
+        source_nodes=(),
+        inputs={"prompt": "ball falls"},
+        outputs={"accepted": True},
+        elapsed_ms=0.0,
+    )
+    for node_id in (
+        "physics_planner",
+        "question_graph",
+        "video_observation",
+        "trajectory",
+        "event_detection",
+        "mechanics",
+        "rule_engine",
+        "temporal_localization",
+        "visual_evidence",
+        "checklist",
+        "keyframe_selection",
+        "pqsg_execution",
+        "vlm_verification",
+        "candidate_fusion",
+        "question_scoring",
+    ):
+        recorder.record_skipped(
+            node_id,
+            label=node_id,
+            source_nodes=(),
+            inputs={},
+            reason="fixture",
+        )
+    report = _physical_report()
+    recorder.record_completed(
+        "evidence_fusion",
+        label="evidence_fusion",
+        source_nodes=("candidate_fusion", "question_scoring"),
+        inputs={},
+        outputs=build_fusion_audit(CriticConfig().fusion, report),
+        elapsed_ms=0.0,
+    )
+    recorder.record_completed(
+        "final_report",
+        label="final_report",
+        source_nodes=("evidence_fusion",),
+        inputs={},
+        outputs={
+            "decision": report.decision,
+            "physics_score": report.physics_score,
+            "confidence": report.confidence,
+            "coverage": report.coverage,
+            "violations": [],
+        },
+        elapsed_ms=0.0,
+    )
+    recorder.set_outcome({"status": "completed", "decision": report.decision})
+    return recorder.to_dict()
+
+
+def test_validator_accepts_consistent_fusion_trace():
+    validation = validate_trace(_valid_trace_document())
+
+    assert validation.passed
+    assert all(check.passed for check in validation.checks if check.level == "error")
+
+
+def test_validator_fails_when_effective_weight_is_tampered():
+    trace = _valid_trace_document()
+    fusion = next(
+        node for node in trace["nodes"] if node["node_id"] == "evidence_fusion"
+    )
+    fusion["outputs"]["families"][0]["effective_weight"] += 0.1
+
+    validation = validate_trace(trace)
+
+    assert not validation.passed
+    assert any(
+        check.code == "fusion.effective_weight" and not check.passed
+        for check in validation.checks
+    )
+
+
+def test_validator_rejects_review_filtered_candidate_in_final_violations():
+    trace = _valid_trace_document()
+    candidate_fusion = next(
+        node for node in trace["nodes"] if node["node_id"] == "candidate_fusion"
+    )
+    candidate_fusion["status"] = "completed"
+    candidate_fusion["outputs"] = {
+        "candidates": [
+            {"index": 0, "review_status": "rejected", "retained": True}
+        ]
+    }
+
+    validation = validate_trace(trace)
+
+    assert not validation.passed
+    assert any(
+        check.code == "fusion.review_filter" and not check.passed
+        for check in validation.checks
+    )

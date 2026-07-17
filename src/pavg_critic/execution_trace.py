@@ -12,6 +12,9 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
+from .config import FusionConfig
+from .schemas import CriticReport, EVIDENCE_FAMILIES
+
 
 TRACE_SCHEMA_VERSION = "pavg-critic-trace/v1"
 TRACE_STATUSES = frozenset({"completed", "skipped", "degraded", "error"})
@@ -31,10 +34,68 @@ FORBIDDEN_TRACE_KEYS = frozenset(
 _COLLECTION_PREVIEW_LIMIT = 20
 _STRING_LIMIT = 2_000
 _ERROR_MESSAGE_LIMIT = 300
+_FIXED_STAGE_IDS = (
+    "request",
+    "physics_planner",
+    "question_graph",
+    "video_observation",
+    "trajectory",
+    "event_detection",
+    "mechanics",
+    "rule_engine",
+    "temporal_localization",
+    "visual_evidence",
+    "checklist",
+    "keyframe_selection",
+    "pqsg_execution",
+    "vlm_verification",
+    "candidate_fusion",
+    "question_scoring",
+    "evidence_fusion",
+    "final_report",
+)
 
 
 class TraceSafetyError(ValueError):
     """Raised when trace data could expose a secret or binary payload."""
+
+
+@dataclass(frozen=True)
+class TraceValidationPolicy:
+    """Optional strict requirements for one trace validation run."""
+
+    require_sam2: bool = False
+    require_model_planner: bool = False
+    fail_on_provider_fallback: bool = False
+
+
+@dataclass(frozen=True)
+class TraceValidationCheck:
+    """One independently evaluated trace invariant."""
+
+    code: str
+    level: str
+    passed: bool
+    message: str
+
+
+@dataclass(frozen=True)
+class TraceValidationReport:
+    """Complete validator output with stable check codes."""
+
+    checks: tuple[TraceValidationCheck, ...]
+
+    @property
+    def passed(self) -> bool:
+        return all(
+            check.passed for check in self.checks if check.level == "error"
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "passed": self.passed,
+            "checks": [asdict(check) for check in self.checks],
+        }
 
 
 @dataclass(frozen=True)
@@ -392,3 +453,399 @@ def _sanitize_collection(values: Sequence[object]) -> object:
         "truncated": True,
     }
 
+
+def build_fusion_audit(
+    config: FusionConfig,
+    report: CriticReport,
+) -> dict[str, object]:
+    """Expose and independently recompute every family-fusion arithmetic term."""
+
+    weights = {
+        "rules": config.rule_family_weight,
+        "pqsg": config.pqsg_family_weight,
+        "checklist": config.checklist_family_weight,
+        "mechanics": config.mechanics_family_weight,
+        "vlm": config.vlm_family_weight,
+    }
+    bundles = {bundle.family: bundle for bundle in report.evidence_bundles}
+    families: list[dict[str, object]] = []
+    total_effective = 0.0
+    total_contribution = 0.0
+    total_configured = sum(weights.values())
+    coverage_numerator = 0.0
+    available_count = 0
+    for family in EVIDENCE_FAMILIES:
+        configured_weight = weights[family]
+        bundle = bundles.get(family)
+        if bundle is None:
+            source = None
+            status = "unknown"
+            score = None
+            coverage = 0.0
+            confidence = 0.0
+        else:
+            source = bundle.source
+            status = bundle.status
+            score = bundle.score
+            coverage = bundle.coverage
+            confidence = bundle.confidence
+        coverage_numerator += configured_weight * coverage
+        if status == "available" and score is not None and configured_weight > 0:
+            effective_weight = configured_weight * coverage * confidence
+            weighted_contribution = score * effective_weight
+            available_count += 1
+        else:
+            effective_weight = 0.0
+            weighted_contribution = 0.0
+        total_effective += effective_weight
+        total_contribution += weighted_contribution
+        families.append(
+            {
+                "family": family,
+                "source": source,
+                "status": status,
+                "score": score,
+                "configured_weight": configured_weight,
+                "coverage": coverage,
+                "confidence": confidence,
+                "effective_weight": effective_weight,
+                "weighted_contribution": weighted_contribution,
+            }
+        )
+    score_before_hard = (
+        total_contribution / total_effective if total_effective else 0.5
+    )
+    weighted_coverage = (
+        coverage_numerator / total_configured if total_configured else 0.0
+    )
+    confidence_before_hard = (
+        total_effective / total_configured if total_configured else 0.0
+    )
+    if available_count == 0 or weighted_coverage < config.minimum_coverage:
+        decision_before_hard = "unknown"
+    elif score_before_hard < config.physical_score_threshold:
+        decision_before_hard = "violation"
+    else:
+        decision_before_hard = "physical"
+    hard_violation = bool(report.violations)
+    return {
+        "families": families,
+        "total_configured_weight": total_configured,
+        "total_effective_weight": total_effective,
+        "total_weighted_contribution": total_contribution,
+        "score_before_hard_violation": score_before_hard,
+        "confidence_before_hard_violation": confidence_before_hard,
+        "weighted_coverage": weighted_coverage,
+        "physical_score_threshold": config.physical_score_threshold,
+        "minimum_coverage": config.minimum_coverage,
+        "decision_before_hard_violation": decision_before_hard,
+        "hard_violation": hard_violation,
+        "hard_violation_count": len(report.violations),
+        "hard_violation_score_cap": report.physics_score if hard_violation else None,
+        "final_score": report.physics_score,
+        "final_confidence": report.confidence,
+        "final_coverage": report.coverage,
+        "final_decision": report.decision,
+    }
+
+
+def validate_trace(
+    document: Mapping[str, object],
+    *,
+    policy: TraceValidationPolicy = TraceValidationPolicy(),
+    tolerance: float = 1e-6,
+) -> TraceValidationReport:
+    """Independently validate trace structure, privacy and fusion arithmetic."""
+
+    checks: list[TraceValidationCheck] = []
+
+    def add(code: str, passed: bool, message: str, *, level: str = "error") -> None:
+        checks.append(
+            TraceValidationCheck(
+                code=code,
+                level=level,
+                passed=bool(passed),
+                message=message,
+            )
+        )
+
+    add(
+        "schema.version",
+        document.get("schema_version") == TRACE_SCHEMA_VERSION,
+        f"schema_version must be {TRACE_SCHEMA_VERSION}",
+    )
+    nodes_value = document.get("nodes")
+    nodes = nodes_value if isinstance(nodes_value, list) else []
+    add("schema.nodes", isinstance(nodes_value, list), "nodes must be an array")
+    node_maps = [node for node in nodes if isinstance(node, Mapping)]
+    add(
+        "schema.node_types",
+        len(node_maps) == len(nodes),
+        "every node must be an object",
+    )
+    node_ids = [str(node.get("node_id", "")) for node in node_maps]
+    sequences = [node.get("sequence") for node in node_maps]
+    add(
+        "graph.unique_nodes",
+        len(node_ids) == len(set(node_ids)) and all(node_ids),
+        "node IDs must be non-empty and unique",
+    )
+    add(
+        "graph.sequence",
+        sequences == list(range(1, len(sequences) + 1)),
+        "node sequence numbers must be contiguous and monotonic",
+    )
+    fixed = [node_id for node_id in node_ids if not node_id.startswith("pqsg_node.")]
+    add(
+        "graph.required_stages",
+        fixed == list(_FIXED_STAGE_IDS),
+        "fixed pipeline stages must be present in execution order",
+    )
+    position = {node_id: index for index, node_id in enumerate(node_ids)}
+    legal_references = True
+    for index, node in enumerate(node_maps):
+        references = list(node.get("source_nodes", []))
+        parent_id = node.get("parent_id")
+        if parent_id is not None:
+            references.append(parent_id)
+        if any(
+            str(reference) not in position or position[str(reference)] >= index
+            for reference in references
+        ):
+            legal_references = False
+            break
+    add(
+        "graph.references",
+        legal_references,
+        "parent and source nodes must reference earlier records",
+    )
+    skipped_reasons = all(
+        node.get("status") != "skipped"
+        or (
+            isinstance(node.get("outputs"), Mapping)
+            and bool(node["outputs"].get("reason"))
+        )
+        for node in node_maps
+    )
+    add(
+        "graph.skipped_reason",
+        skipped_reasons,
+        "every skipped node must declare a reason",
+    )
+    first_error = next(
+        (index for index, node in enumerate(node_maps) if node.get("status") == "error"),
+        None,
+    )
+    no_completion_after_error = first_error is None or not any(
+        node.get("status") == "completed" for node in node_maps[first_error + 1 :]
+    )
+    add(
+        "graph.error_terminal",
+        no_completion_after_error,
+        "no completed stage may follow an error stage",
+    )
+    sensitive_path = _find_sensitive_path(document)
+    add(
+        "privacy.forbidden_keys",
+        sensitive_path is None,
+        "trace contains no forbidden secret or raw-payload keys"
+        if sensitive_path is None
+        else f"forbidden trace field at {sensitive_path}",
+    )
+
+    metadata = document.get("metadata")
+    metadata = metadata if isinstance(metadata, Mapping) else {}
+    detector = metadata.get("detector")
+    detector = detector if isinstance(detector, Mapping) else {}
+    planner = metadata.get("planner")
+    planner = planner if isinstance(planner, Mapping) else {}
+    if policy.require_sam2:
+        add(
+            "policy.sam2",
+            detector.get("sam2_used") is True,
+            "strict policy requires SAM2",
+        )
+    if policy.require_model_planner:
+        add(
+            "policy.model_planner",
+            planner.get("source") == "model",
+            "strict policy requires a model Planner",
+        )
+    degraded = [node for node in node_maps if node.get("status") == "degraded"]
+    fallback_count = metadata.get("provider_fallback_count", 0)
+    if policy.fail_on_provider_fallback:
+        add(
+            "policy.provider_fallback",
+            not degraded and fallback_count == 0,
+            "strict policy forbids provider fallback",
+        )
+
+    fusion_node = next(
+        (node for node in node_maps if node.get("node_id") == "evidence_fusion"),
+        None,
+    )
+    final_node = next(
+        (node for node in node_maps if node.get("node_id") == "final_report"),
+        None,
+    )
+    if fusion_node is None or not isinstance(fusion_node.get("outputs"), Mapping):
+        add("fusion.present", False, "evidence_fusion outputs are required")
+    else:
+        add("fusion.present", True, "evidence_fusion outputs are present")
+        _validate_fusion_outputs(
+            fusion_node["outputs"],
+            final_node.get("outputs") if final_node is not None else None,
+            tolerance=tolerance,
+            add=add,
+        )
+
+    candidate_node = next(
+        (node for node in node_maps if node.get("node_id") == "candidate_fusion"),
+        None,
+    )
+    filtered_ok = True
+    if candidate_node is not None and isinstance(candidate_node.get("outputs"), Mapping):
+        candidates = candidate_node["outputs"].get("candidates", [])
+        if isinstance(candidates, list):
+            filtered_ok = not any(
+                isinstance(candidate, Mapping)
+                and candidate.get("review_status") in {"rejected", "uncertain"}
+                and candidate.get("retained") is True
+                for candidate in candidates
+            )
+    add(
+        "fusion.review_filter",
+        filtered_ok,
+        "rejected and uncertain VLM candidates must not be retained",
+    )
+    return TraceValidationReport(checks=tuple(checks))
+
+
+def _validate_fusion_outputs(
+    outputs: Mapping[str, object],
+    final_outputs: object,
+    *,
+    tolerance: float,
+    add: Callable[..., None],
+) -> None:
+    family_value = outputs.get("families")
+    families = family_value if isinstance(family_value, list) else []
+    add(
+        "fusion.families",
+        len(families) == len(EVIDENCE_FAMILIES),
+        "fusion must contain all five evidence families",
+    )
+    effective_ok = True
+    contribution_ok = True
+    calculated_effective = 0.0
+    calculated_contribution = 0.0
+    coverage_numerator = 0.0
+    total_configured = 0.0
+    for row in families:
+        if not isinstance(row, Mapping):
+            effective_ok = contribution_ok = False
+            continue
+        try:
+            configured = float(row["configured_weight"])
+            coverage = float(row["coverage"])
+            confidence = float(row["confidence"])
+            stored_effective = float(row["effective_weight"])
+            stored_contribution = float(row["weighted_contribution"])
+        except (KeyError, TypeError, ValueError):
+            effective_ok = contribution_ok = False
+            continue
+        total_configured += configured
+        coverage_numerator += configured * coverage
+        expected_effective = (
+            configured * coverage * confidence
+            if row.get("status") == "available" and row.get("score") is not None
+            else 0.0
+        )
+        score = 0.0 if row.get("score") is None else float(row["score"])
+        expected_contribution = score * expected_effective
+        effective_ok &= _close(stored_effective, expected_effective, tolerance)
+        contribution_ok &= _close(
+            stored_contribution, expected_contribution, tolerance
+        )
+        calculated_effective += expected_effective
+        calculated_contribution += expected_contribution
+    add(
+        "fusion.effective_weight",
+        effective_ok,
+        "effective weights equal configured_weight × coverage × confidence",
+    )
+    add(
+        "fusion.weighted_contribution",
+        contribution_ok,
+        "weighted contributions equal score × effective_weight",
+    )
+    expected_score = (
+        calculated_contribution / calculated_effective
+        if calculated_effective
+        else 0.5
+    )
+    expected_coverage = (
+        coverage_numerator / total_configured if total_configured else 0.0
+    )
+    aggregate_ok = all(
+        (
+            _close(outputs.get("total_effective_weight"), calculated_effective, tolerance),
+            _close(
+                outputs.get("total_weighted_contribution"),
+                calculated_contribution,
+                tolerance,
+            ),
+            _close(outputs.get("score_before_hard_violation"), expected_score, tolerance),
+            _close(outputs.get("weighted_coverage"), expected_coverage, tolerance),
+        )
+    )
+    add(
+        "fusion.aggregates",
+        aggregate_ok,
+        "fusion aggregate totals and pre-hard score are reproducible",
+    )
+    if isinstance(final_outputs, Mapping):
+        final_ok = (
+            outputs.get("final_decision") == final_outputs.get("decision")
+            and _close(
+                outputs.get("final_score"), final_outputs.get("physics_score"), tolerance
+            )
+            and _close(
+                outputs.get("final_confidence"), final_outputs.get("confidence"), tolerance
+            )
+            and _close(
+                outputs.get("final_coverage"), final_outputs.get("coverage"), tolerance
+            )
+        )
+    else:
+        final_ok = False
+    add(
+        "fusion.final_report",
+        final_ok,
+        "fusion final values match the public report",
+    )
+
+
+def _close(left: object, right: object, tolerance: float) -> bool:
+    try:
+        return math.isclose(float(left), float(right), abs_tol=tolerance, rel_tol=0.0)
+    except (TypeError, ValueError):
+        return False
+
+
+def _find_sensitive_path(value: object, path: str = "$") -> str | None:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            name = str(key)
+            child_path = f"{path}.{name}"
+            if name.lower() in FORBIDDEN_TRACE_KEYS:
+                return child_path
+            found = _find_sensitive_path(item, child_path)
+            if found is not None:
+                return found
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            found = _find_sensitive_path(item, f"{path}[{index}]")
+            if found is not None:
+                return found
+    return None
