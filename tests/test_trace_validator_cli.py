@@ -132,4 +132,3 @@ def test_validator_cli_returns_two_for_invalid_file(tmp_path, capsys):
 
     assert exit_code == 2
     assert "无法读取 trace" in capsys.readouterr().err
-
