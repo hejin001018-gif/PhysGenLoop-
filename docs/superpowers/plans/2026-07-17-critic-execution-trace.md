@@ -518,3 +518,43 @@ git status --short
 ```
 
 Require identical local/remote SHAs and a clean worktree. Return the commit SHA, test count, four-video result/trace paths, strict-validator outcomes and any remaining limitations.
+
+## Execution results
+
+### R1 — Design and implementation baseline
+
+- Design was approved in conversation and frozen in `docs/superpowers/specs/2026-07-17-critic-execution-trace-design.md`.
+- Implementation began from a clean `sy` checkout. The pre-change complete suite passed `340/340` in 8.79 seconds.
+- Recorder, fusion validator, PQSG observer, pipeline hooks, CLI, JSON Schema and audit hardening were implemented through explicit RED→GREEN cycles and committed separately.
+- Trace collection is optional and trace-only collection summaries are lazy; the untraced pipeline does not construct them.
+
+### R2 — Automated verification
+
+- Focused recorder/pipeline/CLI/schema tests passed after each task checkpoint.
+- The final complete suite passed `382/382` in 9.29 seconds before real-video acceptance.
+- `python -m compileall -q src examples tests` and `git diff --check` exited successfully.
+- One earlier complete-suite run produced a Windows `PermissionError` while an unrelated report test atomically renamed a directory containing the literal `<script>`. The other 19 report publication tests and a minimal `os.replace` probe passed; the unchanged failing test passed on immediate rerun, and the next complete suite passed. No benchmark/report source was modified.
+
+### R3 — Final-code real-video acceptance
+
+All runs used the repository SAM2.1 checkpoint, the configured `gpt-5-mini` model route and the final implementation. `.env` was not modified. Runtime artifacts remain ignored under `outputs/trace-validation/`.
+
+| Video | Final decision | Physics score | Coverage | Trace nodes | Planner constraints | Retained candidate indices |
+|---|---:|---:|---:|---:|---:|---|
+| `2n.mp4` | physical | 0.9463 | 0.6200 | 29 | 2 | none |
+| `1n.mp4` | violation | 0.1360 | 0.7500 | 31 | 2 | 6 |
+| `1y.mp4` | violation | 0.0769 | 0.7833 | 32 | 2 | 0, 3, 7, 8, 9, 12, 13 |
+| `29932d12f47258c3b75f98e25e643d2c.mp4` | physical | 0.8786 | 0.7600 | 26 | 1 | none |
+
+- Every trace reports `sam2_used=true`, Planner source `model` and provider fallback count `0`.
+- Every trace passed all 22 checks with `--require-sam2 --require-model-planner --fail-on-provider-fallback`.
+- The validator independently reproduced configured/effective weights, weighted contributions, score, coverage, confidence and final threshold/hard-violation decision.
+- No rejected or uncertain VLM candidate was retained as a public violation.
+
+### R4 — Auditability and safety decisions
+
+- Each fixed pipeline stage and every executed PQSG node records bounded inputs, outputs, status and elapsed time.
+- Planner output includes object, event, relation and physical-constraint semantics rather than counts alone.
+- Public violation evidence retains `candidate_index`, making candidate→keyframe→review→violation alignment unambiguous even for duplicate categories/time windows.
+- Forbidden trace fields cover exact and aliased API keys, authorization/request headers, access/refresh/bearer tokens, passwords, raw responses, images, masks and binary payloads.
+- Live rendering callback failure is isolated as a trace warning and cannot change Critic execution.

@@ -1,7 +1,7 @@
 # Critic Execution Trace and Validation Design
 
 **Date:** 2026-07-17
-**Status:** Approved in conversation; awaiting written-spec confirmation
+**Status:** Implemented and verified
 **Primary scope:** Auditable, per-node execution tracing for the single-video Critic CLI
 **Explicit non-scope:** Changing fusion weights, learning a fusion model, HTML reports, benchmark prediction rewrites, or storing raw model/image payloads
 
