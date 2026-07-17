@@ -111,6 +111,10 @@
 
 ## Task 9: Run frozen VideoPhy-1 OOD
 
+> **Deferred on 2026-07-17 by user request.** Finish and report the complete
+> VideoPhy-2 evaluation first; VideoPhy-1 OOD is outside the current execution
+> scope and remains an explicit future task rather than being treated as done.
+
 **Files:**
 - Create local: `evaluation/manifests/videophy1_test_full.json`
 - Create local: `outputs/benchmarks/videophy1-ood-qwen3vl8b/`
@@ -245,3 +249,9 @@ Results are appended here after every task checkpoint. Existing results are immu
 - At 2026-07-16 16:22 Asia/Shanghai, the remote A100 launched PID `144429` in a detached session. The command uses the frozen full manifest `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/manifest.json` (SHA-256 `d8be5fe97ddf6902515c09ccbb53f394b25230213db7c3058d61f84748624906`), methods `D0_DIRECT_VLM,B1_RULE`, provider `chat` with strict JSON schema, 16 frames, official SAM2.1 Hiera B+, and the resumable run directory `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/run`.
 - The full dataset is already materialized and decode-audited: 3,397/3,397 videos. The process owns `predictions.jsonl.lock`; initial progress after startup was 7 predictions and 3 SAM2 observation caches. Logs are `/root/pavg-benchmark/logs/videophy2-full-qwen3vl8b.stdout.log` and `.stderr.log`.
 - The SSH launch command itself timed out after detaching, but an independent audit confirmed the intended process, lock, output file and SAM2 propagation log were active; no duplicate evaluator was started.
+
+### E14 — Current-scope freeze
+
+- On 2026-07-17 the user narrowed the active scope to completing VideoPhy-2, merging and auditing both disjoint A100 shards, and producing the final VideoPhy-2 Chinese summary report.
+- VideoPhy-1 OOD is explicitly deferred. Its Task 9 checkboxes remain open and no OOD result will be implied by the current report.
+- The active completion contract is therefore Task 8 plus the VideoPhy-2-relevant parts of Task 10: 6,794 terminal sample×method keys, exact merge/audit, frozen metrics and confidence intervals, synchronized non-secret artifacts, local tests and documentation.
