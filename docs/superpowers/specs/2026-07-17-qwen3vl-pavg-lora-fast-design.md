@@ -1,7 +1,7 @@
 # Qwen3-VL-8B PAVG Fast LoRA Design
 
 **Date:** 2026-07-17
-**Status:** Approved in conversation; pending written-spec review
+**Status:** Approved for autonomous execution after the full VideoPhy-2 report
 **Time objective:** Finish within 24 hours after both current VideoPhy-2 evaluators release their GPUs.
 **Primary objective:** Improve PAVG/M4 VideoPhy-2 Macro-F1 with a verifier-focused LoRA. If the measured hour-6 projection cannot finish within 24 hours, switch immediately to a judge-only Qwen3-VL LoRA.
 
@@ -24,6 +24,8 @@ Both servers already contain the same `Qwen/Qwen3-VL-8B-Instruct` snapshot. The 
 | `model-00004-of-00004.safetensors` | `0a88b98e9f96270973f567e6a2c103ede6ccdf915ca3075e21c755604d0377a5` |
 
 The base model directories are read-only inputs. Training writes only adapters, checkpoints, optimizer state and logs under new run directories. No safetensor in the base snapshot may be modified in place.
+
+No new top-level directory may be created directly under `/root`. All cloud2 training artifacts live under `/root/pavg-benchmark/training/qwen3vl8b-pavg-lora-v1/`. All cloud1 artifacts live under its already existing workspace `/root/pavg-benchmark-shard2/training/qwen3vl8b-pavg-lora-v1/`. In particular, do not create `/root/training`, `/root/data`, `/root/models`, `/root/qwen3-*` or another project root.
 
 The GPUs are both A100 PCIe 40GB. cloud2 uses driver `570.211.01`; cloud1 uses `570.86.10`. Training therefore uses separately created but identically pinned Python 3.12, PyTorch CUDA 12.8, Transformers, PEFT, Flash Attention and training-framework environments. Exact package inventories and CUDA tests are recorded before the first optimizer step.
 
