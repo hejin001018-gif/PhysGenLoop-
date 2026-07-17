@@ -324,10 +324,17 @@ class ModelPhysicsPlanner:
                 repair_feedback=str(error)[:300],
                 previous_plan=payload,
             )
-            return self._parse_plan(
-                repaired,
-                require_semantic_content=require_semantic_content,
-            )
+            try:
+                return self._parse_plan(
+                    repaired,
+                    require_semantic_content=require_semantic_content,
+                )
+            except SchemaError:
+                return self._parse_plan(
+                    repaired,
+                    require_semantic_content=require_semantic_content,
+                    prune_unknown_references=True,
+                )
 
     def _generate_payload(
         self,
@@ -379,9 +386,27 @@ class ModelPhysicsPlanner:
         payload: Mapping[str, Any],
         *,
         require_semantic_content: bool = False,
+        prune_unknown_references: bool = False,
     ) -> PhysicsPlan:
         self._validate_payload_shape(payload)
         plan = PhysicsPlan.from_dict(payload)
+        if prune_unknown_references:
+            known_objects = set(plan.objects)
+            plan = PhysicsPlan(
+                objects=plan.objects,
+                expected_events=plan.expected_events,
+                relations=tuple(
+                    relation
+                    for relation in plan.relations
+                    if relation.subject in known_objects
+                    and relation.object in known_objects
+                ),
+                physics_constraints=tuple(
+                    constraint
+                    for constraint in plan.physics_constraints
+                    if set(constraint.subjects).issubset(known_objects)
+                ),
+            )
         plan.validate_references()
         if require_semantic_content and not _has_semantic_content(plan):
             raise SchemaError(

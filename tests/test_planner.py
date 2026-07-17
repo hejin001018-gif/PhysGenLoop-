@@ -322,7 +322,7 @@ def test_resolver_filters_generated_extensions_for_discarded_objects():
     assert resolution.plan.physics_constraints == ()
 
 
-def test_invalid_model_references_trigger_template_fallback():
+def test_invalid_model_references_are_pruned_after_failed_repair():
     from pavg_critic.planner import (
         ModelPhysicsPlanner,
         PhysicsPlanResolver,
@@ -341,8 +341,11 @@ def test_invalid_model_references_trigger_template_fallback():
         CriticRequest(video_path="unused.mp4", prompt="A red ball falls.")
     )
 
-    assert resolution.plan.planner_metadata.source == "template_fallback"
-    assert resolution.provider_failure["error_type"] == "SchemaError"
+    assert resolution.plan.planner_metadata.source == "model"
+    assert resolution.plan.objects == ("red_ball",)
+    assert resolution.plan.relations == ()
+    assert len(resolution.plan.physics_constraints) == 1
+    assert resolution.provider_failure is None
 
 
 def test_null_model_arrays_trigger_template_fallback():
