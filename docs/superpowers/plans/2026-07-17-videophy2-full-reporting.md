@@ -31,10 +31,10 @@
 - Modify: `src/pavg_critic/benchmarking/metrics.py`
 - Modify: `tests/benchmarking/test_metrics.py`
 
-- [ ] Add failing tests for physical recall and deterministic p50/p95 latency, including an even-length latency vector.
-- [ ] Implement a dependency-free linear percentile helper and expose `physical_recall`, `p50_latency_sec` and `p95_latency_sec` from `compute_smoke_metrics` without changing existing metric meanings.
-- [ ] Run the focused metric tests, then the existing benchmark report tests.
-- [ ] Commit only the tested metric change.
+- [x] Add failing tests for physical recall and deterministic p50/p95 latency, including an even-length latency vector.
+- [x] Implement a dependency-free linear percentile helper and expose `physical_recall`, `p50_latency_sec` and `p95_latency_sec` from `compute_smoke_metrics` without changing existing metric meanings.
+- [x] Run the focused metric tests, then the existing benchmark report tests.
+- [x] Commit only the tested metric change.
 
 ## Task 2: Implement strict shard merge and artifact audit
 
@@ -126,3 +126,12 @@
 ## Execution results
 
 Append immutable checkpoints here as each task completes. Do not replace prior entries or rewrite prediction inputs.
+
+### R1 — Complete classification and latency metrics
+
+- Strict TDD red state: the two new tests failed because `physical_recall` and `p50_latency_sec` were absent; the remaining five metric tests passed.
+- The dependency-free linear percentile uses `(n - 1)q` interpolation. The frozen even-length example `[1, 2, 3, 4]` yields p50 `2.5` and p95 `3.85`.
+- `compute_smoke_metrics` now reports physical recall and p50/p95 prediction latency without changing any existing key or formula.
+- Independent specification review passed; independent quality review found no correctness, typing, maintenance or regression issue.
+- Final focused verification: `9 passed` across metric and smoke-report tests using isolated basetemp `outputs/.pytest-tmp-task1`.
+- Commit: `89755d9` (`feat: add full benchmark recall and latency metrics`).
