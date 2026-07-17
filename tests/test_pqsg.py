@@ -114,6 +114,30 @@ def test_pqsg_generator_sanitizes_reverse_or_missing_parent_edges():
     QuestionGraphValidator().validate(graph)
 
 
+def test_pqsg_generator_sanitizes_nonpositive_model_weight():
+    model = FakeStructuredModel(
+        {
+            "nodes": [
+                {
+                    "id": "O1",
+                    "category": "object",
+                    "question": "Is the Segway visible?",
+                    "target_objects": ["segway"],
+                    "weight": 0,
+                }
+            ]
+        }
+    )
+
+    graph = PQSGQuestionGraphGenerator(model).generate(
+        CriticRequest(video_path="unused.mp4", prompt="A Segway moves down a ramp.")
+    )
+
+    assert graph.source == "pqsg_model_sanitized"
+    assert graph.nodes[0].weight == 1.0
+    QuestionGraphValidator().validate(graph)
+
+
 def test_question_executor_matches_generic_plan_names_and_downhill_roll_alias():
     graph = QuestionGraph(
         nodes=(

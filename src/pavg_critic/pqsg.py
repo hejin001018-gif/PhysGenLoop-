@@ -8,6 +8,7 @@ PQSG 在这里是 PAVG 内部的一种问题生成/问答策略，而不是替�
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, replace
 from typing import Any, Mapping
 
@@ -113,8 +114,12 @@ class PQSGQuestionGraphGenerator:
         nodes_raw = payload.get("nodes")
         if not isinstance(nodes_raw, list):
             raise SchemaError("PQSG response must contain a nodes array")
-        parsed = tuple(_parse_node(item) for item in nodes_raw)
-        nodes, sanitized = _sanitize_forward_dag(parsed)
+        parsed_with_flags = tuple(_parse_node(item) for item in nodes_raw)
+        parsed = tuple(node for node, _ in parsed_with_flags)
+        nodes, dag_sanitized = _sanitize_forward_dag(parsed)
+        sanitized = dag_sanitized or any(
+            item_sanitized for _, item_sanitized in parsed_with_flags
+        )
         graph = QuestionGraph(
             nodes=nodes,
             source="pqsg_model_sanitized" if sanitized else "pqsg_model",
@@ -229,12 +234,14 @@ class TwoPassQuestionAnswerer:
         )
 
 
-def _parse_node(raw: Any) -> QuestionNode:
+def _parse_node(raw: Any) -> tuple[QuestionNode, bool]:
     """把不可信模型 JSON 规范化为冻结 schema；未知字段不会泄漏到核心对象。"""
 
     if not isinstance(raw, Mapping):
         raise SchemaError("PQSG node must be an object")
     try:
+        weight = float(raw.get("weight", 1.0))
+        sanitized = not math.isfinite(weight) or weight <= 0.0
         return QuestionNode(
             id=str(raw["id"]),
             category=str(raw["category"]),
@@ -247,8 +254,8 @@ def _parse_node(raw: Any) -> QuestionNode:
             ),
             verifier_hint=str(raw.get("verifier_hint", "hybrid")),
             rule_ids=tuple(str(value) for value in raw.get("rule_ids", ())),
-            weight=float(raw.get("weight", 1.0)),
-        )
+            weight=1.0 if sanitized else weight,
+        ), sanitized
     except KeyError as exc:
         raise SchemaError(f"PQSG node missing field: {exc.args[0]}") from exc
 
