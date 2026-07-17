@@ -646,6 +646,20 @@ def _parse_prediction(
             "unknown",
         }:
             raise ValueError(f"invalid physics_label: {raw.get('physics_label')!r}")
+        failure = raw.get("failure")
+        if failure is not None:
+            if not isinstance(failure, dict):
+                raise ValueError(
+                    "failure must be null or a JSON object, got "
+                    f"{type(failure).__name__}"
+                )
+            try:
+                json.dumps(failure, allow_nan=False, sort_keys=True)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    "failure must be a finite JSON object and contain no "
+                    "non-finite JSON number"
+                ) from exc
         for field in ("semantic_score", "physics_score"):
             _validate_numeric_field(
                 raw,
@@ -822,13 +836,15 @@ def merge_prediction_shards(
     output_path: str | Path,
     *,
     audit_path: str | Path | None = None,
+    source_display_paths: Sequence[str | Path] | None = None,
 ) -> PredictionMergeResult:
     """Validate exact sample/method coverage and write one stable JSONL file.
 
     Every parsed prediction is terminal, including records whose ``failure``
     field is populated. Inputs are never rewritten. Unless ``audit_path`` is
     supplied, the audit is written to ``artifact_audit.json`` beside the
-    merged output.
+    merged output. ``source_display_paths`` changes diagnostic locations only;
+    audit paths always identify the files that were actually read.
     """
 
     if not samples:
@@ -838,10 +854,22 @@ def merge_prediction_shards(
     if not method_ids or len(set(method_ids)) != len(method_ids):
         raise ValueError("method_ids must be a non-empty tuple of unique IDs")
 
-    sources = sorted(
-        (Path(raw_path) for raw_path in prediction_paths),
-        key=_canonical_path_order,
-    )
+    raw_sources = tuple(Path(raw_path) for raw_path in prediction_paths)
+    if source_display_paths is not None and len(source_display_paths) != len(
+        raw_sources
+    ):
+        raise ValueError(
+            "source_display_paths must align exactly with prediction_paths"
+        )
+    display_by_source = {
+        _canonical_path_order(source): (
+            Path(source_display_paths[index])
+            if source_display_paths is not None
+            else source
+        )
+        for index, source in enumerate(raw_sources)
+    }
+    sources = sorted(raw_sources, key=_canonical_path_order)
     for source in sources:
         if not source.is_file():
             raise ValueError(f"prediction input does not exist: {source}")
@@ -879,29 +907,32 @@ def merge_prediction_shards(
     input_audits: list[dict[str, Any]] = []
 
     for source in sources:
+        display_source = display_by_source[_canonical_path_order(source)]
         content = source.read_bytes()
         try:
             lines = content.decode("utf-8").splitlines()
         except UnicodeDecodeError as exc:
-            raise ValueError(f"prediction input is not valid UTF-8: {source}") from exc
+            raise ValueError(
+                f"prediction input is not valid UTF-8: {display_source}"
+            ) from exc
 
         method_counts = {method_id: 0 for method_id in method_ids}
         failure_count = 0
         for line_number, line in enumerate(lines, start=1):
             prediction = _parse_prediction(
                 line,
-                source=source,
+                source=display_source,
                 line_number=line_number,
             )
             if prediction.sample_id not in known_samples:
                 raise ValueError(
                     f"unknown sample_id {prediction.sample_id!r} "
-                    f"in {source} at line {line_number}"
+                    f"in {display_source} at line {line_number}"
                 )
             if prediction.method_id not in known_methods:
                 raise ValueError(
                     f"unknown method_id {prediction.method_id!r} "
-                    f"in {source} at line {line_number}"
+                    f"in {display_source} at line {line_number}"
                 )
 
             key = (prediction.sample_id, prediction.method_id)
@@ -910,10 +941,10 @@ def merge_prediction_shards(
                 raise ValueError(
                     f"duplicate prediction key {key!r}: first seen in "
                     f"{first_path} at line {first_line}, repeated in "
-                    f"{source} at line {line_number}"
+                    f"{display_source} at line {line_number}"
                 )
             predictions_by_key[key] = prediction
-            locations_by_key[key] = (source, line_number)
+            locations_by_key[key] = (display_source, line_number)
             method_counts[prediction.method_id] += 1
             failure_count += prediction.failure is not None
 

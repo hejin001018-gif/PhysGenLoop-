@@ -217,6 +217,9 @@ def test_full_report_cli_generates_deterministic_auditable_chinese_report(
         "path": str(manifest),
         "sha256": _sha256(manifest),
     }
+    assert {
+        entry["path"]: entry["sha256"] for entry in audit["inputs"]
+    } == {str(path): _sha256(path) for path in shards}
     assert audit["observation_metadata"]["directory_count"] == 2
     assert audit["observation_metadata"]["file_count"] == 4
     assert {
@@ -232,6 +235,11 @@ def test_full_report_cli_generates_deterministic_auditable_chinese_report(
         "slices.json",
         "summary.json",
         "summary.md",
+    }
+    assert audit["report_output_sha256_scope"] == {
+        "excluded": ["artifact_audit.json"],
+        "hashed_count": 5,
+        "reason": "artifact_audit.json is self-referential",
     }
 
     markdown = (output_dir / "summary.md").read_text(encoding="utf-8")
@@ -249,7 +257,35 @@ def test_full_report_cli_generates_deterministic_auditable_chinese_report(
     } == first_hashes
 
 
-def test_report_publication_failure_rolls_back_complete_existing_bundle(
+def _staging_directories(output_dir: Path) -> list[Path]:
+    return list(output_dir.parent.glob(f".{output_dir.name}.full-report-*"))
+
+
+def test_single_atomic_directory_publish_failure_leaves_no_output(
+    tmp_path,
+    sample_factory,
+    prediction_factory,
+    monkeypatch,
+):
+    manifest, shards, observation_dirs = _fixture(
+        tmp_path, sample_factory, prediction_factory
+    )
+    output_dir = tmp_path / "report"
+    arguments = _arguments(manifest, shards, observation_dirs, output_dir)
+
+    def fail_publish(staged: Path, destination: Path) -> None:
+        raise OSError("injected atomic directory publish failure")
+
+    monkeypatch.setattr(report_cli, "_publish_staged_directory", fail_publish)
+
+    with pytest.raises(OSError, match="injected atomic directory publish failure"):
+        main(arguments)
+
+    assert not output_dir.exists()
+    assert not _staging_directories(output_dir)
+
+
+def test_identical_existing_bundle_is_deterministic_noop(
     tmp_path,
     sample_factory,
     prediction_factory,
@@ -264,25 +300,81 @@ def test_report_publication_failure_rolls_back_complete_existing_bundle(
     originals = {
         name: (output_dir / name).read_bytes() for name in CORE_REPORT_FILES
     }
-    calls = 0
-    real_replace = report_cli._replace_staged_file
 
-    def fail_third_replace(staged: Path, destination: Path) -> None:
-        nonlocal calls
-        calls += 1
-        if calls == 3:
-            raise OSError("injected report publication failure")
-        real_replace(staged, destination)
+    def unexpected_publish(staged: Path, destination: Path) -> None:
+        raise AssertionError("identical rerun must not publish another directory")
 
-    monkeypatch.setattr(report_cli, "_replace_staged_file", fail_third_replace)
+    monkeypatch.setattr(
+        report_cli,
+        "_publish_staged_directory",
+        unexpected_publish,
+    )
 
-    with pytest.raises(OSError, match="injected report publication failure"):
-        main([*arguments, "--bootstrap-seed", "9"])
-
+    assert main(arguments) == 0
     assert {
         name: (output_dir / name).read_bytes() for name in CORE_REPORT_FILES
     } == originals
-    assert not list(output_dir.glob(".*.tmp"))
+    assert not _staging_directories(output_dir)
+
+
+@pytest.mark.parametrize("existing_state", ("different", "partial"))
+def test_different_or_partial_existing_bundle_fails_closed_unchanged(
+    tmp_path,
+    sample_factory,
+    prediction_factory,
+    existing_state,
+):
+    manifest, shards, observation_dirs = _fixture(
+        tmp_path, sample_factory, prediction_factory
+    )
+    output_dir = tmp_path / "report"
+    arguments = _arguments(manifest, shards, observation_dirs, output_dir)
+    assert main(arguments) == 0
+    if existing_state == "different":
+        (output_dir / "summary.md").write_bytes(b"different accepted report\n")
+    else:
+        (output_dir / "summary.md").unlink()
+    existing = {
+        path.name: path.read_bytes() for path in output_dir.iterdir()
+    }
+
+    with pytest.raises(ValueError, match="already exists.*new output path"):
+        main(arguments)
+
+    assert {
+        path.name: path.read_bytes() for path in output_dir.iterdir()
+    } == existing
+    assert not _staging_directories(output_dir)
+
+
+def test_staging_write_failure_leaves_no_output_or_temporary_directory(
+    tmp_path,
+    sample_factory,
+    prediction_factory,
+    monkeypatch,
+):
+    manifest, shards, observation_dirs = _fixture(
+        tmp_path, sample_factory, prediction_factory
+    )
+    output_dir = tmp_path / "report"
+    arguments = _arguments(manifest, shards, observation_dirs, output_dir)
+    calls = 0
+    real_write = report_cli._write_staged_artifact
+
+    def fail_third_write(path: Path, content: bytes) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise OSError("injected stage write failure")
+        real_write(path, content)
+
+    monkeypatch.setattr(report_cli, "_write_staged_artifact", fail_third_write)
+
+    with pytest.raises(OSError, match="injected stage write failure"):
+        main(arguments)
+
+    assert not output_dir.exists()
+    assert not _staging_directories(output_dir)
 
 
 def test_invalid_cli_input_exits_nonzero_without_publishing_partial_report(
@@ -345,3 +437,162 @@ def test_cli_rejects_output_aliasing_manifest_before_overwrite(
     assert aliased_manifest.read_bytes() == original
     assert not (output_dir / "artifact_audit.json").exists()
     assert not (output_dir / "merged_predictions.jsonl").exists()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("manifest", "prediction", "meta_content", "meta_added", "meta_deleted"),
+)
+def test_cli_rejects_any_input_snapshot_change_before_publication(
+    tmp_path,
+    sample_factory,
+    prediction_factory,
+    monkeypatch,
+    mutation,
+):
+    manifest, shards, observation_dirs = _fixture(
+        tmp_path, sample_factory, prediction_factory
+    )
+    output_dir = tmp_path / "report"
+    arguments = _arguments(manifest, shards, observation_dirs, output_dir)
+    real_build = report_cli._build_report_artifacts
+
+    def build_then_mutate(*args, **kwargs):
+        artifacts = real_build(*args, **kwargs)
+        if mutation == "manifest":
+            manifest.write_bytes(manifest.read_bytes() + b" \n")
+        elif mutation == "prediction":
+            shards[0].write_bytes(shards[0].read_bytes() + b"\n")
+        elif mutation == "meta_content":
+            target = observation_dirs[0] / "1.meta.json"
+            target.write_text(
+                json.dumps({"sample_id": "1", "production_latency_sec": 99.0}),
+                encoding="utf-8",
+            )
+        elif mutation == "meta_added":
+            (observation_dirs[0] / "extra.meta.json").write_text(
+                json.dumps(
+                    {"sample_id": "1", "production_latency_sec": 1.0}
+                ),
+                encoding="utf-8",
+            )
+        else:
+            (observation_dirs[0] / "1.meta.json").unlink()
+        return artifacts
+
+    monkeypatch.setattr(report_cli, "_build_report_artifacts", build_then_mutate)
+
+    with pytest.raises(ValueError, match="input snapshot changed"):
+        main(arguments)
+
+    assert not output_dir.exists()
+    assert not _staging_directories(output_dir)
+
+
+@pytest.mark.parametrize(
+    "invalid_failure",
+    ("provider failure", ["provider failure"], {"reason": float("nan")}),
+)
+def test_cli_rejects_non_object_or_non_json_failure_with_source_line(
+    tmp_path,
+    sample_factory,
+    prediction_factory,
+    invalid_failure,
+):
+    manifest, shards, observation_dirs = _fixture(
+        tmp_path, sample_factory, prediction_factory
+    )
+    output_dir = tmp_path / "report"
+    records = [
+        json.loads(line)
+        for line in shards[1].read_text(encoding="utf-8").splitlines()
+    ]
+    for record in records:
+        if record["sample_id"] == "3" and record["method_id"] == "B1_RULE":
+            record["failure"] = invalid_failure
+    shards[1].write_text(
+        "".join(json.dumps(record, allow_nan=True) + "\n" for record in records),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"(?s)(?=.*failure)(?=.*shard-b\.jsonl)(?=.*line)",
+    ):
+        main(_arguments(manifest, shards, observation_dirs, output_dir))
+
+    assert not output_dir.exists()
+
+
+def test_non_string_failure_reason_is_deterministic_json(
+    tmp_path,
+    sample_factory,
+    prediction_factory,
+):
+    manifest, shards, observation_dirs = _fixture(
+        tmp_path, sample_factory, prediction_factory
+    )
+    records = [
+        json.loads(line)
+        for line in shards[1].read_text(encoding="utf-8").splitlines()
+    ]
+    for record in records:
+        if record["sample_id"] == "3" and record["method_id"] == "B1_RULE":
+            record["failure"] = {"reason": {"code": 504, "retry": False}}
+    shards[1].write_text(
+        "".join(json.dumps(record) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "report"
+
+    assert main(_arguments(manifest, shards, observation_dirs, output_dir)) == 0
+
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["prediction_failures"]["records"][0]["reason"] == (
+        '{"code":504,"retry":false}'
+    )
+
+
+def test_markdown_text_escapes_control_markdown_and_html_characters():
+    raw = "<script>|`code`\n- injected\t&"
+
+    escaped = report_cli._markdown_text(raw)
+
+    assert escaped == (
+        "&lt;script&gt;&#124;&#96;code&#96;\\n&#45; injected\\t&amp;"
+    )
+    assert "<script>" not in escaped
+    assert "\n- injected" not in escaped
+
+
+def test_failure_reason_is_escaped_in_markdown_but_preserved_in_json(
+    tmp_path,
+    sample_factory,
+    prediction_factory,
+):
+    manifest, shards, observation_dirs = _fixture(
+        tmp_path, sample_factory, prediction_factory
+    )
+    malicious = "<script>|`code`\n- injected"
+    records = [
+        json.loads(line)
+        for line in shards[1].read_text(encoding="utf-8").splitlines()
+    ]
+    for record in records:
+        if record["sample_id"] == "3" and record["method_id"] == "B1_RULE":
+            record["failure"] = {"reason": malicious}
+    shards[1].write_text(
+        "".join(json.dumps(record) + "\n" for record in records),
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "report"
+
+    assert main(_arguments(manifest, shards, observation_dirs, output_dir)) == 0
+
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    markdown = (output_dir / "summary.md").read_text(encoding="utf-8")
+    assert summary["prediction_failures"]["records"][0]["reason"] == malicious
+    failure_section = markdown.split("## 失败记录", 1)[1].split("## 冻结门槛", 1)[0]
+    assert "<script>" not in failure_section
+    assert "\n- injected" not in failure_section
+    assert "&lt;script&gt;&#124;&#96;code&#96;\\n&#45; injected" in failure_section

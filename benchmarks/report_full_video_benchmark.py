@@ -6,7 +6,9 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -32,6 +34,38 @@ CORE_REPORT_FILES = (
     "summary.json",
     "summary.md",
 )
+
+
+@dataclass(frozen=True)
+class _FrozenFile:
+    path: Path
+    content: bytes
+    sha256: str
+
+
+@dataclass(frozen=True)
+class _FrozenObservationFile:
+    path: Path
+    directory_index: int
+    relative_path: str
+    content: bytes
+    sha256: str
+
+
+@dataclass(frozen=True)
+class _InputSnapshot:
+    manifest: _FrozenFile
+    predictions: tuple[_FrozenFile, ...]
+    observation_dirs: tuple[Path, ...]
+    observation_files: tuple[_FrozenObservationFile, ...]
+
+    @property
+    def paths(self) -> tuple[Path, ...]:
+        return (
+            self.manifest.path,
+            *(item.path for item in self.predictions),
+            *(item.path for item in self.observation_files),
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -80,13 +114,9 @@ def _json_bytes(value: object) -> bytes:
     ).encode("utf-8")
 
 
-def _failure_reason(failure: Mapping[str, Any]) -> str:
-    for key in ("reason", "message", "type", "error"):
-        value = failure.get(key)
-        if value is not None and str(value).strip():
-            return str(value).strip()
+def _deterministic_json(value: object) -> str:
     return json.dumps(
-        failure,
+        value,
         allow_nan=False,
         ensure_ascii=False,
         sort_keys=True,
@@ -94,12 +124,114 @@ def _failure_reason(failure: Mapping[str, Any]) -> str:
     )
 
 
-def _file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+def _failure_reason(failure: Mapping[str, Any] | object) -> str:
+    if not isinstance(failure, Mapping):
+        return _deterministic_json(failure)
+    for key in ("reason", "message", "type", "error"):
+        value = failure.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if value is not None:
+            return _deterministic_json(value)
+    return _deterministic_json(failure)
+
+
+def _markdown_text(value: object) -> str:
+    """Render untrusted text without Markdown, HTML, or line injection."""
+
+    markdown_punctuation = "\\`*_{}[]()#+-.!|"
+    escaped: list[str] = []
+    for character in str(value):
+        codepoint = ord(character)
+        if character == "\n":
+            escaped.append("\\n")
+        elif character == "\r":
+            escaped.append("\\r")
+        elif character == "\t":
+            escaped.append("\\t")
+        elif codepoint < 32 or codepoint == 127:
+            escaped.append(f"\\u{codepoint:04x}")
+        elif character == "&":
+            escaped.append("&amp;")
+        elif character == "<":
+            escaped.append("&lt;")
+        elif character == ">":
+            escaped.append("&gt;")
+        elif character in markdown_punctuation:
+            escaped.append(f"&#{codepoint};")
+        else:
+            escaped.append(character)
+    return "".join(escaped)
+
+
+def _canonical_path(path: Path) -> str:
+    return os.path.normcase(str(path.resolve(strict=False)))
+
+
+def _freeze_file(path: Path, *, kind: str) -> _FrozenFile:
+    if not path.is_file():
+        raise ValueError(f"{kind} input does not exist: {path}")
+    content = path.read_bytes()
+    return _FrozenFile(
+        path=path,
+        content=content,
+        sha256=hashlib.sha256(content).hexdigest(),
+    )
+
+
+def _capture_input_snapshot(
+    manifest: Path,
+    prediction_paths: Sequence[Path],
+    observation_meta_dirs: Sequence[Path],
+) -> _InputSnapshot:
+    if not prediction_paths:
+        raise ValueError("at least one prediction input is required")
+    if not observation_meta_dirs:
+        raise ValueError("at least one observation metadata directory is required")
+    frozen_manifest = _freeze_file(manifest, kind="manifest")
+    frozen_predictions = tuple(
+        _freeze_file(path, kind="prediction")
+        for path in sorted(prediction_paths, key=_canonical_path)
+    )
+    directories = tuple(sorted(observation_meta_dirs, key=_canonical_path))
+    observations: list[_FrozenObservationFile] = []
+    for directory_index, directory in enumerate(directories):
+        if not directory.is_dir():
+            raise ValueError(
+                f"observation metadata directory does not exist: {directory}"
+            )
+        for path in sorted(directory.rglob("*.meta.json"), key=_canonical_path):
+            frozen = _freeze_file(path, kind="observation metadata")
+            observations.append(
+                _FrozenObservationFile(
+                    path=path,
+                    directory_index=directory_index,
+                    relative_path=path.relative_to(directory).as_posix(),
+                    content=frozen.content,
+                    sha256=frozen.sha256,
+                )
+            )
+    return _InputSnapshot(
+        manifest=frozen_manifest,
+        predictions=frozen_predictions,
+        observation_dirs=directories,
+        observation_files=tuple(observations),
+    )
+
+
+def _verify_input_snapshot(snapshot: _InputSnapshot) -> None:
+    try:
+        current = _capture_input_snapshot(
+            snapshot.manifest.path,
+            tuple(item.path for item in snapshot.predictions),
+            snapshot.observation_dirs,
+        )
+    except (OSError, ValueError) as exc:
+        raise ValueError(
+            "input snapshot changed during report generation"
+        ) from exc
+    if current != snapshot:
+        raise ValueError("input snapshot changed during report generation")
 
 
 def _paths_alias(first: Path, second: Path) -> bool:
@@ -110,39 +242,32 @@ def _paths_alias(first: Path, second: Path) -> bool:
     return False
 
 
-def _stage_bytes(path: Path, content: bytes) -> Path:
-    descriptor, raw_path = tempfile.mkstemp(
-        dir=path.parent,
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-    )
-    staged = Path(raw_path)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-    except BaseException:
-        staged.unlink(missing_ok=True)
-        raise
-    return staged
+def _write_staged_artifact(path: Path, content: bytes) -> None:
+    with path.open("xb") as handle:
+        handle.write(content)
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
-def _replace_staged_file(staged: Path, destination: Path) -> None:
-    """Single publication seam used by the bundle transaction."""
-
+def _publish_staged_directory(staged: Path, destination: Path) -> None:
     os.replace(staged, destination)
 
 
-def _restore_file(path: Path, original: bytes | None) -> None:
-    if original is None:
-        path.unlink(missing_ok=True)
-        return
-    staged = _stage_bytes(path, original)
-    try:
-        os.replace(staged, path)
-    finally:
-        staged.unlink(missing_ok=True)
+def _existing_bundle_matches(
+    output_dir: Path,
+    artifacts: Mapping[str, bytes],
+) -> bool:
+    if output_dir.is_symlink() or not output_dir.is_dir():
+        return False
+    children = tuple(sorted(output_dir.iterdir(), key=lambda path: path.name))
+    if tuple(path.name for path in children) != CORE_REPORT_FILES:
+        return False
+    return all(
+        path.is_file()
+        and not path.is_symlink()
+        and path.read_bytes() == artifacts[path.name]
+        for path in children
+    )
 
 
 def _publish_report_bundle(
@@ -151,15 +276,13 @@ def _publish_report_bundle(
     *,
     input_paths: Sequence[Path],
 ) -> None:
-    """Publish the six report files as one rollback-protected transaction."""
+    """Publish one immutable bundle with a single atomic directory replace."""
 
     if tuple(sorted(artifacts)) != CORE_REPORT_FILES:
         raise ValueError(
             f"report bundle must contain exactly {CORE_REPORT_FILES!r}"
         )
-    destinations = {
-        name: output_dir / name for name in CORE_REPORT_FILES
-    }
+    destinations = {name: output_dir / name for name in CORE_REPORT_FILES}
     for destination in destinations.values():
         for input_path in input_paths:
             if _paths_alias(destination, input_path):
@@ -167,26 +290,28 @@ def _publish_report_bundle(
                     f"report destination aliases an input: {input_path}"
                 )
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    originals = {
-        name: destination.read_bytes() if destination.exists() else None
-        for name, destination in destinations.items()
-    }
-    staged: dict[str, Path] = {}
-    replaced: list[str] = []
+    if os.path.lexists(output_dir):
+        if _existing_bundle_matches(output_dir, artifacts):
+            return
+        raise ValueError(
+            f"output directory already exists with a different or partial "
+            f"bundle: {output_dir}; choose a new output path"
+        )
+
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    staged = Path(
+        tempfile.mkdtemp(
+            dir=output_dir.parent,
+            prefix=f".{output_dir.name}.full-report-",
+        )
+    )
     try:
         for name in CORE_REPORT_FILES:
-            staged[name] = _stage_bytes(destinations[name], artifacts[name])
-        for name in CORE_REPORT_FILES:
-            _replace_staged_file(staged[name], destinations[name])
-            replaced.append(name)
-    except BaseException:
-        for name in reversed(replaced):
-            _restore_file(destinations[name], originals[name])
-        raise
+            _write_staged_artifact(staged / name, artifacts[name])
+        _publish_staged_directory(staged, output_dir)
     finally:
-        for path in staged.values():
-            path.unlink(missing_ok=True)
+        if staged.exists():
+            shutil.rmtree(staged)
 
 
 def _candidate_minus_baseline(
@@ -301,7 +426,9 @@ def _render_markdown(summary: Mapping[str, Any]) -> bytes:
     )
     if failures["records"]:
         lines.extend(
-            f"- {item['sample_id']} / {item['method_id']}: {item['reason']}"
+            f"- {_markdown_text(item['sample_id'])} / "
+            f"{_markdown_text(item['method_id'])}: "
+            f"{_markdown_text(item['reason'])}"
             for item in failures["records"]
         )
     else:
@@ -330,29 +457,84 @@ def _render_markdown(summary: Mapping[str, Any]) -> bytes:
     return "\n".join(lines).encode("utf-8")
 
 
+def _load_frozen_manifest(snapshot: _FrozenFile):
+    descriptor, raw_path = tempfile.mkstemp(
+        dir=snapshot.path.parent,
+        prefix=f".{snapshot.path.name}.full-report-snapshot-",
+        suffix=snapshot.path.suffix,
+    )
+    frozen_path = Path(raw_path)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(snapshot.content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        return load_manifest(frozen_path)
+    finally:
+        frozen_path.unlink(missing_ok=True)
+
+
 def _build_report_artifacts(
     *,
-    manifest: Path,
-    prediction_paths: Sequence[Path],
-    observation_meta_dirs: Sequence[Path],
+    snapshot: _InputSnapshot,
     output_dir: Path,
     bootstrap_resamples: int,
     bootstrap_seed: int,
 ) -> dict[str, bytes]:
     if bootstrap_resamples <= 0:
         raise ValueError("--bootstrap-resamples must be positive")
-    samples = tuple(sorted(load_manifest(manifest), key=lambda item: item.sample_id))
+    samples = tuple(
+        sorted(
+            _load_frozen_manifest(snapshot.manifest),
+            key=lambda item: item.sample_id,
+        )
+    )
 
     with tempfile.TemporaryDirectory(prefix="pavg-full-report-") as raw_temp:
         temporary = Path(raw_temp)
+        frozen_prediction_paths = []
+        prediction_snapshot_dir = temporary / "predictions"
+        prediction_snapshot_dir.mkdir()
+        for index, item in enumerate(snapshot.predictions):
+            frozen_path = prediction_snapshot_dir / f"{index:06d}.jsonl"
+            frozen_path.write_bytes(item.content)
+            frozen_prediction_paths.append(frozen_path)
+        frozen_observation_dirs = [
+            temporary / "observations" / f"{index:06d}"
+            for index in range(len(snapshot.observation_dirs))
+        ]
+        for directory in frozen_observation_dirs:
+            directory.mkdir(parents=True)
+        for item in snapshot.observation_files:
+            frozen_path = (
+                frozen_observation_dirs[item.directory_index]
+                / Path(item.relative_path)
+            )
+            frozen_path.parent.mkdir(parents=True, exist_ok=True)
+            frozen_path.write_bytes(item.content)
         merge_result = merge_prediction_shards(
             samples,
-            prediction_paths,
+            frozen_prediction_paths,
             (BASELINE_METHOD, CANDIDATE_METHOD),
             temporary / "merged_predictions.jsonl",
             audit_path=temporary / "artifact_audit.json",
+            source_display_paths=tuple(
+                item.path for item in snapshot.predictions
+            ),
         )
         merged_bytes = (temporary / "merged_predictions.jsonl").read_bytes()
+        sam2_latency = summarize_observation_latencies(
+            samples,
+            frozen_observation_dirs,
+        )
+        input_audits = merge_result.artifact_audit["inputs"]
+        if len(input_audits) != len(snapshot.predictions):
+            raise ValueError("frozen prediction snapshot audit count mismatch")
+        for input_audit, frozen in zip(input_audits, snapshot.predictions):
+            if input_audit["sha256"] != frozen.sha256:
+                raise ValueError("frozen prediction snapshot hash mismatch")
+            input_audit["path"] = str(frozen.path)
+            input_audit["name"] = frozen.path.name
     predictions = merge_result.predictions
     baseline_predictions = tuple(
         item for item in predictions if item.method_id == BASELINE_METHOD
@@ -379,7 +561,6 @@ def _build_report_artifacts(
         seed=bootstrap_seed,
     )
     slices = build_slices(samples, baseline_predictions, candidate_predictions)
-    sam2_latency = summarize_observation_latencies(samples, observation_meta_dirs)
     sam2_latency = {"scope": "sam2_production", **sam2_latency}
 
     failures = []
@@ -416,28 +597,20 @@ def _build_report_artifacts(
     audit["merged_output_path"] = str(output_dir / "merged_predictions.jsonl")
     audit["artifact_audit_path"] = str(output_dir / "artifact_audit.json")
     audit["manifest"] = {
-        "path": str(manifest),
-        "name": manifest.name,
-        "sha256": _file_sha256(manifest),
+        "path": str(snapshot.manifest.path),
+        "name": snapshot.manifest.path.name,
+        "sha256": snapshot.manifest.sha256,
     }
-    observation_files = sorted(
-        (
-            path
-            for directory in observation_meta_dirs
-            for path in directory.rglob("*.meta.json")
-        ),
-        key=lambda path: os.path.normcase(str(path.resolve(strict=False))),
-    )
     audit["observation_metadata"] = {
-        "directory_count": len(observation_meta_dirs),
-        "file_count": len(observation_files),
+        "directory_count": len(snapshot.observation_dirs),
+        "file_count": len(snapshot.observation_files),
         "files": [
             {
-                "path": str(path),
-                "name": path.name,
-                "sha256": _file_sha256(path),
+                "path": str(item.path),
+                "name": item.path.name,
+                "sha256": item.sha256,
             }
-            for path in observation_files
+            for item in snapshot.observation_files
         ],
     }
     audit["report_artifacts"] = {
@@ -505,23 +678,32 @@ def _build_report_artifacts(
         name: hashlib.sha256(content).hexdigest()
         for name, content in sorted(artifacts.items())
     }
+    audit["report_output_sha256_scope"] = {
+        "hashed_count": len(artifacts),
+        "excluded": ["artifact_audit.json"],
+        "reason": "artifact_audit.json is self-referential",
+    }
     return {"artifact_audit.json": _json_bytes(audit), **artifacts}
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    snapshot = _capture_input_snapshot(
+        args.manifest,
+        tuple(args.predictions),
+        tuple(args.observation_meta_dir),
+    )
     artifacts = _build_report_artifacts(
-        manifest=args.manifest,
-        prediction_paths=tuple(args.predictions),
-        observation_meta_dirs=tuple(args.observation_meta_dir),
+        snapshot=snapshot,
         output_dir=args.output_dir,
         bootstrap_resamples=args.bootstrap_resamples,
         bootstrap_seed=args.bootstrap_seed,
     )
+    _verify_input_snapshot(snapshot)
     _publish_report_bundle(
         args.output_dir,
         artifacts,
-        input_paths=(args.manifest, *args.predictions),
+        input_paths=snapshot.paths,
     )
     return 0
 
