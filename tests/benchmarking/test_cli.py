@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from benchmarks.evaluate_video_benchmark import (
@@ -21,6 +23,13 @@ def test_method_parser_preserves_declared_order():
 
 def test_method_parser_accepts_grouped_m4():
     assert parse_methods("B1_RULE,M4_VLM") == ("B1_RULE", "M4_VLM")
+
+
+def test_method_parser_accepts_full_and_oracle_m5():
+    assert parse_methods("M5_FULL,M5_ORACLE_PLAN_300") == (
+        "M5_FULL",
+        "M5_ORACLE_PLAN_300",
+    )
 
 
 def test_unknown_method_is_rejected():
@@ -68,6 +77,25 @@ def test_m4_detector_weight_defaults_to_detector_dominant_value():
         ]
     )
     assert args.m4_detector_weight == 0.7
+
+
+def test_model_cache_and_failure_budget_are_explicit_cli_inputs():
+    args = build_parser().parse_args(
+        [
+            "--manifest",
+            "m.json",
+            "--run-dir",
+            "run",
+            "--methods",
+            "M5_FULL",
+            "--model-cache-dir",
+            "cache",
+            "--max-new-failures",
+            "1",
+        ]
+    )
+    assert args.model_cache_dir == Path("cache")
+    assert args.max_new_failures == 1
 
 
 def test_chat_json_schema_mode_is_explicit_and_forwarded(monkeypatch):

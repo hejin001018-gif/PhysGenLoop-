@@ -11,7 +11,9 @@ from pathlib import Path
 
 from pavg_critic.api_models import OpenAIChatModel, OpenAIResponsesModel
 from pavg_critic.benchmarking.baselines import DirectVLMJudge
+from pavg_critic.benchmarking.audited_runner import AuditedBenchmarkRunner
 from pavg_critic.benchmarking.datasets import load_manifest
+from pavg_critic.benchmarking.model_cache import AuditedCachedModel
 from pavg_critic.benchmarking.pavg_methods import (
     CachedObservationProvider,
     PAVGMethod,
@@ -29,6 +31,9 @@ ALLOWED_METHODS = (
     "M2_CHECKLIST",
     "M3_MECHANICS",
     "M4_VLM",
+    "M5_FULL",
+    "M5_SHUFFLED_PROMPT_300",
+    "M5_ORACLE_PLAN_300",
 )
 
 
@@ -71,6 +76,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sam2-config")
     parser.add_argument("--sam2-checkpoint", type=Path)
     parser.add_argument("--m4-detector-weight", type=float, default=0.7)
+    parser.add_argument("--model-cache-dir", type=Path)
+    parser.add_argument("--max-new-failures", type=int, default=1)
     return parser
 
 
@@ -183,9 +190,20 @@ def main(argv=None) -> int:
     if args.frame_count <= 0:
         raise ValueError("--frame-count must be positive")
 
+    model_pavg_ids = {
+        "M4_VLM",
+        "M5_FULL",
+        "M5_SHUFFLED_PROMPT_300",
+        "M5_ORACLE_PLAN_300",
+    }
+    if model_pavg_ids.intersection(method_ids) and args.model_cache_dir is None:
+        raise ValueError("--model-cache-dir is required for M4/M5 methods")
+    if args.max_new_failures <= 0:
+        raise ValueError("--max-new-failures must be positive")
+
     requires_model = (
         any(item.startswith("D") for item in method_ids)
-        or "M4_VLM" in method_ids
+        or bool(model_pavg_ids.intersection(method_ids))
         or args.observation_provider == "sam2"
     )
     model = (
@@ -220,7 +238,16 @@ def main(argv=None) -> int:
         item
         for item in method_ids
         if item
-        in {"B1_RULE", "M1_GRAPH", "M2_CHECKLIST", "M3_MECHANICS", "M4_VLM"}
+        in {
+            "B1_RULE",
+            "M1_GRAPH",
+            "M2_CHECKLIST",
+            "M3_MECHANICS",
+            "M4_VLM",
+            "M5_FULL",
+            "M5_SHUFFLED_PROMPT_300",
+            "M5_ORACLE_PLAN_300",
+        }
     ]
     if pavg_ids:
         if args.observations_dir is None:
@@ -239,16 +266,54 @@ def main(argv=None) -> int:
         else:
             producer = _unavailable_observations
         observations = CachedObservationProvider(args.observations_dir, producer)
-        methods.extend(
-            PAVGMethod(
-                item,
-                observations,
-                model_id=model_id,
-                verifier_model=model if item == "M4_VLM" else None,
-                verifier_detector_weight=args.m4_detector_weight,
+        stage_models = {}
+        if model_pavg_ids.intersection(pavg_ids):
+            assert args.model_cache_dir is not None
+            stage_models["verifier"] = AuditedCachedModel(
+                model,
+                cache_dir=args.model_cache_dir,
+                namespace="verifier",
+                model_id=model_id or "benchmark-model",
             )
-            for item in pavg_ids
-        )
+        if any(item.startswith("M5_") or item == "M5_FULL" for item in pavg_ids):
+            assert args.model_cache_dir is not None
+            stage_models["planner"] = AuditedCachedModel(
+                model,
+                cache_dir=args.model_cache_dir,
+                namespace="planner",
+                model_id=model_id or "benchmark-model",
+            )
+            stage_models["pqsg"] = AuditedCachedModel(
+                model,
+                cache_dir=args.model_cache_dir,
+                namespace="pqsg",
+                model_id=model_id or "benchmark-model",
+            )
+        for item in pavg_ids:
+            is_m5 = item.startswith("M5_") or item == "M5_FULL"
+            mode = "M5_FULL" if is_m5 else item
+            used_stages = {
+                name: stage_models[name]
+                for name in (
+                    ("planner", "pqsg", "verifier")
+                    if is_m5
+                    else (("verifier",) if item == "M4_VLM" else ())
+                )
+            }
+            methods.append(
+                PAVGMethod(
+                    mode,
+                    observations,
+                    model_id=model_id,
+                    planner_model=used_stages.get("planner"),
+                    question_model=used_stages.get("pqsg"),
+                    verifier_model=used_stages.get("verifier"),
+                    verifier_detector_weight=args.m4_detector_weight,
+                    model_stages=used_stages,
+                    output_method_id=item,
+                    oracle_plan=item == "M5_ORACLE_PLAN_300",
+                )
+            )
     by_id = {method.method_id: method for method in methods}
     ordered_methods = tuple(by_id[item] for item in method_ids)
 
@@ -262,6 +327,17 @@ def main(argv=None) -> int:
             "methods": list(method_ids),
             "observation_provider": args.observation_provider,
             "m4_detector_weight": args.m4_detector_weight,
+            "model_cache_dir": (
+                None if args.model_cache_dir is None else str(args.model_cache_dir)
+            ),
+            "model_cache_namespaces": sorted(
+                {
+                    name
+                    for method in methods
+                    for name in getattr(method, "model_stages", {})
+                }
+            ),
+            "max_new_failures": args.max_new_failures,
             "sam2_config": args.sam2_config,
             "sam2_checkpoint_sha256": (
                 _sha256(args.sam2_checkpoint)
@@ -278,7 +354,24 @@ def main(argv=None) -> int:
         encoding="utf-8",
     )
     prediction_path = args.run_dir / "predictions.jsonl"
-    BenchmarkRunner(prediction_path).run(samples, ordered_methods)
+    direct_methods = tuple(
+        method for method in ordered_methods if method.method_id.startswith("D")
+    )
+    pavg_methods = tuple(
+        method for method in ordered_methods if not method.method_id.startswith("D")
+    )
+    if direct_methods:
+        BenchmarkRunner(prediction_path).run(
+            samples,
+            direct_methods,
+            max_new_failures=args.max_new_failures,
+        )
+    if pavg_methods:
+        AuditedBenchmarkRunner(
+            prediction_path,
+            args.run_dir / "diagnostics.jsonl",
+            max_new_failures=args.max_new_failures,
+        ).run(samples, pavg_methods)
     predictions = load_predictions(prediction_path)
     write_smoke_report(samples, predictions, args.run_dir)
     for method_id in method_ids:

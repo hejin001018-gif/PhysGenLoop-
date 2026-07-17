@@ -626,7 +626,7 @@ git commit -m "feat: journal benchmark diagnostics atomically"
 - Create: `evaluation/manifests/videophy2_pilot300_shuffled.json`
 - Create: `evaluation/manifests/videophy2_pilot300_prompt_donors.json`
 
-- [ ] **Step 1: Write failing CLI-contract tests**
+- [x] **Step 1: Write failing CLI-contract tests**
 
 Assert accepted methods and exact new arguments:
 
@@ -644,7 +644,7 @@ assert args.max_new_failures == 1
 
 Also assert M5 refuses a missing model cache and that resolved config contains stage namespaces/hashes but never the API key.
 
-- [ ] **Step 2: Write failing deterministic derangement tests**
+- [x] **Step 2: Write failing deterministic derangement tests**
 
 Run the builder twice on a fixture and require byte-identical outputs. For every mapping:
 
@@ -656,15 +656,15 @@ assert recipient.prompt_group_id != donor.prompt_group_id
 
 Assert labels, video paths, generators and membership are unchanged, and prove the matcher never reads `physics_label` by changing all labels and obtaining the same donor map.
 
-- [ ] **Step 3: Implement the diagnostic builder**
+- [x] **Step 3: Implement the diagnostic builder**
 
 Use a deterministic augmenting-path bipartite matcher. Recipients are sorted by sample ID; donor priority is a `random.Random(20260717)` shuffle. An edge exists only for a different sample ID, exact prompt and action group. Write the shuffled manifest and recipient→donor map with sorted keys, `allow_nan=False`, UTF-8 and a final newline; refuse to overwrite a different existing file.
 
-- [ ] **Step 4: Extend the evaluation CLI**
+- [x] **Step 4: Extend the evaluation CLI**
 
 Add `M5_FULL`, `M5_SHUFFLED_PROMPT_300` and `M5_ORACLE_PLAN_300` to the method parser. Map the two diagnostic IDs to M5 configuration while preserving their output IDs. Require `--model-cache-dir` for M4/M5, create separate `AuditedCachedModel` wrappers for `planner`, `pqsg` and `verifier`, and use `AuditedBenchmarkRunner` for PAVG methods. Add `--max-new-failures` default `1`. The model is built once and shared only below the wrappers.
 
-- [ ] **Step 5: Freeze the real 300-sample shuffled artifacts**
+- [x] **Step 5: Freeze the real 300-sample shuffled artifacts**
 
 Run:
 
@@ -675,7 +675,7 @@ Get-FileHash evaluation/manifests/videophy2_pilot300_shuffled.json,evaluation/ma
 
 Expected: 300 recipients, 300 unique donors, zero forbidden matches; append both hashes to `Execution results` before any diagnostic inference.
 
-- [ ] **Step 6: Run focused and complete tests**
+- [x] **Step 6: Run focused and complete tests**
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/benchmarking/test_cli.py tests/benchmarking/test_prompt_diagnostics_cli.py -q
@@ -684,7 +684,7 @@ Expected: 300 recipients, 300 unique donors, zero forbidden matches; append both
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit CLI and frozen diagnostic inputs**
+- [x] **Step 7: Commit CLI and frozen diagnostic inputs**
 
 ```powershell
 git add benchmarks/evaluate_video_benchmark.py benchmarks/build_prompt_diagnostics.py tests/benchmarking/test_cli.py tests/benchmarking/test_prompt_diagnostics_cli.py evaluation/manifests/videophy2_pilot300_shuffled.json evaluation/manifests/videophy2_pilot300_prompt_donors.json
@@ -1046,3 +1046,11 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - Existing unrecoverable asymmetric/duplicate keys remain terminal. Prediction and diagnostics keys are validated before writing, and one exclusive writer lock protects the pair.
 - Both ordinary and audited runners now stop after fsyncing the configured number of new terminal failures. The default legacy ordinary runner remains unlimited; the audited runner defaults to one failure.
 - Focused runner tests passed `13/13` in 0.26 seconds; the complete local suite passed `303/303` in 10.46 seconds.
+
+### E6 — M5 CLI and frozen prompt diagnostic inputs
+
+- Timestamp: `2026-07-17T16:14:37+08:00`; implementation started from commit `2eb6f08953c77797a8c2612569c6b8d993d89210`.
+- RED evidence: focused collection failed with `ModuleNotFoundError: No module named 'benchmarks.build_prompt_diagnostics'` before the builder existed.
+- The CLI now exposes `M5_FULL`, `M5_SHUFFLED_PROMPT_300` and `M5_ORACLE_PLAN_300`, requires an explicit model-cache directory for M4/M5, records the stage namespaces and uses a one-new-failure default. Direct methods retain the ordinary runner; PAVG methods use paired audited output.
+- The deterministic label-blind bipartite matcher produced 300 unique prompt donors with zero same-sample, same-exact-prompt or same-action matches. Shuffled manifest SHA-256: `5250aea3077f9360e42e20008ee8873a9d9a5f3284e7b52270cba33b098e5848`; donor-map SHA-256: `c43ae712a41513e0443233bf400d0f2d976846cc31beb6a858d0a91300f46049`.
+- Focused Task 6 tests passed `13/13`. The first complete-suite attempt had one transient Windows `PermissionError` atomically renaming an old report-test directory; that exact test passed alone in a fresh basetemp, and the complete suite then passed `307/307` in 10.48 seconds in a fresh basetemp. No production change was made for the transient lock.
