@@ -28,6 +28,11 @@ List every distinct physical object visible in this frame. For each:
   (0=top/left, 100=bottom/right). Be as precise as possible.
 - Include a short description of its appearance.
 
+When a generation prompt is supplied, seed only prompt-relevant physical actors and
+the support/contact objects required to evaluate their interaction. Exclude background
+regions or incidental scenery such as sky, walls, doors, windows, vegetation, distant
+buildings, floor texture, and unrelated clutter.
+
 Only return objects you can clearly see — do not hallucinate."""
 
 _VLM_IDENTIFY_SCHEMA = {
@@ -73,12 +78,14 @@ class SAM2ObjectDetector:
         model_cfg: str = "configs/sam2.1/sam2.1_hiera_b+.yaml",
         model_ckpt: str = "sam2.1_hiera_base_plus.pt",
         jpeg_quality: int = 85,
+        prompt: str = "",
     ) -> None:
         self._vlm = vlm
         self._cache: dict[int, list[Detection]] = {}
         self._object_names: dict[int, str] = {}
         self._width: int | None = None
         self._height: int | None = None
+        self._prompt = str(prompt or "").strip()
         self._precompute(video_path, model_cfg, model_ckpt, jpeg_quality)
 
     # ── ObjectDetector protocol ──────────────────────────
@@ -130,7 +137,11 @@ class SAM2ObjectDetector:
         """VLM 识别首帧中的物体。"""
         result = self._vlm.generate_json_with_images(
             system_prompt=_VLM_IDENTIFY_SYSTEM,
-            user_prompt="Identify all physical objects in this first frame.",
+            user_prompt=(
+                "Identify the prompt-relevant physical actors and necessary support "
+                "objects in this first frame.\nGeneration prompt: "
+                + (self._prompt or "(not provided)")
+            ),
             image_data_urls=[frame_b64],
             schema=_VLM_IDENTIFY_SCHEMA,
         )

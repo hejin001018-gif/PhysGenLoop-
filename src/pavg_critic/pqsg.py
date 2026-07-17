@@ -8,10 +8,12 @@ PQSG 在这里是 PAVG 内部的一种问题生成/问答策略，而不是替�
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Mapping
 
 from .interfaces import QuestionGraphGenerator, StructuredTextModel
+from .physics_rules import RULE_ID_TO_CATEGORY
+from .planner import PLAN_EVENT_VOCABULARY
 from .question_graph import QuestionGraphValidator
 from .schemas import CriticRequest, QuestionGraph, QuestionNode, SchemaError
 
@@ -44,17 +46,34 @@ _GRAPH_SCHEMA: dict[str, Any] = {
                     "question": {"type": "string"},
                     "parent_ids": {"type": "array", "items": {"type": "string"}},
                     "target_objects": {"type": "array", "items": {"type": "string"}},
-                    "expected_events": {"type": "array", "items": {"type": "string"}},
+                    "expected_events": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": list(PLAN_EVENT_VOCABULARY),
+                        },
+                    },
                     "physics_domain": {"type": ["string", "null"]},
                     "verifier_hint": {
                         "enum": ["observation", "event", "rule", "hybrid"]
                     },
-                    "rule_ids": {"type": "array", "items": {"type": "string"}},
+                    "rule_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": sorted(RULE_ID_TO_CATEGORY),
+                        },
+                    },
                     "weight": {"type": "number", "exclusiveMinimum": 0},
                 },
             },
         }
     },
+}
+_ALLOWED_CROSS_CATEGORY_EDGES = {
+    ("object", "action"),
+    ("object", "physics"),
+    ("action", "physics"),
 }
 
 
@@ -75,7 +94,12 @@ class PQSGQuestionGraphGenerator:
             system_prompt=(
                 "Generate a minimal physics scene graph as atomic yes/no questions. "
                 "Use Object, Action, Physics categories and only forward dependencies. "
-                "Do not answer the questions."
+                "Use exact object identifiers from the supplied plan. expected_events may "
+                "only use the implemented IDs: "
+                + ", ".join(PLAN_EVENT_VOCABULARY)
+                + ". rule_ids may only use: "
+                + ", ".join(sorted(RULE_ID_TO_CATEGORY))
+                + "; use an empty array when no rule applies. Do not answer the questions."
             ),
             user_prompt=json.dumps(
                 {
@@ -89,9 +113,11 @@ class PQSGQuestionGraphGenerator:
         nodes_raw = payload.get("nodes")
         if not isinstance(nodes_raw, list):
             raise SchemaError("PQSG response must contain a nodes array")
+        parsed = tuple(_parse_node(item) for item in nodes_raw)
+        nodes, sanitized = _sanitize_forward_dag(parsed)
         graph = QuestionGraph(
-            nodes=tuple(_parse_node(item) for item in nodes_raw),
-            source="pqsg_model",
+            nodes=nodes,
+            source="pqsg_model_sanitized" if sanitized else "pqsg_model",
         )
         self.validator.validate(graph)
         return graph
@@ -131,9 +157,12 @@ class HybridQuestionGraphGenerator:
             )
             for node in pqsg_graph.nodes
         )
+        source = "pavg_hybrid_template_pqsg"
+        if pqsg_graph.source.endswith("_sanitized"):
+            source += "_sanitized"
         graph = QuestionGraph(
             nodes=template_graph.nodes + pqsg_nodes,
-            source="pavg_hybrid_template_pqsg",
+            source=source,
         )
         self.validator.validate(graph)
         return graph
@@ -222,3 +251,37 @@ def _parse_node(raw: Any) -> QuestionNode:
         )
     except KeyError as exc:
         raise SchemaError(f"PQSG node missing field: {exc.args[0]}") from exc
+
+
+def _sanitize_forward_dag(
+    nodes: tuple[QuestionNode, ...],
+) -> tuple[tuple[QuestionNode, ...], bool]:
+    """Keep model nodes while dropping duplicate IDs and unsafe parent edges."""
+
+    accepted: dict[str, QuestionNode] = {}
+    result: list[QuestionNode] = []
+    sanitized = False
+    for node in nodes:
+        if node.id in accepted:
+            sanitized = True
+            continue
+        parents: list[str] = []
+        for parent_id in node.parent_ids:
+            parent = accepted.get(parent_id)
+            valid_direction = parent is not None and (
+                parent.category == node.category
+                or (parent.category, node.category)
+                in _ALLOWED_CROSS_CATEGORY_EDGES
+            )
+            if not valid_direction or parent_id in parents:
+                sanitized = True
+                continue
+            parents.append(parent_id)
+        normalized = (
+            node
+            if tuple(parents) == node.parent_ids
+            else replace(node, parent_ids=tuple(parents))
+        )
+        accepted[node.id] = normalized
+        result.append(normalized)
+    return tuple(result), sanitized

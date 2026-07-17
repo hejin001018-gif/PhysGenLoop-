@@ -159,6 +159,33 @@ def test_vlm_rejected_candidate_is_removed_even_when_rule_score_is_high():
     assert report.decision == "physical"
 
 
+def test_vlm_uncertain_candidate_is_not_published_as_hard_violation():
+    candidate = ViolationCandidate(
+        object="background_door",
+        track_id="door-1",
+        category="object_disappearance",
+        start_frame=10,
+        peak_frame=11,
+        end_frame=12,
+        reason="The tracker loses the door.",
+        repair_instruction="Inspect the track.",
+        detector_score=0.95,
+        rules=("object_persistence",),
+    )
+    review = VLMReview(
+        score=0.9,
+        reason="Occlusion prevents a visual decision.",
+        repair_instruction="Provide unobstructed frames.",
+        claim_status="uncertain",
+    )
+
+    report = ResultFusion(FusionConfig()).fuse(
+        (candidate,), {0: (10, 11, 12)}, {0: review}
+    )
+
+    assert report.violations == ()
+
+
 def _hard_violation_report(*, supporting_score: float) -> CriticReport:
     violation = Violation(
         object="ball",

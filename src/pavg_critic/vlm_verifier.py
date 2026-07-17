@@ -126,6 +126,10 @@ class EvidenceGroundedVLMVerifier:
                 "You are a physics-video verifier. Judge only the claimed violation using "
                 "the supplied chronological keyframes and SAM2 track evidence. Do not infer "
                 "unseen frames. Distinguish confirmed, rejected, and uncertain claims. "
+                "A tracking or segmentation loss is not a physical disappearance: reject "
+                "the claim when the object remains visible, and return uncertain when dust, "
+                "occlusion, crop, or missing frames prevent a visual decision. Confirm only "
+                "a prompt-relevant physical actor, not incidental background clutter. "
                 "Do not reject events that the video prompt explicitly expects."
             ),
             user_prompt=json.dumps(
@@ -197,7 +201,11 @@ class CategoryGroupedVLMVerifier(EvidenceGroundedVLMVerifier):
                     "You are verifying one object/category/time-segment claim of a "
                     "proposed physics-video violation. Use only chronological keyframes, "
                     "SAM2 track evidence, and the video prompt. Reject detector/tracking "
-                    "artifacts, but do not reject events explicitly expected by the prompt. "
+                    "artifacts. A tracking or segmentation loss is not physical "
+                    "disappearance; dust, occlusion, crop, or missing frames require an "
+                    "uncertain result unless the violation is visually clear. Confirm only "
+                    "a prompt-relevant physical actor, not incidental background clutter. "
+                    "Do not reject events explicitly expected by the prompt. "
                     "Return whether the claim is confirmed, rejected, or uncertain and a "
                     "violation score for this segment."
                 ),

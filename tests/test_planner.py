@@ -81,6 +81,11 @@ def test_model_planner_parses_valid_structured_plan():
     assert plan.planner_metadata.confidence == 0.8
     assert plan.planner_metadata.model == "fake-plan-model"
     assert model.calls[0]["schema"]["additionalProperties"] is False
+    assert set(
+        model.calls[0]["schema"]["properties"]["expected_events"]["items"][
+            "enum"
+        ]
+    ) >= {"fall", "floor_contact", "rebound", "collision"}
 
 
 def test_model_planner_empty_semantics_has_zero_confidence():
@@ -128,6 +133,33 @@ def test_model_planner_receives_partial_explicit_plan_context():
         "floor",
     ]
     assert "planner_metadata" not in user_payload["partial_physics_plan"]
+
+
+def test_model_planner_repairs_invalid_references_once():
+    from pavg_critic.planner import ModelPhysicsPlanner
+
+    invalid = _model_plan_payload()
+    invalid["relations"][0]["subject"] = "ball"
+
+    class RepairingModel:
+        model = "repairing-model"
+
+        def __init__(self):
+            self.responses = [invalid, _model_plan_payload()]
+            self.calls = []
+
+        def generate_json(self, **kwargs):
+            self.calls.append(kwargs)
+            return self.responses.pop(0)
+
+    model = RepairingModel()
+    plan = ModelPhysicsPlanner(model).generate("A red ball falls to the floor.")
+
+    assert plan.planner_metadata.source == "model"
+    assert len(model.calls) == 2
+    repair_payload = json.loads(model.calls[1]["user_prompt"])
+    assert "repair_feedback" in repair_payload
+    assert "unknown objects" in repair_payload["repair_feedback"]
 
 
 def test_resolver_falls_back_after_timeout():

@@ -15,10 +15,12 @@ from pavg_critic.vlm_verifier import (
 class FakeMultimodalModel:
     def __init__(self):
         self.calls = []
+        self.system_prompts = []
 
     def generate_json_with_images(
         self, *, system_prompt, user_prompt, image_data_urls, schema
     ):
+        self.system_prompts.append(system_prompt)
         self.calls.append((user_prompt, image_data_urls, schema))
         return {
             "violation_score": 0.8,
@@ -171,6 +173,8 @@ def test_verifier_payload_contains_sam2_track_evidence_and_expected_event_policy
     payload = json.loads(model.calls[0][0])
     assert payload["candidate"]["evidence"]["sam2_track"]["track_id"] == "ball-1"
     assert payload["expected_event_policy"] == "do_not_reject_prompt_expected_events"
+    assert "tracking or segmentation loss" in model.system_prompts[0]
+    assert "prompt-relevant physical actor" in model.system_prompts[0]
 
 
 def test_verifier_retains_optional_claim_status():

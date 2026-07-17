@@ -40,7 +40,7 @@ class ResultFusion:
             # contradicted by the keyframes.  Keeping it merely because a sparse
             # tracker assigned a high detector score defeats the verifier's
             # false-positive-rejection role.
-            if review is not None and review.claim_status == "rejected":
+            if review is not None and review.claim_status != "confirmed":
                 continue
             score = self._score(candidate.detector_score, review)
             # 低于阈值的候选仍可在上游调试 artifacts 中看到，但不会污染公开报告。

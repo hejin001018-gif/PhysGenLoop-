@@ -402,6 +402,7 @@ def make_sam2_observation_producer(
             sample.video_path,
             model_cfg=model_config,
             model_ckpt=checkpoint,
+            prompt=sample.prompt,
         )
         states, _ = PhysicsCritic(
             CriticConfig(),

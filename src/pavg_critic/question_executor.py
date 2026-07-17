@@ -9,6 +9,7 @@ Agent 定位真正根因。
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Mapping, Sequence
 
 from .physics_rules import RULE_ID_TO_CATEGORY
@@ -125,7 +126,11 @@ class QuestionGraphExecutor:
         """用可见轨迹验证对象；检测器未覆盖的类别返回 unknown 而非误判缺失。"""
 
         targets = set(node.target_objects)
-        matching_tracks = [track for track in context.tracks if track.object in targets]
+        matching_tracks = [
+            track
+            for track in context.tracks
+            if _matches_any_target(track.object, targets)
+        ]
         visible_states = [
             state for track in matching_tracks for state in track.states if state.visible
         ]
@@ -199,7 +204,7 @@ class QuestionGraphExecutor:
         aliases: list[str] = []
         unsupported: list[str] = []
         for expected_event in node.expected_events:
-            mapped = _EVENT_ALIASES.get(expected_event)
+            mapped = _event_aliases(expected_event)
             if mapped is None:
                 unsupported.append(expected_event)
             else:
@@ -215,7 +220,7 @@ class QuestionGraphExecutor:
             event
             for event in context.events
             if event.event_type in aliases
-            and (not targets or event.object in targets)
+            and (not targets or _matches_any_target(event.object, targets))
         ]
         if matches:
             frames = _unique_frames(
@@ -271,7 +276,7 @@ class QuestionGraphExecutor:
         targets = set(node.target_objects)
         matches: list[tuple[int, ViolationCandidate]] = []
         for index, candidate in enumerate(context.candidates):
-            if targets and candidate.object not in targets:
+            if targets and not _matches_any_target(candidate.object, targets):
                 continue
             if set(candidate.rules).intersection(node.rule_ids):
                 matches.append((index, candidate))
@@ -330,6 +335,27 @@ def _unknown(node: QuestionNode, reason: str) -> NodeResult:
         verifier="unavailable",
         rule_ids=node.rule_ids,
     )
+
+
+def _event_aliases(expected_event: str) -> tuple[str, ...] | None:
+    exact = _EVENT_ALIASES.get(expected_event)
+    if exact is not None:
+        return exact
+    normalized = expected_event.lower()
+    if "roll" in normalized and (
+        "slope" in normalized or "downhill" in normalized
+    ):
+        return ("fall",)
+    return None
+
+
+def _matches_any_target(actual: str, targets: set[str]) -> bool:
+    actual_tokens = set(re.findall(r"[a-z0-9]+", actual.lower()))
+    for target in targets:
+        target_tokens = set(re.findall(r"[a-z0-9]+", target.lower()))
+        if target_tokens and target_tokens.issubset(actual_tokens):
+            return True
+    return False
 
 
 def _unique_frames(frames) -> tuple[int, ...]:

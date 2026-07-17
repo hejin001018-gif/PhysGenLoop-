@@ -25,6 +25,17 @@ from .schemas import (
 )
 
 
+PLAN_EVENT_VOCABULARY = (
+    "leave_support",
+    "fall",
+    "floor_contact",
+    "rebound",
+    "projectile",
+    "collision",
+    "roll_down_slope",
+)
+
+
 @dataclass(frozen=True)
 class _ObjectPattern:
     name: str
@@ -238,7 +249,10 @@ PHYSICS_PLAN_SCHEMA: dict[str, Any] = {
     "required": ["objects", "expected_events", "relations", "physics_constraints"],
     "properties": {
         "objects": {"type": "array", "items": {"type": "string"}},
-        "expected_events": {"type": "array", "items": {"type": "string"}},
+        "expected_events": {
+            "type": "array",
+            "items": {"type": "string", "enum": list(PLAN_EVENT_VOCABULARY)},
+        },
         "relations": {
             "type": "array",
             "items": {
@@ -284,24 +298,64 @@ class ModelPhysicsPlanner:
     ) -> PhysicsPlan:
         partial_context = (partial_plan or PhysicsPlan()).to_dict()
         partial_context.pop("planner_metadata", None)
-        payload = self.model.generate_json(
+        payload = self._generate_payload(
+            prompt=str(prompt or ""),
+            partial_context=partial_context,
+        )
+        try:
+            return self._parse_plan(payload)
+        except SchemaError as error:
+            repaired = self._generate_payload(
+                prompt=str(prompt or ""),
+                partial_context=partial_context,
+                repair_feedback=str(error)[:300],
+                previous_plan=payload,
+            )
+            return self._parse_plan(repaired)
+
+    def _generate_payload(
+        self,
+        *,
+        prompt: str,
+        partial_context: Mapping[str, Any],
+        repair_feedback: str | None = None,
+        previous_plan: Mapping[str, Any] | None = None,
+    ) -> Mapping[str, Any]:
+        user_payload: dict[str, Any] = {
+            "prompt": prompt,
+            "partial_physics_plan": partial_context,
+        }
+        if repair_feedback is not None:
+            user_payload.update(
+                {
+                    "repair_feedback": repair_feedback,
+                    "previous_plan": previous_plan,
+                    "repair_policy": (
+                        "Correct only schema/reference errors. Preserve supported "
+                        "objects and events; omit relations or constraints that cannot "
+                        "use exact object identifiers."
+                    ),
+                }
+            )
+        return self.model.generate_json(
             system_prompt=(
                 "Convert the video-generation prompt into a conservative physics plan. "
                 "Treat every non-empty field in partial_physics_plan as authoritative and "
                 "use its object identifiers when generating relations or constraints. "
                 "Use stable snake_case identifiers. Include only objects and qualitative "
                 "events/constraints supported by the prompt. Never invent masses, speeds, "
-                "gravity constants, dimensions, coefficients, or other numeric parameters."
+                "gravity constants, dimensions, coefficients, or other numeric parameters. "
+                "Every relation subject/object and every constraint subject must exactly "
+                "equal one entry in objects; omit an extension if no exact reference exists. "
+                "expected_events must use only these implemented IDs: "
+                + ", ".join(PLAN_EVENT_VOCABULARY)
+                + "."
             ),
-            user_prompt=json.dumps(
-                {
-                    "prompt": str(prompt or ""),
-                    "partial_physics_plan": partial_context,
-                },
-                ensure_ascii=False,
-            ),
+            user_prompt=json.dumps(user_payload, ensure_ascii=False),
             schema=PHYSICS_PLAN_SCHEMA,
         )
+
+    def _parse_plan(self, payload: Mapping[str, Any]) -> PhysicsPlan:
         self._validate_payload_shape(payload)
         plan = PhysicsPlan.from_dict(payload)
         metadata = (

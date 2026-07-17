@@ -11,6 +11,10 @@ from pavg_critic.pqsg import (
     PQSGQuestionGraphGenerator,
     TwoPassQuestionAnswerer,
 )
+from pavg_critic.question_executor import (
+    QuestionExecutionContext,
+    QuestionGraphExecutor,
+)
 from pavg_critic.question_generator import TemplateQuestionGraphGenerator
 from pavg_critic.question_graph import QuestionGraphValidator
 from pavg_critic.schemas import (
@@ -18,8 +22,10 @@ from pavg_critic.schemas import (
     PhysicsConstraint,
     PhysicsPlan,
     PhysicsRelation,
+    Event,
     QuestionGraph,
     QuestionNode,
+    TrackSequence,
 )
 
 
@@ -80,6 +86,99 @@ def test_pqsg_generator_parses_and_validates_model_json():
     assert [node.id for node in graph.nodes] == ["O1", "P1"]
 
 
+def test_pqsg_generator_sanitizes_reverse_or_missing_parent_edges():
+    model = FakeStructuredModel(
+        {
+            "nodes": [
+                {
+                    "id": "P1",
+                    "category": "physics",
+                    "question": "Does the rock obey downhill dynamics?",
+                },
+                {
+                    "id": "A1",
+                    "category": "action",
+                    "question": "Does the rock start rolling?",
+                    "parent_ids": ["P1", "missing", "P1"],
+                },
+            ]
+        }
+    )
+
+    graph = PQSGQuestionGraphGenerator(model).generate(
+        CriticRequest(video_path="unused.mp4", prompt="A rock rolls downhill.")
+    )
+
+    assert graph.source == "pqsg_model_sanitized"
+    assert graph.nodes[1].parent_ids == ()
+    QuestionGraphValidator().validate(graph)
+
+
+def test_question_executor_matches_generic_plan_names_and_downhill_roll_alias():
+    graph = QuestionGraph(
+        nodes=(
+            QuestionNode(
+                id="O1",
+                category="object",
+                question="Is the rock visible?",
+                target_objects=("rock",),
+            ),
+            QuestionNode(
+                id="A1",
+                category="action",
+                question="Does it roll downhill?",
+                parent_ids=("O1",),
+                target_objects=("rock",),
+                expected_events=("rock_starts_rolling_down_slope",),
+            ),
+            QuestionNode(
+                id="P1",
+                category="physics",
+                question="Does it remain continuous?",
+                parent_ids=("A1",),
+                target_objects=("rock",),
+                rule_ids=("bounded_interframe_displacement",),
+            ),
+        ),
+        source="test",
+    )
+    state = FrameState(
+        frame=1,
+        timestamp_sec=0.1,
+        object="large_gray_rock",
+        track_id="sam2:4",
+        center=(10, 20),
+        bbox=(5, 15, 15, 25),
+    )
+    context = QuestionExecutionContext(
+        tracks=(
+            TrackSequence(
+                track_id="sam2:4", object="large_gray_rock", states=(state,)
+            ),
+        ),
+        events=(
+            Event(
+                "fall",
+                "large_gray_rock",
+                "sam2:4",
+                1,
+                1,
+                1,
+                0.9,
+            ),
+        ),
+        candidates=(),
+        candidate_keyframes={},
+    )
+
+    results = QuestionGraphExecutor(
+        enabled_rule_categories=("teleportation",),
+        rule_pass_confidence=0.75,
+    ).execute(graph, context)
+
+    assert [result.status for result in results] == ["yes", "yes", "yes"]
+
+
 def test_pqsg_generator_receives_relations_and_constraints():
     model = FakeStructuredModel({"nodes": []})
     request = CriticRequest(
@@ -111,6 +210,12 @@ def test_pqsg_generator_receives_relations_and_constraints():
     assert user_payload["relations"][0]["relation"] == "expected_to_collide_with"
     assert user_payload["physics_constraints"][0]["domain"] == "contact"
     assert "planner_metadata" not in user_payload
+    schema = model.calls[0][2]
+    node_properties = schema["properties"]["nodes"]["items"]["properties"]
+    assert "fall" in node_properties["expected_events"]["items"]["enum"]
+    assert (
+        "object_persistence" in node_properties["rule_ids"]["items"]["enum"]
+    )
 
 
 def test_hybrid_graph_keeps_template_and_pqsg_nodes_without_id_collisions():

@@ -3,7 +3,7 @@
 用法::
 
     # 无 prompt — VLM 通用检测 + 规则引擎 + VLM 复核
-    python examples/evaluate_video.py --video 1n.mp4
+    python examples/evaluate_video.py --video 2n.mp4
 
     # 有 prompt — VLM 检测 + Planner → Pipeline → VLM 复核
     python examples/evaluate_video.py --video 1n.mp4 --prompt "a red ball falls and bounces"
@@ -104,6 +104,19 @@ def _probe_video_meta(video_path: str) -> tuple[int, int, int]:
     except Exception:
         pass
     return 240, 640, 480  # 默认 640×480 @ 8s
+
+
+def _resolve_sam2_checkpoint() -> Path:
+    """Resolve the explicit or repository-frozen SAM2.1 checkpoint."""
+
+    explicit = os.getenv("SAM2_CHECKPOINT", "").strip()
+    if explicit:
+        return Path(explicit).expanduser().resolve()
+    frozen = Path("evaluation/external/models/sam2.1_hiera_base_plus.pt")
+    if frozen.is_file():
+        return frozen.resolve()
+    legacy = Path("sam2.1_hiera_base_plus.pt")
+    return legacy.resolve() if legacy.is_file() else frozen.resolve()
 
 
 def _configure_sparse_vlm_fallback(
@@ -215,7 +228,12 @@ def evaluate_video(
     sam2_used = False
     sam2_fallback_error: Exception | None = None
     try:
-        detector = SAM2ObjectDetector(vlm, video_path)
+        detector = SAM2ObjectDetector(
+            vlm,
+            video_path,
+            model_ckpt=str(_resolve_sam2_checkpoint()),
+            prompt=prompt or "",
+        )
         sam2_used = True
         if verbose:
             print(f"SAM2 像素级跟踪 ({vw}×{vh})...", file=sys.stderr)
@@ -430,7 +448,16 @@ def evaluate_video(
     diagnostics = report.diagnostics
     if "provider_failures" in diagnostics:
         output["provider_failures"] = [
-            {"stage": f["stage"], "error": f["error_type"]}
+            {
+                "stage": f["stage"],
+                "error": f["error_type"],
+                **(
+                    {"detail": str(f.get("message", ""))[:300]}
+                    if f.get("error_type")
+                    in {"QuestionGraphError", "SchemaError"}
+                    else {}
+                ),
+            }
             for f in diagnostics["provider_failures"]
         ]
 

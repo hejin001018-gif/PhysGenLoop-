@@ -165,6 +165,7 @@ class PhysicsCritic:
         # Planner 必须先于问题图执行；后续所有阶段共享同一个 resolved_request，避免
         # 模板图、规则、力学模块和插件看到互相矛盾的计划版本。
         provider_failures: list[dict[str, object]] = []
+        floor_geometry_calibrated = floor_y is not None
         resolution = self.physics_plan_resolver.resolve(request)
         resolved_request = replace(request, physics_plan=resolution.plan)
         request = resolved_request
@@ -202,7 +203,12 @@ class PhysicsCritic:
             )
         else:
             mechanics_results, mechanics_summary = (), None
-        context = RuleContext(request=request, tracks=tracks, events=events)
+        context = RuleContext(
+            request=request,
+            tracks=tracks,
+            events=events,
+            floor_geometry_calibrated=floor_geometry_calibrated,
+        )
         raw_candidates = self.rule_engine.evaluate(context)
         localized_candidates = tuple(
             self.localizer.localize(item, events) for item in raw_candidates

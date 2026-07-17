@@ -154,6 +154,52 @@ def test_unplanned_floor_geometry_is_not_surface_penetration_evidence():
     }
 
 
+def test_slope_contact_does_not_use_horizontal_floor_penetration_rule():
+    from pavg_critic.schemas import PhysicsConstraint
+
+    states = (_state(0, 103, velocity=(0, 20), bottom=108),)
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(
+            objects=("rock", "slope"),
+            expected_events=("roll_down_slope",),
+            physics_constraints=(
+                PhysicsConstraint(
+                    id="C1",
+                    domain="contact",
+                    subjects=("rock", "slope"),
+                    condition="while_on_slope",
+                    expectation="remain_on_slope",
+                ),
+            ),
+        ),
+    )
+
+    report = _critic().analyze(request, observations=states, floor_y=100)
+
+    assert "surface_penetration" not in {
+        item.category for item in report.violations
+    }
+
+
+def test_video_inferred_floor_is_not_calibrated_penetration_evidence(monkeypatch):
+    states = (_state(0, 103, velocity=(0, 20), bottom=108),)
+    request = CriticRequest(
+        video_path="synthetic.mp4",
+        physics_plan=PhysicsPlan(
+            objects=("red_ball",), expected_events=("floor_contact",)
+        ),
+    )
+    critic = _critic()
+    monkeypatch.setattr(critic, "_observe_video", lambda path: (states, 100.0))
+
+    report = critic.analyze(request)
+
+    assert "surface_penetration" not in {
+        item.category for item in report.violations
+    }
+
+
 def test_vlm_verifier_receives_sam2_track_evidence():
     class CaptureVerifier:
         def __init__(self):

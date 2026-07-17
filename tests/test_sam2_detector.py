@@ -10,9 +10,13 @@ from pavg_critic.sam2_detector import SAM2ObjectDetector
 class ObjectSeedModel:
     def __init__(self):
         self.schema = None
+        self.system_prompt = None
+        self.user_prompt = None
 
     def generate_json_with_images(self, **kwargs):
         self.schema = kwargs["schema"]
+        self.system_prompt = kwargs["system_prompt"]
+        self.user_prompt = kwargs["user_prompt"]
         return {
             "objects": [
                 {
@@ -79,6 +83,7 @@ def test_sam2_uses_jpeg_folder_and_squeezes_mask_channel(tmp_path, monkeypatch):
         str(video),
         model_cfg="configs/sam2.1/sam2.1_hiera_b+.yaml",
         model_ckpt="checkpoint.pt",
+        prompt="A ball falls onto the floor.",
     )
 
     assert observed["is_dir"] is True
@@ -88,6 +93,9 @@ def test_sam2_uses_jpeg_folder_and_squeezes_mask_channel(tmp_path, monkeypatch):
     assert seed_model.schema["properties"]["objects"]["items"]["properties"][
         "x_pct"
     ] == {"type": "number", "minimum": 0, "maximum": 100}
+    assert "A ball falls onto the floor." in seed_model.user_prompt
+    assert "prompt-relevant" in seed_model.system_prompt
+    assert "background" in seed_model.system_prompt
     assert len(detector.detect(None, 0, 0.0)) == 1
     assert len(detector.detect(None, 2, 0.2)) == 1
     assert detector.detect(None, 0, 0.0)[0].track_id == "sam2:0"
