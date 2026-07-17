@@ -255,3 +255,10 @@ Results are appended here after every task checkpoint. Existing results are immu
 - On 2026-07-17 the user narrowed the active scope to completing VideoPhy-2, merging and auditing both disjoint A100 shards, and producing the final VideoPhy-2 Chinese summary report.
 - VideoPhy-1 OOD is explicitly deferred. Its Task 9 checkboxes remain open and no OOD result will be implied by the current report.
 - The active completion contract is therefore Task 8 plus the VideoPhy-2-relevant parts of Task 10: 6,794 terminal sample×method keys, exact merge/audit, frozen metrics and confidence intervals, synchronized non-secret artifacts, local tests and documentation.
+
+### E15 — Both full VideoPhy-2 inference shards complete
+
+- The frozen 3,397-sample population was evaluated once as two disjoint sample shards; neither evaluator was restarted. Shard A finished at `2026-07-17 11:34:19 +08:00` and shard B at `2026-07-17 12:18:05 +08:00`. Approximate elapsed times from each resolved configuration timestamp were 15 h 23 min and 15 h 13 min, respectively.
+- Shard A contains exactly 3,398 terminal records over 1,699 samples: 1,699 `D0_DIRECT_VLM`, 1,699 `B1_RULE`, 2 retained failures, and zero duplicate/missing/extra keys. Prediction SHA-256: `8722836330d6fa31c446184973c216f1481f4b97dabfb9d73ba246f91d72bff6`.
+- Shard B contains exactly 3,396 terminal records over 1,698 samples: 1,698 `D0_DIRECT_VLM`, 1,698 `B1_RULE`, 3 retained failures, and zero duplicate/missing/extra keys. Prediction SHA-256: `14e8ca76c1a942ddea73daa29af2943e30af02d1ad82934f952499a587e781f8`.
+- Combined inference therefore reached all 6,794 frozen sample×method terminal keys with 5 failures (`0.0736%`). Both evaluator processes exited normally, both append locks disappeared and both GPUs returned to 0% utilization. Idle vLLM services remain resident only until the deterministic report is regenerated and accepted; fine-tuning has not started.

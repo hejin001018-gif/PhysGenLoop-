@@ -93,10 +93,10 @@
 - Shard A: `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/shard-a/run/predictions.jsonl`
 - Shard B: `/root/pavg-benchmark-shard2/shard-b/run/predictions.jsonl`
 
-- [ ] Continue monitoring the existing evaluator PIDs and append-only files; do not relaunch while they are healthy.
-- [ ] Require terminal counts 3,398 on shard A and 3,396 on shard B, with no duplicate keys and no method/sample outside each frozen shard manifest.
-- [ ] Record final wall time, GPU state, failure counts and process exit status in the main execution plan.
-- [ ] Freeze SHA-256 hashes of both completed prediction inputs before copying or analysis.
+- [x] Continue monitoring the existing evaluator PIDs and append-only files; do not relaunch while they are healthy.
+- [x] Require terminal counts 3,398 on shard A and 3,396 on shard B, with no duplicate keys and no method/sample outside each frozen shard manifest.
+- [x] Record final wall time, GPU state, failure counts and process exit status in the main execution plan.
+- [x] Freeze SHA-256 hashes of both completed prediction inputs before copying or analysis.
 
 ## Task 7: Synchronize shard B metadata and run the formal merge on cloud2
 
@@ -153,3 +153,10 @@ Append immutable checkpoints here as each task completes. Do not replace prior e
 - Generator, action and exact source rule-family slices are deterministic and retain single-class/small groups. Rule metadata is parsed only with `ast.literal_eval`; malformed or missing values map to `__unmapped__`.
 - Independent specification and code-quality reviews passed. Final focused verification: `35 passed`; all benchmark tests: `94 passed`; compile-all and `git diff --check` passed.
 - Implementation commits: `8b30c78` and test-hardening commit `99292a6`.
+
+### R4 — Both frozen inference shards complete
+
+- Shard A completed without restart and released its prediction lock at `2026-07-17 11:34:19 +08:00`. It contains 3,398 terminal records over 1,699 samples: 1,699 `D0_DIRECT_VLM`, 1,699 `B1_RULE`, 2 failures, zero duplicate/missing/extra keys. Prediction SHA-256: `8722836330d6fa31c446184973c216f1481f4b97dabfb9d73ba246f91d72bff6`; shard-manifest SHA-256: `2e52bcb66ba1b18258c3094ec919fa237386d1293cb6a4a168600325d7377b1e`.
+- Shard B completed without restart and released its prediction lock at `2026-07-17 12:18:05 +08:00`. It contains 3,396 terminal records over 1,698 samples: 1,698 `D0_DIRECT_VLM`, 1,698 `B1_RULE`, 3 failures, zero duplicate/missing/extra keys. Prediction SHA-256: `14e8ca76c1a942ddea73daa29af2943e30af02d1ad82934f952499a587e781f8`; shard-manifest SHA-256: `34807db8acdc47af9147171ac94090f161a6d991f2d51b53d0af06231fbb224c`.
+- Combined terminal coverage is 6,794 method-level predictions with 5 retained failures (`0.0736%`). Both evaluator processes exited, both locks are absent and both GPUs returned to 0% utilization. Approximate elapsed times from each frozen `resolved_config.json` timestamp to the final prediction write were 15 h 23 min for A and 15 h 13 min for B.
+- The local five-minute monitor was stopped only after both locks released. Both idle vLLM services remain resident until deterministic full-report acceptance; no training has begun.
