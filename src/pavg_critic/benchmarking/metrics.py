@@ -39,6 +39,15 @@ def _spearman(
     return None if x_scale == 0 or y_scale == 0 else numerator / (x_scale * y_scale)
 
 
+def _linear_percentile(values: Sequence[float], quantile: float) -> float:
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * quantile
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
+
+
 def compute_smoke_metrics(
     samples: Sequence[BenchmarkSample],
     predictions: Sequence[BenchmarkPrediction],
@@ -81,6 +90,7 @@ def compute_smoke_metrics(
         for g, p in pairs
         if g.physics_score is not None and p.physics_score is not None
     ]
+    latencies = [p.latency_sec for _, p in pairs]
     return {
         "count": len(pairs),
         "accuracy": sum(
@@ -90,11 +100,14 @@ def compute_smoke_metrics(
         "balanced_accuracy": mean(class_recall),
         "macro_f1": mean(class_f1),
         "violation_precision": precision_by_class["violation"],
+        "physical_recall": class_recall[0],
         "violation_recall": class_recall[1],
         "unknown_rate": sum(p.physics_label == "unknown" for _, p in pairs)
         / len(pairs),
         "failure_rate": sum(p.failure is not None for _, p in pairs) / len(pairs),
-        "mean_latency_sec": mean(p.latency_sec for _, p in pairs),
+        "mean_latency_sec": mean(latencies),
+        "p50_latency_sec": _linear_percentile(latencies, 0.50),
+        "p95_latency_sec": _linear_percentile(latencies, 0.95),
         "mean_visible_frames": mean(p.visible_frame_count for _, p in pairs),
         "physics_spearman": _spearman(
             [a for a, _ in ordinal],
