@@ -335,6 +335,209 @@ def build_slices(
     return result
 
 
+def summarize_observation_latencies(
+    samples: Sequence[BenchmarkSample],
+    observation_meta_dirs: Sequence[str | Path],
+) -> dict[str, Any]:
+    """Summarize SAM2 production latency from metadata-only cache files."""
+
+    sample_ids = [sample.sample_id for sample in samples]
+    if len(set(sample_ids)) != len(sample_ids):
+        raise ValueError("benchmark samples contain duplicate sample_id values")
+    if not observation_meta_dirs:
+        raise ValueError("at least one observation metadata directory is required")
+
+    known_sample_ids = set(sample_ids)
+    metadata_by_sample: dict[str, dict[str, Any]] = {}
+    latency_by_sample: dict[str, float] = {}
+    directories = sorted(
+        (Path(raw_path) for raw_path in observation_meta_dirs),
+        key=_canonical_path_order,
+    )
+    for directory in directories:
+        if not directory.is_dir():
+            raise ValueError(
+                f"observation metadata directory does not exist: {directory}"
+            )
+        for path in sorted(directory.rglob("*.meta.json"), key=_canonical_path_order):
+            try:
+                raw = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                raise ValueError(f"invalid observation metadata JSON: {path}") from exc
+            if not isinstance(raw, dict):
+                raise ValueError(f"observation metadata must be an object: {path}")
+            sample_id = raw.get("sample_id")
+            if not isinstance(sample_id, str) or not sample_id:
+                raise ValueError(
+                    f"invalid observation metadata sample_id in {path}: {sample_id!r}"
+                )
+            if sample_id not in known_sample_ids:
+                raise ValueError(
+                    f"unknown observation sample_id {sample_id!r} in {path}"
+                )
+            previous = metadata_by_sample.get(sample_id)
+            if previous is not None and raw != previous:
+                raise ValueError(
+                    f"conflicting observation metadata for sample_id {sample_id!r}"
+                )
+            metadata_by_sample[sample_id] = raw
+
+            latency = raw.get("production_latency_sec")
+            if latency is None:
+                continue
+            if (
+                isinstance(latency, bool)
+                or not isinstance(latency, (int, float))
+            ):
+                raise ValueError(
+                    f"invalid production_latency_sec for sample_id "
+                    f"{sample_id!r}: {latency!r}"
+                )
+            try:
+                valid_latency = math.isfinite(latency) and latency >= 0
+            except (OverflowError, TypeError):
+                valid_latency = False
+            if not valid_latency:
+                raise ValueError(
+                    f"invalid production_latency_sec for sample_id "
+                    f"{sample_id!r}: {latency!r}"
+                )
+            latency_by_sample[sample_id] = float(latency)
+
+    latencies = [latency_by_sample[sample_id] for sample_id in sample_ids if sample_id in latency_by_sample]
+    missing_sample_ids = sorted(known_sample_ids - latency_by_sample.keys())
+    return {
+        "expected_count": len(sample_ids),
+        "valid_count": len(latencies),
+        "missing_count": len(missing_sample_ids),
+        "missing_sample_ids": missing_sample_ids,
+        "mean_production_latency_sec": (
+            sum(latencies) / len(latencies) if latencies else None
+        ),
+        "p50_production_latency_sec": (
+            _linear_percentile(latencies, 0.50) if latencies else None
+        ),
+        "p95_production_latency_sec": (
+            _linear_percentile(latencies, 0.95) if latencies else None
+        ),
+    }
+
+
+def _required_finite_metric(
+    values: Mapping[str, Any], key: str, *, context: str
+) -> float:
+    value = values.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"invalid {context} {key}: {value!r}")
+    try:
+        finite = math.isfinite(value)
+    except (OverflowError, TypeError):
+        finite = False
+    if not finite:
+        raise ValueError(f"invalid {context} {key}: {value!r}")
+    return float(value)
+
+
+def evaluate_material_improvement(
+    *,
+    baseline_metrics: Mapping[str, Any],
+    candidate_metrics: Mapping[str, Any],
+    bootstrap: Mapping[str, Any],
+    slices: Mapping[str, Any],
+    baseline_failure_rate: float,
+    candidate_failure_rate: float,
+) -> dict[str, Any]:
+    """Apply frozen VideoPhy-2 gates while keeping OOD verdict deferred."""
+
+    baseline_macro_f1 = _required_finite_metric(
+        baseline_metrics, "macro_f1", context="baseline metric"
+    )
+    candidate_macro_f1 = _required_finite_metric(
+        candidate_metrics, "macro_f1", context="candidate metric"
+    )
+    physical_recall = _required_finite_metric(
+        candidate_metrics, "physical_recall", context="candidate metric"
+    )
+    violation_recall = _required_finite_metric(
+        candidate_metrics, "violation_recall", context="candidate metric"
+    )
+    bootstrap_lower = _required_finite_metric(
+        bootstrap, "lower", context="bootstrap"
+    )
+    failure_rates = {
+        "baseline": baseline_failure_rate,
+        "candidate": candidate_failure_rate,
+    }
+    baseline_failure = _required_finite_metric(
+        failure_rates, "baseline", context="failure rate"
+    )
+    candidate_failure = _required_finite_metric(
+        failure_rates, "candidate", context="failure rate"
+    )
+
+    generator_slices = slices.get("generator")
+    if not isinstance(generator_slices, Mapping):
+        raise ValueError("slices must contain a generator mapping")
+    positive_generator_count = 0
+    for name, generator_slice in generator_slices.items():
+        if not isinstance(generator_slice, Mapping):
+            raise ValueError(f"invalid generator slice {name!r}")
+        delta = generator_slice.get("candidate_minus_baseline")
+        if not isinstance(delta, Mapping):
+            raise ValueError(f"missing candidate delta for generator {name!r}")
+        macro_f1_delta = _required_finite_metric(
+            delta, "macro_f1", context=f"generator {name!r} delta"
+        )
+        positive_generator_count += macro_f1_delta > 0
+
+    macro_f1_delta = candidate_macro_f1 - baseline_macro_f1
+    failure_rate_increase = candidate_failure - baseline_failure
+    gates = {
+        "macro_f1_delta": {
+            "value": macro_f1_delta,
+            "threshold": 0.05,
+            "operator": ">=",
+            "pass": macro_f1_delta >= 0.05,
+        },
+        "bootstrap_lower": {
+            "value": bootstrap_lower,
+            "threshold": 0.0,
+            "operator": ">",
+            "pass": bootstrap_lower > 0.0,
+        },
+        "candidate_nonzero_recalls": {
+            "value": {
+                "physical_recall": physical_recall,
+                "violation_recall": violation_recall,
+            },
+            "threshold": {
+                "physical_recall": 0.0,
+                "violation_recall": 0.0,
+            },
+            "operator": ">",
+            "pass": physical_recall > 0.0 and violation_recall > 0.0,
+        },
+        "failure_rate_increase": {
+            "value": failure_rate_increase,
+            "threshold": 0.01,
+            "operator": "<=",
+            "pass": failure_rate_increase <= 0.01,
+        },
+        "positive_generator_count": {
+            "value": positive_generator_count,
+            "threshold": 2,
+            "operator": ">=",
+            "pass": positive_generator_count >= 2,
+        },
+    }
+    return {
+        "gates": gates,
+        "videophy2_support": all(gate["pass"] for gate in gates.values()),
+        "ood_status": "deferred",
+        "overall_verdict": "not_evaluable_ood_deferred",
+    }
+
+
 def _sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 

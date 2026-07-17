@@ -12,9 +12,11 @@ import pavg_critic.benchmarking.full_report as full_report
 from pavg_critic.benchmarking.full_report import (
     action_group_bootstrap,
     build_slices,
+    evaluate_material_improvement,
     merge_prediction_shards,
     paired_outcomes,
     parse_rule_families,
+    summarize_observation_latencies,
 )
 
 
@@ -765,3 +767,268 @@ def test_build_slices_contains_generator_action_and_rule_family_metrics(
     assert gravity["candidate_minus_baseline"]["accuracy"] == pytest.approx(0.5)
     assert "macro_f1" in gravity["baseline_metrics"]
     assert "macro_f1" in gravity["candidate_metrics"]
+
+
+def _write_observation_metadata(path: Path, **overrides: object) -> None:
+    payload = {
+        "schema_version": "1.0",
+        "sample_id": "0",
+        "video_sha256": "fixture",
+        "production_latency_sec": 1.0,
+        "propagation_failure": None,
+    }
+    payload.update(overrides)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_observation_latency_summary_recurses_and_reports_linear_percentiles(
+    tmp_path, sample_factory
+):
+    samples = tuple(
+        sample_factory(index=index, physical=True, generator="g")
+        for index in range(5)
+    )
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    _write_observation_metadata(
+        first / "nested" / "0.meta.json",
+        sample_id="0",
+        production_latency_sec=1.0,
+    )
+    _write_observation_metadata(
+        first / "1.meta.json",
+        sample_id="1",
+        production_latency_sec=2.0,
+    )
+    _write_observation_metadata(
+        second / "deeper" / "2.meta.json",
+        sample_id="2",
+        production_latency_sec=4.0,
+    )
+    _write_observation_metadata(
+        second / "3.meta.json",
+        sample_id="3",
+        production_latency_sec=8.0,
+    )
+
+    summary = summarize_observation_latencies(samples, (second, first))
+
+    assert summary == {
+        "expected_count": 5,
+        "valid_count": 4,
+        "missing_count": 1,
+        "missing_sample_ids": ["4"],
+        "mean_production_latency_sec": pytest.approx(3.75),
+        "p50_production_latency_sec": pytest.approx(3.0),
+        "p95_production_latency_sec": pytest.approx(7.4),
+    }
+
+
+def test_observation_latency_accepts_identical_duplicate_metadata(
+    tmp_path, sample_factory
+):
+    samples = (sample_factory(index=0, physical=True, generator="g"),)
+    payload = {
+        "sample_id": "0",
+        "schema_version": "1.0",
+        "production_latency_sec": 2.5,
+        "represented_frames": [0, 3],
+    }
+    for directory in (tmp_path / "a", tmp_path / "b"):
+        _write_observation_metadata(directory / "0.meta.json", **payload)
+
+    summary = summarize_observation_latencies(
+        samples, (tmp_path / "b", tmp_path / "a")
+    )
+
+    assert summary["valid_count"] == 1
+    assert summary["mean_production_latency_sec"] == pytest.approx(2.5)
+
+
+def test_observation_latency_rejects_conflicting_duplicate_metadata(
+    tmp_path, sample_factory
+):
+    samples = (sample_factory(index=0, physical=True, generator="g"),)
+    _write_observation_metadata(
+        tmp_path / "a" / "0.meta.json",
+        sample_id="0",
+        production_latency_sec=1.0,
+    )
+    _write_observation_metadata(
+        tmp_path / "b" / "0.meta.json",
+        sample_id="0",
+        production_latency_sec=2.0,
+    )
+
+    with pytest.raises(ValueError, match="conflicting observation metadata.*0"):
+        summarize_observation_latencies(
+            samples, (tmp_path / "a", tmp_path / "b")
+        )
+
+
+def test_observation_latency_rejects_unknown_sample_id(tmp_path, sample_factory):
+    samples = (sample_factory(index=0, physical=True, generator="g"),)
+    _write_observation_metadata(
+        tmp_path / "999.meta.json",
+        sample_id="999",
+        production_latency_sec=1.0,
+    )
+
+    with pytest.raises(ValueError, match="unknown observation sample_id.*999"):
+        summarize_observation_latencies(samples, (tmp_path,))
+
+
+@pytest.mark.parametrize(
+    "latency",
+    (-1.0, float("nan"), float("inf"), True),
+)
+def test_observation_latency_rejects_invalid_latency(
+    tmp_path, sample_factory, latency
+):
+    samples = (sample_factory(index=0, physical=True, generator="g"),)
+    _write_observation_metadata(
+        tmp_path / "0.meta.json",
+        sample_id="0",
+        production_latency_sec=latency,
+    )
+
+    with pytest.raises(ValueError, match="invalid production_latency_sec"):
+        summarize_observation_latencies(samples, (tmp_path,))
+
+
+def test_observation_latency_empty_valid_set_reports_all_missing(
+    tmp_path, sample_factory
+):
+    samples = tuple(
+        sample_factory(index=index, physical=True, generator="g")
+        for index in range(2)
+    )
+    _write_observation_metadata(
+        tmp_path / "0.meta.json",
+        sample_id="0",
+        production_latency_sec=None,
+    )
+
+    assert summarize_observation_latencies(samples, (tmp_path,)) == {
+        "expected_count": 2,
+        "valid_count": 0,
+        "missing_count": 2,
+        "missing_sample_ids": ["0", "1"],
+        "mean_production_latency_sec": None,
+        "p50_production_latency_sec": None,
+        "p95_production_latency_sec": None,
+    }
+
+
+def _passing_material_inputs() -> dict[str, object]:
+    return {
+        "baseline_metrics": {
+            "macro_f1": 0.64,
+            "physical_recall": 0.75,
+            "violation_recall": 0.70,
+        },
+        "candidate_metrics": {
+            "macro_f1": 0.70,
+            "physical_recall": 0.80,
+            "violation_recall": 0.82,
+        },
+        "bootstrap": {"lower": 0.01, "upper": 0.11},
+        "slices": {
+            "generator": {
+                "g1": {"candidate_minus_baseline": {"macro_f1": 0.08}},
+                "g2": {"candidate_minus_baseline": {"macro_f1": 0.02}},
+                "g3": {"candidate_minus_baseline": {"macro_f1": 0.0}},
+            }
+        },
+        "baseline_failure_rate": 0.02,
+        "candidate_failure_rate": 0.025,
+    }
+
+
+def test_material_improvement_reports_explicit_passing_gates_and_defers_ood():
+    result = evaluate_material_improvement(**_passing_material_inputs())
+
+    assert result["gates"] == {
+        "macro_f1_delta": {
+            "value": pytest.approx(0.06),
+            "threshold": 0.05,
+            "operator": ">=",
+            "pass": True,
+        },
+        "bootstrap_lower": {
+            "value": 0.01,
+            "threshold": 0.0,
+            "operator": ">",
+            "pass": True,
+        },
+        "candidate_nonzero_recalls": {
+            "value": {
+                "physical_recall": 0.80,
+                "violation_recall": 0.82,
+            },
+            "threshold": {
+                "physical_recall": 0.0,
+                "violation_recall": 0.0,
+            },
+            "operator": ">",
+            "pass": True,
+        },
+        "failure_rate_increase": {
+            "value": pytest.approx(0.005),
+            "threshold": 0.01,
+            "operator": "<=",
+            "pass": True,
+        },
+        "positive_generator_count": {
+            "value": 2,
+            "threshold": 2,
+            "operator": ">=",
+            "pass": True,
+        },
+    }
+    assert result["videophy2_support"] is True
+    assert result["ood_status"] == "deferred"
+    assert result["overall_verdict"] == "not_evaluable_ood_deferred"
+
+
+@pytest.mark.parametrize(
+    ("gate", "updates"),
+    (
+        ("macro_f1_delta", {"candidate_macro_f1": 0.68}),
+        ("bootstrap_lower", {"bootstrap_lower": 0.0}),
+        ("candidate_nonzero_recalls", {"physical_recall": 0.0}),
+        ("candidate_nonzero_recalls", {"violation_recall": 0.0}),
+        ("failure_rate_increase", {"candidate_failure_rate": 0.031}),
+        ("positive_generator_count", {"g2_delta": 0.0}),
+    ),
+)
+def test_material_improvement_each_gate_can_fail_independently(gate, updates):
+    inputs = _passing_material_inputs()
+    candidate_metrics = inputs["candidate_metrics"]
+    bootstrap = inputs["bootstrap"]
+    generator_slices = inputs["slices"]["generator"]
+    if "candidate_macro_f1" in updates:
+        candidate_metrics["macro_f1"] = updates["candidate_macro_f1"]
+    if "bootstrap_lower" in updates:
+        bootstrap["lower"] = updates["bootstrap_lower"]
+    if "physical_recall" in updates:
+        candidate_metrics["physical_recall"] = updates["physical_recall"]
+    if "violation_recall" in updates:
+        candidate_metrics["violation_recall"] = updates["violation_recall"]
+    if "candidate_failure_rate" in updates:
+        inputs["candidate_failure_rate"] = updates["candidate_failure_rate"]
+    if "g2_delta" in updates:
+        generator_slices["g2"]["candidate_minus_baseline"]["macro_f1"] = updates[
+            "g2_delta"
+        ]
+
+    result = evaluate_material_improvement(**inputs)
+
+    assert result["gates"][gate]["pass"] is False
+    assert sum(not item["pass"] for item in result["gates"].values()) == 1
+    assert result["videophy2_support"] is False
+    assert result["overall_verdict"] == "not_evaluable_ood_deferred"
