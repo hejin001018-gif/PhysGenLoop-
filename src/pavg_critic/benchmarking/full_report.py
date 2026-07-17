@@ -425,7 +425,12 @@ def summarize_observation_latencies(
 
 
 def _required_finite_metric(
-    values: Mapping[str, Any], key: str, *, context: str
+    values: Mapping[str, Any],
+    key: str,
+    *,
+    context: str,
+    minimum: float | None = None,
+    maximum: float | None = None,
 ) -> float:
     value = values.get(key)
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -436,7 +441,16 @@ def _required_finite_metric(
         finite = False
     if not finite:
         raise ValueError(f"invalid {context} {key}: {value!r}")
-    return float(value)
+    numeric = float(value)
+    if minimum is not None and numeric < minimum:
+        raise ValueError(
+            f"{context} {key} is outside [{minimum}, {maximum}]: {value!r}"
+        )
+    if maximum is not None and numeric > maximum:
+        raise ValueError(
+            f"{context} {key} is outside [{minimum}, {maximum}]: {value!r}"
+        )
+    return numeric
 
 
 def evaluate_material_improvement(
@@ -451,29 +465,69 @@ def evaluate_material_improvement(
     """Apply frozen VideoPhy-2 gates while keeping OOD verdict deferred."""
 
     baseline_macro_f1 = _required_finite_metric(
-        baseline_metrics, "macro_f1", context="baseline metric"
+        baseline_metrics,
+        "macro_f1",
+        context="baseline metric",
+        minimum=0.0,
+        maximum=1.0,
     )
     candidate_macro_f1 = _required_finite_metric(
-        candidate_metrics, "macro_f1", context="candidate metric"
+        candidate_metrics,
+        "macro_f1",
+        context="candidate metric",
+        minimum=0.0,
+        maximum=1.0,
     )
     physical_recall = _required_finite_metric(
-        candidate_metrics, "physical_recall", context="candidate metric"
+        candidate_metrics,
+        "physical_recall",
+        context="candidate metric",
+        minimum=0.0,
+        maximum=1.0,
     )
     violation_recall = _required_finite_metric(
-        candidate_metrics, "violation_recall", context="candidate metric"
+        candidate_metrics,
+        "violation_recall",
+        context="candidate metric",
+        minimum=0.0,
+        maximum=1.0,
     )
     bootstrap_lower = _required_finite_metric(
-        bootstrap, "lower", context="bootstrap"
+        bootstrap,
+        "lower",
+        context="bootstrap",
+        minimum=-1.0,
+        maximum=1.0,
     )
+    bootstrap_upper = _required_finite_metric(
+        bootstrap,
+        "upper",
+        context="bootstrap",
+        minimum=-1.0,
+        maximum=1.0,
+    )
+    if bootstrap_lower > bootstrap_upper:
+        raise ValueError(
+            "bootstrap lower must not exceed upper: "
+            f"lower={bootstrap_lower!r}, upper={bootstrap_upper!r}"
+        )
     failure_rates = {
         "baseline": baseline_failure_rate,
         "candidate": candidate_failure_rate,
     }
     baseline_failure = _required_finite_metric(
-        failure_rates, "baseline", context="failure rate"
+        failure_rates,
+        "baseline",
+        context="failure rate",
+        minimum=0.0,
+        maximum=1.0,
     )
     candidate_failure = _required_finite_metric(
-        failure_rates, "candidate", context="failure rate"
+        failure_rates,
+        "candidate",
+        context="failure rate",
+        minimum=0.0,
+        maximum=1.0,
     )
 
     generator_slices = slices.get("generator")
@@ -487,7 +541,11 @@ def evaluate_material_improvement(
         if not isinstance(delta, Mapping):
             raise ValueError(f"missing candidate delta for generator {name!r}")
         macro_f1_delta = _required_finite_metric(
-            delta, "macro_f1", context=f"generator {name!r} delta"
+            delta,
+            "macro_f1",
+            context=f"generator {name!r} delta",
+            minimum=-1.0,
+            maximum=1.0,
         )
         positive_generator_count += macro_f1_delta > 0
 

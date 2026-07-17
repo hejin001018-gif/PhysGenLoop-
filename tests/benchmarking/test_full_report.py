@@ -924,6 +924,41 @@ def test_observation_latency_empty_valid_set_reports_all_missing(
     }
 
 
+@pytest.mark.parametrize(
+    ("content", "message"),
+    (("{not-json}\n", "invalid observation metadata JSON"), ("[]\n", "must be an object")),
+)
+def test_observation_latency_rejects_invalid_metadata_json(
+    tmp_path, sample_factory, content, message
+):
+    samples = (sample_factory(index=0, physical=True, generator="g"),)
+    (tmp_path / "0.meta.json").write_text(content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match=message):
+        summarize_observation_latencies(samples, (tmp_path,))
+
+
+def test_observation_latency_rejects_missing_sample_id(tmp_path, sample_factory):
+    samples = (sample_factory(index=0, physical=True, generator="g"),)
+    _write_observation_metadata(
+        tmp_path / "0.meta.json",
+        sample_id=None,
+        production_latency_sec=1.0,
+    )
+
+    with pytest.raises(ValueError, match="invalid observation metadata sample_id"):
+        summarize_observation_latencies(samples, (tmp_path,))
+
+
+def test_observation_latency_rejects_missing_metadata_directory(
+    tmp_path, sample_factory
+):
+    samples = (sample_factory(index=0, physical=True, generator="g"),)
+
+    with pytest.raises(ValueError, match="metadata directory does not exist"):
+        summarize_observation_latencies(samples, (tmp_path / "missing",))
+
+
 def _passing_material_inputs() -> dict[str, object]:
     return {
         "baseline_metrics": {
@@ -1009,6 +1044,77 @@ def test_material_improvement_uses_exact_decimal_threshold_boundaries():
     assert result["gates"]["failure_rate_increase"]["value"] == 0.01
     assert result["gates"]["failure_rate_increase"]["pass"] is True
     assert result["videophy2_support"] is True
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    (
+        (("baseline_metrics", "macro_f1"), -0.01),
+        (("baseline_metrics", "macro_f1"), 1.01),
+        (("candidate_metrics", "macro_f1"), -0.01),
+        (("candidate_metrics", "macro_f1"), 1.01),
+        (("candidate_metrics", "physical_recall"), -0.01),
+        (("candidate_metrics", "physical_recall"), 1.01),
+        (("candidate_metrics", "violation_recall"), -0.01),
+        (("candidate_metrics", "violation_recall"), 1.01),
+        (("baseline_failure_rate",), -0.01),
+        (("baseline_failure_rate",), 1.01),
+        (("candidate_failure_rate",), -0.01),
+        (("candidate_failure_rate",), 1.01),
+        (("bootstrap", "lower"), -1.01),
+        (("bootstrap", "lower"), 1.01),
+        (("bootstrap", "upper"), -1.01),
+        (("bootstrap", "upper"), 1.01),
+        (("generator_delta",), -1.01),
+        (("generator_delta",), 1.01),
+    ),
+)
+def test_material_improvement_rejects_metrics_outside_frozen_domains(path, value):
+    inputs = _passing_material_inputs()
+    if path == ("generator_delta",):
+        inputs["slices"]["generator"]["g1"]["candidate_minus_baseline"][
+            "macro_f1"
+        ] = value
+    elif len(path) == 1:
+        inputs[path[0]] = value
+    else:
+        inputs[path[0]][path[1]] = value
+
+    with pytest.raises(ValueError, match="outside"):
+        evaluate_material_improvement(**inputs)
+
+
+def test_material_improvement_rejects_reversed_bootstrap_interval():
+    inputs = _passing_material_inputs()
+    inputs["bootstrap"] = {"lower": 0.2, "upper": 0.1}
+
+    with pytest.raises(ValueError, match="bootstrap lower.*upper"):
+        evaluate_material_improvement(**inputs)
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    (
+        (("baseline_metrics", "macro_f1"), True),
+        (("candidate_metrics", "physical_recall"), float("nan")),
+        (("bootstrap", "upper"), float("inf")),
+        (("candidate_failure_rate",), False),
+        (("generator_delta",), float("-inf")),
+    ),
+)
+def test_material_improvement_rejects_boolean_and_non_finite_metrics(path, value):
+    inputs = _passing_material_inputs()
+    if path == ("generator_delta",):
+        inputs["slices"]["generator"]["g1"]["candidate_minus_baseline"][
+            "macro_f1"
+        ] = value
+    elif len(path) == 1:
+        inputs[path[0]] = value
+    else:
+        inputs[path[0]][path[1]] = value
+
+    with pytest.raises(ValueError, match="invalid"):
+        evaluate_material_improvement(**inputs)
 
 
 @pytest.mark.parametrize(
