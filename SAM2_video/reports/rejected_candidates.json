@@ -1,0 +1,17 @@
+{
+  "purpose": "Retained audit trail for source sequences rejected before final delivery.",
+  "candidates": [
+    {
+      "sequence_id": "bmx-bumps",
+      "decision": "rejected",
+      "reason": "DAVIS has no foreground annotation in frames 60 and 62-74, so continuous pixel-level ground truth and tracking QA cannot be guaranteed.",
+      "retention": "The briefly extracted source directory was removed before generation; setup and decision logs remain under SAM2_video."
+    },
+    {
+      "sequence_id": "soapbox",
+      "decision": "rejected",
+      "reason": "Vehicle, driver, and pusher are distinct DAVIS objects. Moving only the largest vehicle object left interacting people behind and produced unacceptable ProPainter smearing.",
+      "retention": "Rejected source, masks, inpainting frames, logs, and QA previews are retained under data/sources/soapbox, work/soapbox, logs, and reports for transparency; no soapbox file is a final deliverable."
+    }
+  ]
+}
