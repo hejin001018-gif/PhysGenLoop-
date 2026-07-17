@@ -143,4 +143,4 @@ Append immutable checkpoints here as each task completes. Do not replace prior e
 - Destination and hard-link alias guards prevent either result artifact from overwriting a canonical input shard. Both artifacts are staged as sibling temporary files; second-stage and second-replace fault injection verifies that prior verified artifacts are preserved and temporary files are removed.
 - Prediction parsing now rejects invalid label vocabularies, booleans masquerading as numeric values, fractional frame counts, non-finite values and integer overflow with source/line context.
 - Independent specification review passed after four corrections. Independent quality review passed after two correctness fixes and one temporary-file cleanup fix.
-- Final focused verification: `26 passed` in `tests/benchmarking/test_full_report.py`; complete-suite evidence is recorded at commit time.
+- Final verification: `26 passed` in `tests/benchmarking/test_full_report.py`; the complete local suite passed `207/207` in 7.04 seconds, followed by a successful compile-all check. Implementation commit: `5a362a1`.
