@@ -995,14 +995,30 @@ def test_material_improvement_reports_explicit_passing_gates_and_defers_ood():
     assert result["overall_verdict"] == "not_evaluable_ood_deferred"
 
 
+def test_material_improvement_uses_exact_decimal_threshold_boundaries():
+    inputs = _passing_material_inputs()
+    inputs["baseline_metrics"]["macro_f1"] = 0.64
+    inputs["candidate_metrics"]["macro_f1"] = 0.69
+    inputs["baseline_failure_rate"] = 0.03
+    inputs["candidate_failure_rate"] = 0.04
+
+    result = evaluate_material_improvement(**inputs)
+
+    assert result["gates"]["macro_f1_delta"]["value"] == 0.05
+    assert result["gates"]["macro_f1_delta"]["pass"] is True
+    assert result["gates"]["failure_rate_increase"]["value"] == 0.01
+    assert result["gates"]["failure_rate_increase"]["pass"] is True
+    assert result["videophy2_support"] is True
+
+
 @pytest.mark.parametrize(
     ("gate", "updates"),
     (
-        ("macro_f1_delta", {"candidate_macro_f1": 0.68}),
+        ("macro_f1_delta", {"candidate_macro_f1": 0.689999999}),
         ("bootstrap_lower", {"bootstrap_lower": 0.0}),
         ("candidate_nonzero_recalls", {"physical_recall": 0.0}),
         ("candidate_nonzero_recalls", {"violation_recall": 0.0}),
-        ("failure_rate_increase", {"candidate_failure_rate": 0.031}),
+        ("failure_rate_increase", {"candidate_failure_rate": 0.030000001}),
         ("positive_generator_count", {"g2_delta": 0.0}),
     ),
 )

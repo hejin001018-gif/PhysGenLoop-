@@ -10,6 +10,7 @@ import os
 import random
 import tempfile
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
 from collections import defaultdict
 from typing import Any, Mapping, Sequence
@@ -490,14 +491,20 @@ def evaluate_material_improvement(
         )
         positive_generator_count += macro_f1_delta > 0
 
-    macro_f1_delta = candidate_macro_f1 - baseline_macro_f1
-    failure_rate_increase = candidate_failure - baseline_failure
+    macro_f1_delta_decimal = Decimal(str(candidate_macro_f1)) - Decimal(
+        str(baseline_macro_f1)
+    )
+    failure_rate_increase_decimal = Decimal(str(candidate_failure)) - Decimal(
+        str(baseline_failure)
+    )
+    macro_f1_delta = float(macro_f1_delta_decimal)
+    failure_rate_increase = float(failure_rate_increase_decimal)
     gates = {
         "macro_f1_delta": {
             "value": macro_f1_delta,
             "threshold": 0.05,
             "operator": ">=",
-            "pass": macro_f1_delta >= 0.05,
+            "pass": macro_f1_delta_decimal >= Decimal("0.05"),
         },
         "bootstrap_lower": {
             "value": bootstrap_lower,
@@ -521,7 +528,7 @@ def evaluate_material_improvement(
             "value": failure_rate_increase,
             "threshold": 0.01,
             "operator": "<=",
-            "pass": failure_rate_increase <= 0.01,
+            "pass": failure_rate_increase_decimal <= Decimal("0.01"),
         },
         "positive_generator_count": {
             "value": positive_generator_count,
