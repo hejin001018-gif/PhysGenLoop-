@@ -42,11 +42,11 @@
 - Create: `src/pavg_critic/benchmarking/full_report.py`
 - Create: `tests/benchmarking/test_full_report.py`
 
-- [ ] Add failing tests proving that exact disjoint shards merge into a stable sample/method order.
-- [ ] Add failing tests for duplicate keys across shards, missing keys, unknown sample IDs, unknown methods and malformed prediction records.
-- [ ] Implement strict expected-key validation and a deterministic JSONL writer.
-- [ ] Record per-input SHA-256, line count, method count, terminal/failure count, and merged-output SHA-256 in `artifact_audit.json`.
-- [ ] Run focused tests and commit the strict merge layer.
+- [x] Add failing tests proving that exact disjoint shards merge into a stable sample/method order.
+- [x] Add failing tests for duplicate keys across shards, missing keys, unknown sample IDs, unknown methods and malformed prediction records.
+- [x] Implement strict expected-key validation and a deterministic JSONL writer.
+- [x] Record per-input SHA-256, line count, method count, terminal/failure count, and merged-output SHA-256 in `artifact_audit.json`.
+- [x] Run focused tests and commit the strict merge layer.
 
 ## Task 3: Implement paired statistics and frozen slices
 
@@ -135,3 +135,12 @@ Append immutable checkpoints here as each task completes. Do not replace prior e
 - Independent specification review passed; independent quality review found no correctness, typing, maintenance or regression issue.
 - Final focused verification: `9 passed` across metric and smoke-report tests using isolated basetemp `outputs/.pytest-tmp-task1`.
 - Commit: `89755d9` (`feat: add full benchmark recall and latency metrics`).
+
+### R2 — Strict shard merge and artifact audit
+
+- Strict TDD first rejected the missing module, then covered stable sample/method ordering, duplicate/missing/unknown keys and malformed records. Specification review identified and closed destination-alias, non-finite/invalid-value, on-disk audit and caller-order determinism gaps.
+- The merge accepts only the exact frozen sample-by-method key set, preserves terminal failure records, sorts deterministically and writes per-input hashes/counts plus the merged-output SHA-256 to `artifact_audit.json`.
+- Destination and hard-link alias guards prevent either result artifact from overwriting a canonical input shard. Both artifacts are staged as sibling temporary files; second-stage and second-replace fault injection verifies that prior verified artifacts are preserved and temporary files are removed.
+- Prediction parsing now rejects invalid label vocabularies, booleans masquerading as numeric values, fractional frame counts, non-finite values and integer overflow with source/line context.
+- Independent specification review passed after four corrections. Independent quality review passed after two correctness fixes and one temporary-file cleanup fix.
+- Final focused verification: `26 passed` in `tests/benchmarking/test_full_report.py`; complete-suite evidence is recorded at commit time.
