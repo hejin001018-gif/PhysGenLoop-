@@ -107,6 +107,39 @@ def test_model_planner_empty_semantics_has_zero_confidence():
     assert plan.planner_metadata.model == "fake-plan-model"
 
 
+def test_model_planner_repairs_empty_semantics_for_nonempty_prompt():
+    from pavg_critic.planner import ModelPhysicsPlanner
+
+    empty = {
+        "objects": [],
+        "expected_events": [],
+        "relations": [],
+        "physics_constraints": [],
+    }
+
+    class RepairingModel:
+        model = "repairing-model"
+
+        def __init__(self):
+            self.responses = [empty, _model_plan_payload()]
+            self.calls = []
+
+        def generate_json(self, **kwargs):
+            self.calls.append(kwargs)
+            return self.responses.pop(0)
+
+    model = RepairingModel()
+    plan = ModelPhysicsPlanner(model).generate("A red ball falls to the floor.")
+
+    assert plan.planner_metadata.source == "model"
+    assert plan.objects == ("red_ball", "floor")
+    assert len(model.calls) == 2
+    assert "must not return all plan arrays empty" in model.calls[0]["system_prompt"]
+    repair_payload = json.loads(model.calls[1]["user_prompt"])
+    assert "non-empty prompt" in repair_payload["repair_feedback"]
+    assert repair_payload["previous_plan"] == empty
+
+
 def test_model_planner_rejects_properties_outside_strict_schema():
     from pavg_critic.planner import ModelPhysicsPlanner
 

@@ -298,20 +298,36 @@ class ModelPhysicsPlanner:
     ) -> PhysicsPlan:
         partial_context = (partial_plan or PhysicsPlan()).to_dict()
         partial_context.pop("planner_metadata", None)
+        normalized_prompt = str(prompt or "")
+        require_semantic_content = bool(normalized_prompt.strip()) and not any(
+            partial_context.get(key)
+            for key in (
+                "objects",
+                "expected_events",
+                "relations",
+                "physics_constraints",
+            )
+        )
         payload = self._generate_payload(
-            prompt=str(prompt or ""),
+            prompt=normalized_prompt,
             partial_context=partial_context,
         )
         try:
-            return self._parse_plan(payload)
+            return self._parse_plan(
+                payload,
+                require_semantic_content=require_semantic_content,
+            )
         except SchemaError as error:
             repaired = self._generate_payload(
-                prompt=str(prompt or ""),
+                prompt=normalized_prompt,
                 partial_context=partial_context,
                 repair_feedback=str(error)[:300],
                 previous_plan=payload,
             )
-            return self._parse_plan(repaired)
+            return self._parse_plan(
+                repaired,
+                require_semantic_content=require_semantic_content,
+            )
 
     def _generate_payload(
         self,
@@ -331,9 +347,9 @@ class ModelPhysicsPlanner:
                     "repair_feedback": repair_feedback,
                     "previous_plan": previous_plan,
                     "repair_policy": (
-                        "Correct only schema/reference errors. Preserve supported "
-                        "objects and events; omit relations or constraints that cannot "
-                        "use exact object identifiers."
+                        "Correct schema, reference, or empty-plan errors. Preserve "
+                        "supported objects and events; omit relations or constraints "
+                        "that cannot use exact object identifiers."
                     ),
                 }
             )
@@ -345,6 +361,9 @@ class ModelPhysicsPlanner:
                 "Use stable snake_case identifiers. Include only objects and qualitative "
                 "events/constraints supported by the prompt. Never invent masses, speeds, "
                 "gravity constants, dimensions, coefficients, or other numeric parameters. "
+                "For a non-empty prompt with no authoritative partial-plan content, "
+                "extract at least one physically relevant visible entity and must not "
+                "return all plan arrays empty. "
                 "Every relation subject/object and every constraint subject must exactly "
                 "equal one entry in objects; omit an extension if no exact reference exists. "
                 "expected_events must use only these implemented IDs: "
@@ -355,9 +374,19 @@ class ModelPhysicsPlanner:
             schema=PHYSICS_PLAN_SCHEMA,
         )
 
-    def _parse_plan(self, payload: Mapping[str, Any]) -> PhysicsPlan:
+    def _parse_plan(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        require_semantic_content: bool = False,
+    ) -> PhysicsPlan:
         self._validate_payload_shape(payload)
         plan = PhysicsPlan.from_dict(payload)
+        plan.validate_references()
+        if require_semantic_content and not _has_semantic_content(plan):
+            raise SchemaError(
+                "physics planner returned an empty plan for a non-empty prompt"
+            )
         metadata = (
             PlannerMetadata(
                 source="model", confidence=0.8, fallback_used=False, model=self.model_name
@@ -369,7 +398,6 @@ class ModelPhysicsPlanner:
             plan,
             metadata,
         )
-        plan.validate_references()
         return plan
 
     @staticmethod
