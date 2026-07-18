@@ -2,8 +2,8 @@
   "schema_version": "learning-repair-compatibility/1.0",
   "critic_report_schema_version": "2.0",
   "critic_model_id": "pavg-critic-0.3.0/configs-default",
-  "critic_config_sha256": "f8945bbb675f34215a8440793d25fd3f0df907a44aee5252e994fb666e91d4f4",
-  "critic_schema_sha256": "142af7ade55a5866bbe87c1a37f90b20b11959fa81302a5c957d5c8cce721518",
+  "critic_config_sha256": "f2b1f65b9417faf96b78880e6fe3bc14344db54d84e9e323f2f47beb2c206b89",
+  "critic_schema_sha256": "534e608d5230c39f6b7c812c6121e94e2c21d2c612d7b967d2b0cf21d7516052",
   "feature_schema_sha256": "b6e4a8cd71077b59d749dfba359e163cd4f7afd4623e401c13458d65386f5596",
   "source_revision": "unknown",
   "action_order": [
