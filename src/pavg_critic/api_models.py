@@ -261,6 +261,7 @@ class OpenAIChatModel:
     base_url: str = "https://api.openai.com/v1"
     timeout_sec: float = 120.0
     transport: JsonTransport | None = None
+    strict_json_schema: bool = False
 
     def __post_init__(self) -> None:
         if not self.api_key:
@@ -340,7 +341,10 @@ class OpenAIChatModel:
                     },
                     {"role": "user", "content": user_prompt},
                 ],
-                "response_format": {"type": "json_object"},
+                "response_format": _chat_response_format(
+                    schema,
+                    strict=self.strict_json_schema,
+                ),
             },
             timeout_sec=self.timeout_sec,
         )
@@ -397,7 +401,10 @@ class OpenAIChatModel:
                     },
                     {"role": "user", "content": user_content},
                 ],
-                "response_format": {"type": "json_object"},
+                "response_format": _chat_response_format(
+                    schema,
+                    strict=self.strict_json_schema,
+                ),
             },
             timeout_sec=self.timeout_sec,
         )
@@ -408,6 +415,23 @@ class OpenAIChatModel:
                 "Chat Completions response contains no assistant content"
             ) from exc
         return _parse_json_text(text)
+
+
+def _chat_response_format(
+    schema: Mapping[str, Any],
+    *,
+    strict: bool,
+) -> dict[str, Any]:
+    if not strict:
+        return {"type": "json_object"}
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "pavg_structured_output",
+            "strict": True,
+            "schema": dict(schema),
+        },
+    }
 
 
 def _openai_output_text(response: Mapping[str, Any]) -> str:

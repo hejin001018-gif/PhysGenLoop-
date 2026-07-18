@@ -1,0 +1,198 @@
+# VideoPhy-2 Full Result Merge and Reporting Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Use test-driven development for every behavior change.
+
+**Goal:** Merge the two existing append-only VideoPhy-2 prediction shards without rerunning inference, verify all 6,794 sample-by-method keys, and generate an auditable full-dataset Chinese report using the already frozen statistical protocol.
+
+**Architecture:** Add a dependency-free full-report analysis layer beside the existing smoke reporter. It consumes the frozen 3,397-row manifest, the two completed prediction JSONL files and SAM2 observation metadata; it never calls a model, trains a model, changes predictions or edits benchmark membership. It rejects incomplete, duplicate or out-of-scope keys before producing deterministic merged artifacts, paired statistics, action-group bootstrap intervals and source-metadata slices.
+
+**Tech Stack:** Python 3.12 standard library, existing `BenchmarkSample`/`BenchmarkPrediction` contracts, pytest, JSON/JSONL and Markdown.
+
+---
+
+## Frozen analysis contract
+
+- Population: all 3,397 frozen VideoPhy-2 samples.
+- Methods: baseline `D0_DIRECT_VLM`; candidate `B1_RULE` (SAM2-backed Revision B).
+- Expected terminal keys: exactly 3,397 x 2 = 6,794. A failure record remains in the denominator and is not retried for reporting.
+- Merge inputs: only canonical shard A and shard B JSONL files. The archived pre-split run is excluded.
+- Classification: `physical` and `violation`; `unknown` and failures count as incorrect.
+- Primary effect: `B1_RULE - D0_DIRECT_VLM` Macro-F1.
+- Confidence interval: paired action-group bootstrap, 2,000 resamples, seed `20260717`, resampling the frozen `prompt_group_id` clusters with replacement, using linear 2.5th and 97.5th percentiles.
+- Paired outcomes: both correct, D0 only correct, B1 only correct, both wrong.
+- Slices: generator, action group and exact source `raw_labels.metadata_rules` family. Rule-family values are parsed only with `ast.literal_eval`, whitespace-normalized, multi-label, and otherwise assigned to `__unmapped__`; no prediction-derived family is used.
+- Latency: prediction latency and SAM2 `production_latency_sec` are reported separately with mean/p50/p95. Duplicate observation metadata must agree exactly or fail audit.
+- Material arithmetic: report each frozen gate separately. A VideoPhy-2-only support flag may be true only when delta is at least +0.05, the CI excludes zero, both recalls are nonzero, failure increase is at most +0.01 and more than one generator has positive Macro-F1 delta. The overall pre-registered material-improvement verdict remains `not_evaluable_ood_deferred` because VideoPhy-1 is outside the current scope.
+- Output is deterministic: sorted keys, fixed JSON formatting, stable table ordering and cryptographic input/output hashes.
+
+## Task 1: Extend complete classification and latency metrics
+
+**Files:**
+- Modify: `src/pavg_critic/benchmarking/metrics.py`
+- Modify: `tests/benchmarking/test_metrics.py`
+
+- [x] Add failing tests for physical recall and deterministic p50/p95 latency, including an even-length latency vector.
+- [x] Implement a dependency-free linear percentile helper and expose `physical_recall`, `p50_latency_sec` and `p95_latency_sec` from `compute_smoke_metrics` without changing existing metric meanings.
+- [x] Run the focused metric tests, then the existing benchmark report tests.
+- [x] Commit only the tested metric change.
+
+## Task 2: Implement strict shard merge and artifact audit
+
+**Files:**
+- Create: `src/pavg_critic/benchmarking/full_report.py`
+- Create: `tests/benchmarking/test_full_report.py`
+
+- [x] Add failing tests proving that exact disjoint shards merge into a stable sample/method order.
+- [x] Add failing tests for duplicate keys across shards, missing keys, unknown sample IDs, unknown methods and malformed prediction records.
+- [x] Implement strict expected-key validation and a deterministic JSONL writer.
+- [x] Record per-input SHA-256, line count, method count, terminal/failure count, and merged-output SHA-256 in `artifact_audit.json`.
+- [x] Run focused tests and commit the strict merge layer.
+
+## Task 3: Implement paired statistics and frozen slices
+
+**Files:**
+- Modify: `src/pavg_critic/benchmarking/full_report.py`
+- Modify: `tests/benchmarking/test_full_report.py`
+
+- [x] Add failing tests for the four paired-outcome cells and for unknown/failure records counting as incorrect.
+- [x] Add a small hand-computed action-cluster example proving bootstrap resamples entire groups, is deterministic at seed `20260717`, uses exactly the requested resample count and returns ordered bounds.
+- [x] Add failing tests for generator/action slices and safe parsing of exact, multi-label, malformed and missing source rule-family metadata.
+- [x] Implement per-method full metrics, paired Macro-F1 delta/bootstrap, paired outcomes and deterministic generator/action/rule-family tables.
+- [x] Keep single-class or small slices visible with counts; do not silently filter inconvenient strata.
+- [x] Run focused tests and commit the statistics layer.
+
+## Task 4: Add SAM2 end-to-end latency audit and decision arithmetic
+
+**Files:**
+- Modify: `src/pavg_critic/benchmarking/full_report.py`
+- Modify: `tests/benchmarking/test_full_report.py`
+
+- [x] Add failing tests for mean/p50/p95 `production_latency_sec`, missing metadata accounting, identical duplicate acceptance and conflicting duplicate rejection.
+- [x] Add failing tests for every VideoPhy-2 decision gate and for the mandatory `not_evaluable_ood_deferred` overall verdict.
+- [x] Implement observation metadata aggregation without loading mask tensors or videos.
+- [x] Implement explicit arithmetic fields rather than a prose-only verdict.
+- [x] Run focused tests and commit the latency/decision layer.
+
+## Task 5: Build the deterministic full-report CLI and Chinese renderer
+
+**Files:**
+- Create: `benchmarks/report_full_video_benchmark.py`
+- Create: `tests/benchmarking/test_full_report_cli.py`
+- Modify: `src/pavg_critic/benchmarking/full_report.py`
+
+- [x] Add a failing end-to-end CLI test using a temporary two-method manifest, two disjoint prediction shards and observation metadata.
+- [x] Expose required `--manifest`, repeatable `--predictions`, `--output-dir`, fixed/default method IDs, bootstrap count/seed and repeatable `--observation-meta-dir` arguments.
+- [x] Write `merged_predictions.jsonl`, `artifact_audit.json`, `summary.json`, `summary.md`, `paired_outcomes.json` and `slices.json` atomically after validation.
+- [x] Render a Chinese Markdown report that distinguishes prediction latency from SAM2 production latency, lists all failures, reports bootstrap settings and prominently states that VideoPhy-1 OOD is deferred.
+- [x] Run the CLI test, all benchmark tests and the complete local pytest suite using `outputs/.pytest-tmp`.
+- [x] Commit the tested reporting CLI.
+
+## Task 6: Complete both existing inference shards without restart
+
+**Remote inputs:**
+- Shard A: `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/shard-a/run/predictions.jsonl`
+- Shard B: `/root/pavg-benchmark-shard2/shard-b/run/predictions.jsonl`
+
+- [x] Continue monitoring the existing evaluator PIDs and append-only files; do not relaunch while they are healthy.
+- [x] Require terminal counts 3,398 on shard A and 3,396 on shard B, with no duplicate keys and no method/sample outside each frozen shard manifest.
+- [x] Record final wall time, GPU state, failure counts and process exit status in the main execution plan.
+- [x] Freeze SHA-256 hashes of both completed prediction inputs before copying or analysis.
+
+## Task 7: Synchronize shard B metadata and run the formal merge on cloud2
+
+**Remote output:**
+- `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/final-report/`
+
+- [x] Copy only completed shard B predictions, its frozen manifest and observation `.meta.json` files to a separate cloud2 import directory; do not copy videos or model weights.
+- [x] Transfer the tested reporting commit/source to cloud2 and rerun the complete remote pytest suite.
+- [x] Run the full-report CLI against the frozen full manifest, shard A/B predictions and both observation metadata directories.
+- [x] Require exactly 6,794 merged keys, zero duplicates/extras/missing keys and deterministic rerun hashes before accepting metrics.
+- [x] Record the formal result and every negative outcome without tuning prompts, thresholds, rules or sample membership.
+
+## Task 8: Synchronize, security-audit and publish the VideoPhy-2 report
+
+**Files:**
+- Create: `outputs/benchmarks/videophy2-full-qwen3vl8b/`
+- Modify: `docs/results/criticbenchmark.md`
+- Modify: `docs/superpowers/plans/2026-07-16-full-videophy-server-evaluation.md`
+
+- [x] Synchronize manifests, predictions, summaries, slices, resolved non-secret configs, observation latency metadata and logs required for audit; exclude videos, weights, `.env` and provider payloads.
+- [x] Recompute local hashes and key alignment, then scan artifacts for SSH passwords, API-key prefixes, authorization headers and `.env` content.
+- [x] Update the Chinese benchmark narrative with exact full-population metrics, confidence interval, paired outcomes, generator/action/rule-family evidence, runtime, failures and limitations.
+- [x] Mark Task 8 and VideoPhy-2 portions of Task 10 complete; leave VideoPhy-1 Task 9 explicitly deferred and unchecked.
+- [x] Run the complete local pytest suite and a clean-room report regeneration check before claiming completion.
+- [x] Commit only source, tests, non-secret result artifacts and documentation; preserve unrelated user files.
+
+## Execution results
+
+Append immutable checkpoints here as each task completes. Do not replace prior entries or rewrite prediction inputs.
+
+### R1 — Complete classification and latency metrics
+
+- Strict TDD red state: the two new tests failed because `physical_recall` and `p50_latency_sec` were absent; the remaining five metric tests passed.
+- The dependency-free linear percentile uses `(n - 1)q` interpolation. The frozen even-length example `[1, 2, 3, 4]` yields p50 `2.5` and p95 `3.85`.
+- `compute_smoke_metrics` now reports physical recall and p50/p95 prediction latency without changing any existing key or formula.
+- Independent specification review passed; independent quality review found no correctness, typing, maintenance or regression issue.
+- Final focused verification: `9 passed` across metric and smoke-report tests using isolated basetemp `outputs/.pytest-tmp-task1`.
+- Commit: `89755d9` (`feat: add full benchmark recall and latency metrics`).
+
+### R2 — Strict shard merge and artifact audit
+
+- Strict TDD first rejected the missing module, then covered stable sample/method ordering, duplicate/missing/unknown keys and malformed records. Specification review identified and closed destination-alias, non-finite/invalid-value, on-disk audit and caller-order determinism gaps.
+- The merge accepts only the exact frozen sample-by-method key set, preserves terminal failure records, sorts deterministically and writes per-input hashes/counts plus the merged-output SHA-256 to `artifact_audit.json`.
+- Destination and hard-link alias guards prevent either result artifact from overwriting a canonical input shard. Both artifacts are staged as sibling temporary files; second-stage and second-replace fault injection verifies that prior verified artifacts are preserved and temporary files are removed.
+- Prediction parsing now rejects invalid label vocabularies, booleans masquerading as numeric values, fractional frame counts, non-finite values and integer overflow with source/line context.
+- Independent specification review passed after four corrections. Independent quality review passed after two correctness fixes and one temporary-file cleanup fix.
+- Final verification: `26 passed` in `tests/benchmarking/test_full_report.py`; the complete local suite passed `207/207` in 7.04 seconds, followed by a successful compile-all check. Implementation commit: `5a362a1`.
+
+### R3 — Paired statistics and frozen slices
+
+- Strict paired outcomes cover all four D0/B1 correctness cells. Unknown labels and terminal failures remain in the population and count as incorrect rather than being dropped.
+- Candidate-minus-baseline Macro-F1 is bootstrapped by complete `prompt_group_id` action clusters with replacement, preserving every selected cluster's row multiplicity. The frozen default is 2,000 resamples at seed `20260717` with linear percentile interpolation.
+- The hand-computed regression fixture uses asymmetric clusters of sizes 1/2/4 and freezes point estimate `-0.4277777777777779` with interval `[-0.75, 0.0]`. Independent recomputation showed that incorrect row sampling or discarded cluster multiplicity produces different bounds.
+- Generator, action and exact source rule-family slices are deterministic and retain single-class/small groups. Rule metadata is parsed only with `ast.literal_eval`; malformed or missing values map to `__unmapped__`.
+- Independent specification and code-quality reviews passed. Final focused verification: `35 passed`; all benchmark tests: `94 passed`; compile-all and `git diff --check` passed.
+- Implementation commits: `8b30c78` and test-hardening commit `99292a6`.
+
+### R4 — Both frozen inference shards complete
+
+- Shard A completed without restart and released its prediction lock at `2026-07-17 11:34:19 +08:00`. It contains 3,398 terminal records over 1,699 samples: 1,699 `D0_DIRECT_VLM`, 1,699 `B1_RULE`, 2 failures, zero duplicate/missing/extra keys. Prediction SHA-256: `8722836330d6fa31c446184973c216f1481f4b97dabfb9d73ba246f91d72bff6`; shard-manifest SHA-256: `2e52bcb66ba1b18258c3094ec919fa237386d1293cb6a4a168600325d7377b1e`.
+- Shard B completed without restart and released its prediction lock at `2026-07-17 12:18:05 +08:00`. It contains 3,396 terminal records over 1,698 samples: 1,698 `D0_DIRECT_VLM`, 1,698 `B1_RULE`, 3 failures, zero duplicate/missing/extra keys. Prediction SHA-256: `14e8ca76c1a942ddea73daa29af2943e30af02d1ad82934f952499a587e781f8`; shard-manifest SHA-256: `34807db8acdc47af9147171ac94090f161a6d991f2d51b53d0af06231fbb224c`.
+- Combined terminal coverage is 6,794 method-level predictions with 5 retained failures (`0.0736%`). Both evaluator processes exited, both locks are absent and both GPUs returned to 0% utilization. Approximate elapsed times from each frozen `resolved_config.json` timestamp to the final prediction write were 15 h 23 min for A and 15 h 13 min for B.
+- The local five-minute monitor was stopped only after both locks released. Both idle vLLM services remain resident until deterministic full-report acceptance; no training has begun.
+
+### R5 — SAM2 latency audit and frozen decision arithmetic
+
+- Observation audit recursively reads only `*.meta.json`; it never loads videos or mask tensors. It reports valid/missing counts, stable missing IDs and mean/p50/p95 `production_latency_sec`, accepts only content-identical duplicates and rejects conflicts, unknown IDs, malformed JSON and non-finite/negative/bool latencies.
+- The five frozen VideoPhy-2 gates are explicit machine-readable arithmetic: Macro-F1 delta `>=0.05`, bootstrap lower bound `>0`, both candidate class recalls `>0`, failure-rate increase `<=0.01`, and at least two generators with positive Macro-F1 delta. `videophy2_support` is their boolean conjunction; the overall verdict remains `not_evaluable_ood_deferred` because VideoPhy-1 is deferred.
+- Exact threshold subtraction uses `Decimal(str(value))`; boundary `0.05`/`0.01` passes while slight violations fail. Metrics/failure rates are constrained to `[0,1]`; confidence bounds and generator deltas to `[-1,1]`; inverted confidence intervals are rejected.
+- Strict TDD began with missing-function collection failures. Specification review found and closed binary-float threshold errors; quality review found and closed impossible-domain/interval acceptance. Both final reviews passed.
+- Final verification: `80 passed` in the focused report tests, `139 passed` across benchmark tests and `261 passed` for the complete local suite; compile-all, JSON serialization probes and `git diff --check` passed.
+- Implementation commits: `2e6a853`, `d3c4e0f`, and `84ffde3`.
+
+### R6 — Deterministic full-report CLI
+
+- The CLI uses the formal manifest loader, repeatable prediction/meta inputs and frozen D0/B1 method IDs. It emits exactly six core artifacts: merged predictions, artifact audit, JSON/Chinese summaries, paired outcomes and slices.
+- All inputs are frozen as path/content/SHA snapshots. Analysis reads only those bytes; manifest, prediction and metadata inventories/hashes are recaptured before publication and any modification/addition/deletion aborts without output. Prediction merge hashes are cross-checked against the same snapshot.
+- Publication is an immutable bundle: all six files are staged in one sibling directory and exposed with a single same-filesystem directory rename. A byte-identical existing bundle is a no-op; different, partial, symlink or non-directory destinations fail closed. Fault injection verifies stage/rename failures leave no output or temporary directory.
+- Prediction `failure` accepts only `null` or a finite JSON object with source/line diagnostics. The JSON report preserves original values, while Markdown renders deterministic reasons with control-character, Markdown and HTML escaping.
+- The artifact audit hashes all five non-self-referential outputs and explicitly records the exclusion of `artifact_audit.json`. The Chinese report distinguishes model/rule prediction latency from SAM2 production latency, lists retained failures and all five gates, and states that VideoPhy-1 OOD is deferred and the architecture is not yet proven.
+- Independent specification and quality reviews passed after closing atomic-publication, TOCTOU and failure-injection findings. Final verification: CLI `20/20`, benchmark `159/159`, complete suite `281/281`; the quality reviewer additionally passed `100/100` focused tests and `15/15` targeted probes. Compile-all, deterministic rerun hashes, staging cleanup and `git diff --check` passed.
+- Implementation commits: `4c321b3` and hardening commit `81dbd12`.
+
+### R7 — Formal cloud2 merge and immutable report
+
+- Tested source commit `f3719819bb61aacab249bf6ba83ad6d229986faa` was transferred as a complete git bundle (SHA-256 `09d29a1cdb16f21eeb8b58181b050f97f1d54161d4cb95e6b19d3d2a7165b64a`) and cloned only under `/root/pavg-benchmark/report-src`. The independent remote suite passed `281/281` in 2.75 seconds.
+- Shard B transfer hashes matched their frozen sources: predictions `14e8ca76…781f8`, manifest `34807db8…224c`, metadata archive `083e794a…f285`; the archive contained only 1,666 `.meta.json` files. No videos, masks or weights were transferred.
+- The first strict report attempt correctly failed without creating an output bundle because the pre-split cloud2 observation directory contained 33 shard-B members and one conflicted with cloud1 only in `production_latency_sec`. Root-cause membership audit showed: shard-A metadata 1,699 owned + 33 shard-B extras; shard-B metadata 1,666 owned + 32 missing; one overlap; no unknown IDs; the union exactly covered all 3,397 samples.
+- The immutable reporting view retained original bytes and provenance: shard A uses its 1,699 members only; shard B prefers its 1,666 shard-owner files and uses 32 exact pre-split cloud2 fallbacks. Provenance SHA-256 is `3b8d2605e00df30105d80ffbcd31abb3d1d5bce0be5f27a2e7064b5a4d2f911a`; 3,397 copied metadata hashes match, with zero duplicate/unknown/missing IDs. Original caches and prediction files were not changed.
+- The accepted report contains exactly 6,794 merged keys with zero duplicate/missing/extra keys and five retained B1 failures. An identical second invocation returned 0 and left all six report SHA-256 values unchanged.
+
+### R8 — VideoPhy-2 result, local clean-room audit and publication
+
+- D0 accuracy/Macro-F1 is `0.551663/0.548897`; B1 is `0.544598/0.544539`. B1−D0 Macro-F1 is `-0.004359`, and the 2,000-resample action-group 95% interval is `[-0.031613, +0.020693]`.
+- Paired cells are both-correct 1,036, D0-only 838, B1-only 814 and both-wrong 709. B1 raises violation recall from `0.498759` to `0.540323` but lowers physical recall from `0.599440` to `0.548459`.
+- Material gates fail on the required Macro-F1 delta and positive bootstrap lower bound. Three secondary gates pass, but `videophy2_support=false`; overall remains `not_evaluable_ood_deferred` because VideoPhy-1 is explicitly deferred.
+- Local artifacts include the full manifest, merged predictions, summaries, slices, paired outcomes, non-secret resolved configs and per-observation provenance. A 10-file scan found zero credential/API-key/authorization/`.env`/raw-payload pattern hits.
+- A local clean-room run used the byte-identical full manifest, both frozen prediction shards, all 3,397 provenance-filtered metadata files and placeholder video paths used only to satisfy manifest existence validation. Its merged predictions, paired outcomes, slices, JSON summary and Chinese Markdown SHA-256 values matched the remote report byte-for-byte; its strict audit again reported 6,794/6,794 and zero duplicate/missing/extra keys.
+- The complete result narrative is appended to `docs/results/criticbenchmark.md`. This negative full-population result is the frozen H0 for the approved LoRA cycle; no threshold, prompt, rule or membership was tuned after reading it.

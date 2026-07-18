@@ -152,3 +152,101 @@ def test_unplanned_floor_geometry_is_not_surface_penetration_evidence():
     assert "surface_penetration" not in {
         item.category for item in report.violations
     }
+
+
+def test_slope_contact_does_not_use_horizontal_floor_penetration_rule():
+    from pavg_critic.schemas import PhysicsConstraint
+
+    states = (_state(0, 103, velocity=(0, 20), bottom=108),)
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(
+            objects=("rock", "slope"),
+            expected_events=("roll_down_slope",),
+            physics_constraints=(
+                PhysicsConstraint(
+                    id="C1",
+                    domain="contact",
+                    subjects=("rock", "slope"),
+                    condition="while_on_slope",
+                    expectation="remain_on_slope",
+                ),
+            ),
+        ),
+    )
+
+    report = _critic().analyze(request, observations=states, floor_y=100)
+
+    assert "surface_penetration" not in {
+        item.category for item in report.violations
+    }
+
+
+def test_video_inferred_floor_is_not_calibrated_penetration_evidence(monkeypatch):
+    states = (_state(0, 103, velocity=(0, 20), bottom=108),)
+    request = CriticRequest(
+        video_path="synthetic.mp4",
+        physics_plan=PhysicsPlan(
+            objects=("red_ball",), expected_events=("floor_contact",)
+        ),
+    )
+    critic = _critic()
+    monkeypatch.setattr(critic, "_observe_video", lambda path: (states, 100.0))
+
+    report = critic.analyze(request)
+
+    assert "surface_penetration" not in {
+        item.category for item in report.violations
+    }
+
+
+def test_vlm_verifier_receives_sam2_track_evidence():
+    class CaptureVerifier:
+        def __init__(self):
+            self.candidates = ()
+
+        def verify_many(self, request, candidates, keyframes):
+            self.candidates = tuple(candidates)
+            return {index: None for index in range(len(candidates))}
+
+    verifier = CaptureVerifier()
+    critic = PhysicsCritic(
+        CriticConfig(
+            trajectory=TrajectoryConfig(smoothing_window=1),
+            question_graph=QuestionGraphConfig(enabled=False),
+        ),
+        vlm_verifier=verifier,
+    )
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(objects=("red_ball",), expected_events=("fall",)),
+    )
+    critic.analyze(request, observations=(
+        _state(0, 40, velocity=(0, 100)),
+        _state(1, 55, velocity=(0, 100)),
+        _state(2, 48, velocity=(0, -100)),
+        _state(3, 38, velocity=(0, -100)),
+    ), floor_y=100)
+
+    assert verifier.candidates
+    assert verifier.candidates[0].evidence["sam2_track"]["track_id"] == "ball-1"
+
+
+def test_noop_rule_baseline_does_not_add_vlm_track_payload():
+    request = CriticRequest(
+        video_path="unused.mp4",
+        physics_plan=PhysicsPlan(objects=("red_ball",), expected_events=("fall",)),
+    )
+    report = _critic().analyze(
+        request,
+        observations=(
+            _state(0, 40, velocity=(0, 100)),
+            _state(1, 55, velocity=(0, 100)),
+            _state(2, 48, velocity=(0, -100)),
+            _state(3, 38, velocity=(0, -100)),
+        ),
+        floor_y=100,
+    )
+
+    assert report.violations
+    assert "sam2_track" not in report.violations[0].evidence

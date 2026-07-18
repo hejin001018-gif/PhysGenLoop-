@@ -81,6 +81,11 @@ def test_model_planner_parses_valid_structured_plan():
     assert plan.planner_metadata.confidence == 0.8
     assert plan.planner_metadata.model == "fake-plan-model"
     assert model.calls[0]["schema"]["additionalProperties"] is False
+    assert set(
+        model.calls[0]["schema"]["properties"]["expected_events"]["items"][
+            "enum"
+        ]
+    ) >= {"fall", "floor_contact", "rebound", "collision"}
 
 
 def test_model_planner_empty_semantics_has_zero_confidence():
@@ -100,6 +105,39 @@ def test_model_planner_empty_semantics_has_zero_confidence():
     assert plan.planner_metadata.source == "empty"
     assert plan.planner_metadata.confidence == 0.0
     assert plan.planner_metadata.model == "fake-plan-model"
+
+
+def test_model_planner_repairs_empty_semantics_for_nonempty_prompt():
+    from pavg_critic.planner import ModelPhysicsPlanner
+
+    empty = {
+        "objects": [],
+        "expected_events": [],
+        "relations": [],
+        "physics_constraints": [],
+    }
+
+    class RepairingModel:
+        model = "repairing-model"
+
+        def __init__(self):
+            self.responses = [empty, _model_plan_payload()]
+            self.calls = []
+
+        def generate_json(self, **kwargs):
+            self.calls.append(kwargs)
+            return self.responses.pop(0)
+
+    model = RepairingModel()
+    plan = ModelPhysicsPlanner(model).generate("A red ball falls to the floor.")
+
+    assert plan.planner_metadata.source == "model"
+    assert plan.objects == ("red_ball", "floor")
+    assert len(model.calls) == 2
+    assert "must not return all plan arrays empty" in model.calls[0]["system_prompt"]
+    repair_payload = json.loads(model.calls[1]["user_prompt"])
+    assert "non-empty prompt" in repair_payload["repair_feedback"]
+    assert repair_payload["previous_plan"] == empty
 
 
 def test_model_planner_rejects_properties_outside_strict_schema():
@@ -128,6 +166,33 @@ def test_model_planner_receives_partial_explicit_plan_context():
         "floor",
     ]
     assert "planner_metadata" not in user_payload["partial_physics_plan"]
+
+
+def test_model_planner_repairs_invalid_references_once():
+    from pavg_critic.planner import ModelPhysicsPlanner
+
+    invalid = _model_plan_payload()
+    invalid["relations"][0]["subject"] = "ball"
+
+    class RepairingModel:
+        model = "repairing-model"
+
+        def __init__(self):
+            self.responses = [invalid, _model_plan_payload()]
+            self.calls = []
+
+        def generate_json(self, **kwargs):
+            self.calls.append(kwargs)
+            return self.responses.pop(0)
+
+    model = RepairingModel()
+    plan = ModelPhysicsPlanner(model).generate("A red ball falls to the floor.")
+
+    assert plan.planner_metadata.source == "model"
+    assert len(model.calls) == 2
+    repair_payload = json.loads(model.calls[1]["user_prompt"])
+    assert "repair_feedback" in repair_payload
+    assert "unknown objects" in repair_payload["repair_feedback"]
 
 
 def test_resolver_falls_back_after_timeout():
@@ -257,7 +322,7 @@ def test_resolver_filters_generated_extensions_for_discarded_objects():
     assert resolution.plan.physics_constraints == ()
 
 
-def test_invalid_model_references_trigger_template_fallback():
+def test_invalid_model_references_are_pruned_after_failed_repair():
     from pavg_critic.planner import (
         ModelPhysicsPlanner,
         PhysicsPlanResolver,
@@ -276,8 +341,11 @@ def test_invalid_model_references_trigger_template_fallback():
         CriticRequest(video_path="unused.mp4", prompt="A red ball falls.")
     )
 
-    assert resolution.plan.planner_metadata.source == "template_fallback"
-    assert resolution.provider_failure["error_type"] == "SchemaError"
+    assert resolution.plan.planner_metadata.source == "model"
+    assert resolution.plan.objects == ("red_ball",)
+    assert resolution.plan.relations == ()
+    assert len(resolution.plan.physics_constraints) == 1
+    assert resolution.provider_failure is None
 
 
 def test_null_model_arrays_trigger_template_fallback():
@@ -451,6 +519,20 @@ def test_template_planner_detects_projectile():
 
     assert "projectile" in plan.expected_events
     assert any(item.domain == "projectile" for item in plan.physics_constraints)
+
+
+def test_template_planner_understands_rock_rolling_down_slope_in_chinese():
+    from pavg_critic.planner import TemplatePhysicsPlanner
+
+    plan = TemplatePhysicsPlanner().generate("石头滚下坡")
+
+    assert plan.objects == ("rock", "slope")
+    assert "roll_down_slope" in plan.expected_events
+    assert any(
+        constraint.domain == "rolling"
+        and constraint.subjects == ("rock", "slope")
+        for constraint in plan.physics_constraints
+    )
 
 
 def test_template_planner_detects_collision():

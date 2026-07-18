@@ -8,14 +8,22 @@ from pavg_critic.sam2_detector import SAM2ObjectDetector
 
 
 class ObjectSeedModel:
+    def __init__(self):
+        self.schema = None
+        self.system_prompt = None
+        self.user_prompt = None
+
     def generate_json_with_images(self, **kwargs):
+        self.schema = kwargs["schema"]
+        self.system_prompt = kwargs["system_prompt"]
+        self.user_prompt = kwargs["user_prompt"]
         return {
             "objects": [
                 {
                     "name": "ball",
                     "description": "a ball",
-                    "x_pct": 50,
-                    "y_pct": 50,
+                    "x_pct": 101,
+                    "y_pct": -1,
                 }
             ]
         }
@@ -53,6 +61,7 @@ def test_sam2_uses_jpeg_folder_and_squeezes_mask_channel(tmp_path, monkeypatch):
             return None
 
         def add_new_points_or_box(self, **kwargs):
+            observed["seed_points"] = kwargs["points"].tolist()
             return 0, (0,), None
 
         def propagate_in_video(self, state):
@@ -68,17 +77,58 @@ def test_sam2_uses_jpeg_folder_and_squeezes_mask_channel(tmp_path, monkeypatch):
         return FakePredictor()
 
     monkeypatch.setattr("sam2.build_sam.build_sam2_video_predictor", fake_build)
+    seed_model = ObjectSeedModel()
     detector = SAM2ObjectDetector(
-        ObjectSeedModel(),
+        seed_model,
         str(video),
         model_cfg="configs/sam2.1/sam2.1_hiera_b+.yaml",
         model_ckpt="checkpoint.pt",
+        prompt="A ball falls onto the floor.",
     )
 
     assert observed["is_dir"] is True
     assert observed["frames"] == ["00000.jpg", "00001.jpg", "00002.jpg"]
     assert observed["config"] == "configs/sam2.1/sam2.1_hiera_b+.yaml"
+    assert observed["seed_points"] == [[63.0, 0.0]]
+    assert seed_model.schema["properties"]["objects"]["items"]["properties"][
+        "x_pct"
+    ] == {"type": "number", "minimum": 0, "maximum": 100}
+    assert "A ball falls onto the floor." in seed_model.user_prompt
+    assert "prompt-relevant" in seed_model.system_prompt
+    assert "background" in seed_model.system_prompt
     assert len(detector.detect(None, 0, 0.0)) == 1
     assert len(detector.detect(None, 2, 0.2)) == 1
     assert detector.detect(None, 0, 0.0)[0].track_id == "sam2:0"
     assert detector.detect(None, 0, 0.0)[0].bbox == (10.0, 20.0, 29.0, 39.0)
+
+
+def test_sam2_rejects_non_finite_object_seed(tmp_path, monkeypatch):
+    video = tmp_path / "three.avi"
+    _write_test_video(video)
+
+    class FakePredictor:
+        def init_state(self, **kwargs):
+            return {}
+
+        def reset_state(self, state):
+            return None
+
+    monkeypatch.setattr(
+        "sam2.build_sam.build_sam2_video_predictor",
+        lambda *args, **kwargs: FakePredictor(),
+    )
+    detector = object.__new__(SAM2ObjectDetector)
+    detector._cache = {}
+    detector._object_names = {}
+    detector._width = 64
+    detector._height = 64
+
+    with pytest.raises(ValueError, match="must be finite"):
+        detector._track_with_sam2(
+            str(video),
+            [{"name": "ball", "x_pct": float("nan"), "y_pct": 50}],
+            "config.yaml",
+            "checkpoint.pt",
+            10.0,
+            85,
+        )

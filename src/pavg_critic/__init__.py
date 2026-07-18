@@ -6,6 +6,12 @@
 
 from .api_models import DeepSeekChatModel, OpenAIChatModel, OpenAIResponsesModel
 from .config import CriticConfig, load_config
+from .execution_trace import (
+    TraceRecorder,
+    TraceValidationPolicy,
+    TraceValidationReport,
+    validate_trace,
+)
 from .pipeline import PhysicsCritic
 from .planner import ModelPhysicsPlanner, PhysicsPlanResolver, TemplatePhysicsPlanner
 from .pqsg import HybridQuestionGraphGenerator, PQSGQuestionGraphGenerator
@@ -48,8 +54,12 @@ __all__ = [
     "SAM2ObjectDetector",
     "QuestionNode",
     "TemplatePhysicsPlanner",
+    "TraceRecorder",
+    "TraceValidationPolicy",
+    "TraceValidationReport",
     "VLMObjectDetector",
     "load_config",
+    "validate_trace",
 ]
 
 # 包版本与 pyproject.toml 保持一致，便于实验报告记录确切实现版本。

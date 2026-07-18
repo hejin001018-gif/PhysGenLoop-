@@ -25,6 +25,17 @@ from .schemas import (
 )
 
 
+PLAN_EVENT_VOCABULARY = (
+    "leave_support",
+    "fall",
+    "floor_contact",
+    "rebound",
+    "projectile",
+    "collision",
+    "roll_down_slope",
+)
+
+
 @dataclass(frozen=True)
 class _ObjectPattern:
     name: str
@@ -42,6 +53,12 @@ class TemplatePhysicsPlanner:
             "floor", re.compile(r"\bfloor\b|\bground\b|地面|地板", re.IGNORECASE)
         ),
         _ObjectPattern("wall", re.compile(r"\bwall\b|墙", re.IGNORECASE)),
+        _ObjectPattern(
+            "rock", re.compile(r"\b(?:rock|boulder)s?\b|石头|岩石|巨石", re.IGNORECASE)
+        ),
+        _ObjectPattern(
+            "slope", re.compile(r"\b(?:slope|hill)s?\b|斜坡|山坡|坡", re.IGNORECASE)
+        ),
     )
     _EVENT_PATTERNS = {
         "fall": re.compile(
@@ -66,6 +83,11 @@ class TemplatePhysicsPlanner:
             r"\bcollid(?:e|es|ed|ing)\b|\bcollision\b|相撞|碰撞",
             re.IGNORECASE,
         ),
+        "roll_down_slope": re.compile(
+            r"\broll(?:s|ed|ing)?\b.*\b(?:downhill|slope|hill)\b|"
+            r"滚下坡|滚下斜坡|沿坡滚动",
+            re.IGNORECASE,
+        ),
     }
     _EVENT_ORDER = (
         "leave_support",
@@ -74,8 +96,9 @@ class TemplatePhysicsPlanner:
         "rebound",
         "projectile",
         "collision",
+        "roll_down_slope",
     )
-    _STATIC_OBJECTS = frozenset({"table", "floor", "wall"})
+    _STATIC_OBJECTS = frozenset({"table", "floor", "wall", "slope"})
 
     def generate(
         self, prompt: str, partial_plan: PhysicsPlan | None = None
@@ -127,6 +150,8 @@ class TemplatePhysicsPlanner:
             found.add("projectile")
         if self._EVENT_PATTERNS["collision"].search(text):
             found.add("collision")
+        if self._EVENT_PATTERNS["roll_down_slope"].search(text):
+            found.add("roll_down_slope")
         return tuple(item for item in self._EVENT_ORDER if item in found)
 
     @staticmethod
@@ -145,6 +170,15 @@ class TemplatePhysicsPlanner:
                     primary,
                     "expected_to_collide_with",
                     "floor",
+                )
+            )
+        if primary and "slope" in objects and "roll_down_slope" in events:
+            relations.append(
+                PhysicsRelation(
+                    f"R{len(relations) + 1}",
+                    primary,
+                    "moves_down",
+                    "slope",
                 )
             )
         return tuple(relations)
@@ -195,6 +229,16 @@ class TemplatePhysicsPlanner:
                 "parabolic_vertical_motion",
                 "during_free_flight",
             )
+        if "roll_down_slope" in events:
+            rolling_subjects = dynamic_subject + (
+                ("slope",) if "slope" in objects else ()
+            )
+            add(
+                "rolling",
+                rolling_subjects,
+                "continuous_downslope_motion_without_unexplained_disappearance",
+                "while_on_slope",
+            )
         return tuple(constraints)
 
 
@@ -205,7 +249,10 @@ PHYSICS_PLAN_SCHEMA: dict[str, Any] = {
     "required": ["objects", "expected_events", "relations", "physics_constraints"],
     "properties": {
         "objects": {"type": "array", "items": {"type": "string"}},
-        "expected_events": {"type": "array", "items": {"type": "string"}},
+        "expected_events": {
+            "type": "array",
+            "items": {"type": "string", "enum": list(PLAN_EVENT_VOCABULARY)},
+        },
         "relations": {
             "type": "array",
             "items": {
@@ -251,26 +298,120 @@ class ModelPhysicsPlanner:
     ) -> PhysicsPlan:
         partial_context = (partial_plan or PhysicsPlan()).to_dict()
         partial_context.pop("planner_metadata", None)
-        payload = self.model.generate_json(
+        normalized_prompt = str(prompt or "")
+        require_semantic_content = bool(normalized_prompt.strip()) and not any(
+            partial_context.get(key)
+            for key in (
+                "objects",
+                "expected_events",
+                "relations",
+                "physics_constraints",
+            )
+        )
+        payload = self._generate_payload(
+            prompt=normalized_prompt,
+            partial_context=partial_context,
+        )
+        try:
+            return self._parse_plan(
+                payload,
+                require_semantic_content=require_semantic_content,
+            )
+        except SchemaError as error:
+            repaired = self._generate_payload(
+                prompt=normalized_prompt,
+                partial_context=partial_context,
+                repair_feedback=str(error)[:300],
+                previous_plan=payload,
+            )
+            try:
+                return self._parse_plan(
+                    repaired,
+                    require_semantic_content=require_semantic_content,
+                )
+            except SchemaError:
+                return self._parse_plan(
+                    repaired,
+                    require_semantic_content=require_semantic_content,
+                    prune_unknown_references=True,
+                )
+
+    def _generate_payload(
+        self,
+        *,
+        prompt: str,
+        partial_context: Mapping[str, Any],
+        repair_feedback: str | None = None,
+        previous_plan: Mapping[str, Any] | None = None,
+    ) -> Mapping[str, Any]:
+        user_payload: dict[str, Any] = {
+            "prompt": prompt,
+            "partial_physics_plan": partial_context,
+        }
+        if repair_feedback is not None:
+            user_payload.update(
+                {
+                    "repair_feedback": repair_feedback,
+                    "previous_plan": previous_plan,
+                    "repair_policy": (
+                        "Correct schema, reference, or empty-plan errors. Preserve "
+                        "supported objects and events; omit relations or constraints "
+                        "that cannot use exact object identifiers."
+                    ),
+                }
+            )
+        return self.model.generate_json(
             system_prompt=(
                 "Convert the video-generation prompt into a conservative physics plan. "
                 "Treat every non-empty field in partial_physics_plan as authoritative and "
                 "use its object identifiers when generating relations or constraints. "
                 "Use stable snake_case identifiers. Include only objects and qualitative "
                 "events/constraints supported by the prompt. Never invent masses, speeds, "
-                "gravity constants, dimensions, coefficients, or other numeric parameters."
+                "gravity constants, dimensions, coefficients, or other numeric parameters. "
+                "For a non-empty prompt with no authoritative partial-plan content, "
+                "extract at least one physically relevant visible entity and must not "
+                "return all plan arrays empty. "
+                "Every relation subject/object and every constraint subject must exactly "
+                "equal one entry in objects; omit an extension if no exact reference exists. "
+                "expected_events must use only these implemented IDs: "
+                + ", ".join(PLAN_EVENT_VOCABULARY)
+                + "."
             ),
-            user_prompt=json.dumps(
-                {
-                    "prompt": str(prompt or ""),
-                    "partial_physics_plan": partial_context,
-                },
-                ensure_ascii=False,
-            ),
+            user_prompt=json.dumps(user_payload, ensure_ascii=False),
             schema=PHYSICS_PLAN_SCHEMA,
         )
+
+    def _parse_plan(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        require_semantic_content: bool = False,
+        prune_unknown_references: bool = False,
+    ) -> PhysicsPlan:
         self._validate_payload_shape(payload)
         plan = PhysicsPlan.from_dict(payload)
+        if prune_unknown_references:
+            known_objects = set(plan.objects)
+            plan = PhysicsPlan(
+                objects=plan.objects,
+                expected_events=plan.expected_events,
+                relations=tuple(
+                    relation
+                    for relation in plan.relations
+                    if relation.subject in known_objects
+                    and relation.object in known_objects
+                ),
+                physics_constraints=tuple(
+                    constraint
+                    for constraint in plan.physics_constraints
+                    if set(constraint.subjects).issubset(known_objects)
+                ),
+            )
+        plan.validate_references()
+        if require_semantic_content and not _has_semantic_content(plan):
+            raise SchemaError(
+                "physics planner returned an empty plan for a non-empty prompt"
+            )
         metadata = (
             PlannerMetadata(
                 source="model", confidence=0.8, fallback_used=False, model=self.model_name
@@ -282,7 +423,6 @@ class ModelPhysicsPlanner:
             plan,
             metadata,
         )
-        plan.validate_references()
         return plan
 
     @staticmethod

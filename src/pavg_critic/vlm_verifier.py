@@ -9,17 +9,61 @@ from __future__ import annotations
 
 import base64
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Mapping, Protocol, Sequence
 
 from .interfaces import MultimodalStructuredModel
-from .schemas import CriticRequest, ViolationCandidate, VLMReview
+from .schemas import CriticRequest, TrackSequence, ViolationCandidate, VLMReview
 
 
 class CriticalFrameLoader(Protocol):
     """从视频读取关键帧并编码为图像 data URL。"""
 
     def load(self, video_path: str, frame_indices: tuple[int, ...]) -> tuple[str, ...]: ...
+
+
+def with_track_evidence(
+    candidate: ViolationCandidate,
+    tracks: Sequence[TrackSequence],
+    *,
+    max_states: int = 24,
+) -> ViolationCandidate:
+    """Attach a bounded chronological SAM2 track snapshot to a candidate."""
+
+    if max_states < 2:
+        raise ValueError("max_states must be at least 2")
+    track = next(
+        (
+            item
+            for item in tracks
+            if item.track_id == candidate.track_id
+            or (item.object == candidate.object and item.track_id == candidate.track_id)
+        ),
+        None,
+    )
+    if track is None:
+        return candidate
+    states = tuple(sorted(track.states, key=lambda state: state.frame))
+    if len(states) <= max_states:
+        selected = states
+    else:
+        indices = {
+            round(index * (len(states) - 1) / (max_states - 1))
+            for index in range(max_states)
+        }
+        selected = tuple(states[index] for index in sorted(indices))
+    serialized = [state.to_dict() for state in selected]
+    evidence = dict(candidate.evidence)
+    evidence["sam2_track"] = {
+        "track_id": track.track_id,
+        "object": track.object,
+        "state_count": len(states),
+        "visible_count": sum(1 for state in states if state.visible),
+        "frame_range": [states[0].frame, states[-1].frame] if states else [],
+        "states": serialized,
+    }
+    return replace(candidate, evidence=evidence)
 
 
 class NoOpVLMVerifier:
@@ -47,6 +91,10 @@ class EvidenceGroundedVLMVerifier:
             "violation_score": {"type": "number", "minimum": 0, "maximum": 1},
             "reason": {"type": "string"},
             "repair_instruction": {"type": "string"},
+            "claim_status": {
+                "type": "string",
+                "enum": ["confirmed", "rejected", "uncertain"],
+            },
         },
     }
 
@@ -76,17 +124,25 @@ class EvidenceGroundedVLMVerifier:
         payload = self.model.generate_json_with_images(
             system_prompt=(
                 "You are a physics-video verifier. Judge only the claimed violation using "
-                "the supplied chronological keyframes. Do not infer unseen frames."
+                "the supplied chronological keyframes and SAM2 track evidence. Do not infer "
+                "unseen frames. Distinguish confirmed, rejected, and uncertain claims. "
+                "A tracking or segmentation loss is not a physical disappearance: reject "
+                "the claim when the object remains visible, and return uncertain when dust, "
+                "occlusion, crop, or missing frames prevent a visual decision. Confirm only "
+                "a prompt-relevant physical actor, not incidental background clutter. "
+                "Do not reject events that the video prompt explicitly expects."
             ),
             user_prompt=json.dumps(
                 {
                     "video_prompt": request.prompt,
+                    "expected_event_policy": "do_not_reject_prompt_expected_events",
                     "candidate": {
                         "object": candidate.object,
                         "category": candidate.category,
                         "reason": candidate.reason,
                         "rules": candidate.rules,
                         "critical_frames": frames,
+                        "evidence": candidate.evidence,
                     },
                 },
                 ensure_ascii=False,
@@ -99,11 +155,12 @@ class EvidenceGroundedVLMVerifier:
             reason=str(payload["reason"]),
             repair_instruction=str(payload["repair_instruction"]),
             model=self.model_name,
+            claim_status=str(payload.get("claim_status", "uncertain")),
         )
 
 
 class CategoryGroupedVLMVerifier(EvidenceGroundedVLMVerifier):
-    """Review all candidates with at most one multimodal call per category."""
+    """Review candidates grouped by object, category, and temporal segment."""
 
     def verify_many(
         self,
@@ -111,12 +168,18 @@ class CategoryGroupedVLMVerifier(EvidenceGroundedVLMVerifier):
         candidates: Sequence[ViolationCandidate],
         keyframes: Mapping[int, Sequence[int]],
     ) -> dict[int, VLMReview | None]:
-        groups: dict[str, list[int]] = {}
+        groups: dict[tuple[str, str, int, int], list[int]] = {}
         for index, candidate in enumerate(candidates):
-            groups.setdefault(candidate.category, []).append(index)
+            group_key = (
+                candidate.object,
+                candidate.category,
+                candidate.start_frame,
+                candidate.end_frame,
+            )
+            groups.setdefault(group_key, []).append(index)
         reviews: dict[int, VLMReview | None] = {}
-        for category in sorted(groups):
-            indices = groups[category]
+        for object_name, category, start_frame, end_frame in sorted(groups):
+            indices = groups[(object_name, category, start_frame, end_frame)]
             representative = max(
                 indices,
                 key=lambda index: (candidates[index].detector_score, -index),
@@ -135,24 +198,37 @@ class CategoryGroupedVLMVerifier(EvidenceGroundedVLMVerifier):
                 continue
             payload = self.model.generate_json_with_images(
                 system_prompt=(
-                    "You are verifying one category of a proposed physics-video "
-                    "violation. Use only the chronological keyframes and the video "
-                    "prompt. Reject detector/tracking artifacts and events explicitly "
-                    "expected by the prompt. Return one score for whether this category "
-                    "is a real physical violation in the video."
+                    "You are verifying one object/category/time-segment claim of a "
+                    "proposed physics-video violation. Use only chronological keyframes, "
+                    "SAM2 track evidence, and the video prompt. Reject detector/tracking "
+                    "artifacts. A tracking or segmentation loss is not physical "
+                    "disappearance; dust, occlusion, crop, or missing frames require an "
+                    "uncertain result unless the violation is visually clear. Confirm only "
+                    "a prompt-relevant physical actor, not incidental background clutter. "
+                    "Do not reject events explicitly expected by the prompt. "
+                    "Return whether the claim is confirmed, rejected, or uncertain and a "
+                    "violation score for this segment."
                 ),
                 user_prompt=json.dumps(
                     {
                         "video_prompt": request.prompt,
+                        "expected_event_policy": "do_not_reject_prompt_expected_events",
+                        "object": object_name,
                         "category": category,
+                        "time_segment": {
+                            "start_frame": start_frame,
+                            "end_frame": end_frame,
+                        },
                         "representative_critical_frames": frames,
                         "candidates": [
                             {
                                 "object": candidates[index].object,
+                                "category": candidates[index].category,
                                 "reason": candidates[index].reason,
                                 "detector_score": candidates[index].detector_score,
                                 "start_frame": candidates[index].start_frame,
                                 "end_frame": candidates[index].end_frame,
+                                "evidence": candidates[index].evidence,
                             }
                             for index in sorted(
                                 indices,
@@ -170,6 +246,7 @@ class CategoryGroupedVLMVerifier(EvidenceGroundedVLMVerifier):
                 reason=str(payload["reason"]),
                 repair_instruction=str(payload["repair_instruction"]),
                 model=self.model_name,
+                claim_status=str(payload.get("claim_status", "uncertain")),
             )
             for index in indices:
                 reviews[index] = review

@@ -4,9 +4,9 @@
 
 **Goal:** Run an auditable full VideoPhy-2 matched open-model comparison on the rented A100 server, then apply the frozen configuration to VideoPhy-1 OOD and synchronize complete results locally.
 
-**Architecture:** Serve Qwen2.5-VL-7B through a memory-bounded local vLLM endpoint while the frozen Revision B critic uses official SAM2.1 Hiera B+ for dense tracks. Use append-only manifests, observation caches and predictions so downloads and multi-day inference can resume safely. Closed `gpt-5-mini` is a frozen 300-sample audit anchor and a full-run fallback only after two documented open-model compatibility failures.
+**Architecture:** Serve Qwen3-VL-8B-Instruct through a memory-bounded local vLLM endpoint while the frozen Revision B critic uses official SAM2.1 Hiera B+ for dense tracks. Use append-only manifests, observation caches and predictions so downloads and multi-day inference can resume safely. Qwen2.5-VL-7B is a weak pilot baseline only; closed `gpt-5-mini` is a frozen 300-sample audit anchor and a full-run fallback only after two documented Qwen3 compatibility failures.
 
-**Tech Stack:** Python 3.12, PyTorch CUDA, official Meta SAM2.1, vLLM, Qwen2.5-VL-7B-Instruct, OpenCV, pytest, Paramiko/OpenSSH, VideoPhy-2 and VideoPhy-1.
+**Tech Stack:** Python 3.12, PyTorch CUDA 12.8, official Meta SAM2.1, vLLM 0.11.0, Qwen3-VL-8B-Instruct, OpenCV, pytest, Paramiko/OpenSSH, VideoPhy-2 and VideoPhy-1.
 
 ---
 
@@ -66,54 +66,58 @@
 - Create local: `evaluation/manifests/videophy2_test_full.json`
 - Modify: this plan under `Execution results`
 
-- [ ] Transfer the already frozen 3,397-row official CSV and verify its SHA-256 remotely.
-- [ ] Download every unique video URL with idempotent retries and append-only failure records.
-- [ ] Decode-probe every video, record frame count/duration/size/checksum, and retry corrupt or partial files once.
-- [ ] Normalize all rows into an immutable full manifest; retain failed rows with explicit status rather than dropping them.
-- [ ] Freeze a deterministic 300-sample action/generator/label-stratified pilot manifest before model predictions.
+- [x] Transfer the already frozen 3,397-row official CSV and verify its SHA-256 remotely.
+- [x] Download every unique video URL with idempotent retries and append-only failure records.
+- [x] Decode-probe every video, record frame count/duration/size/checksum, and retry corrupt or partial files once.
+- [x] Normalize all rows into an immutable full manifest; retain failed rows with explicit status rather than dropping them.
+- [x] Freeze a deterministic 300-sample action/generator/label-stratified pilot manifest before model predictions.
 
 ## Task 6: Deploy the open model and pass server smoke
 
 **Files:**
-- Create remote: `/root/pavg-benchmark/models/Qwen2.5-VL-7B-Instruct/`
+- Create remote: `/root/pavg-benchmark/models/Qwen3-VL-8B-Instruct/`
 - Create remote: `/root/pavg-benchmark/runs/videophy2-server-smoke20/`
 - Modify: this plan under `Execution results`
 
-- [ ] Install a vLLM version compatible with the selected CUDA/PyTorch stack and download the official Qwen model snapshot.
-- [ ] Start an OpenAI-compatible endpoint with GPU utilization at most 0.50, deterministic decoding, bounded context and no request-body logging.
-- [ ] Run one schema-only image request and verify the existing chat adapter parses it.
-- [ ] Run smoke20 `D0_OPEN_DIRECT,B1_OPEN_SAM2`; require no OOM, duplicate keys or credential-bearing logs.
-- [ ] If compatibility fails, apply only the finite fallbacks in the design and document each attempt.
+- [x] Install a vLLM version compatible with the selected CUDA/PyTorch stack and download the official Qwen model snapshot.
+- [x] Start an OpenAI-compatible endpoint at the measured minimum 0.58 GPU-memory fraction, deterministic decoding, bounded context and no request-body logging; 0.50 cannot allocate any KV cache for this BF16 model.
+- [x] Run one schema-only image request and verify the existing chat adapter parses it.
+- [x] Run smoke20 `D0_OPEN_DIRECT,B1_OPEN_SAM2`; require no OOM, duplicate keys or credential-bearing logs.
+- [x] If compatibility fails, apply only the finite fallbacks in the design and document each attempt.
 
 ## Task 7: Run the frozen 300-sample pilot
 
 **Files:**
-- Create remote: `/root/pavg-benchmark/runs/videophy2-pilot300-qwen25vl7b/`
+- Create remote: `/root/pavg-benchmark/runs/videophy2-pilot300-qwen3vl8b/`
 - Modify: this plan under `Execution results`
 
-- [ ] Run `D0_OPEN_DIRECT,D1_OPEN_STRUCTURED,B1_OPEN_SAM2` with append-only predictions and SAM2 observation cache.
-- [ ] Record download/decode/inference failure rates, frame coverage, GPU peak memory, throughput, p50/p95 latency and projected full-run time.
+- [x] Run `D0_DIRECT_VLM,D1_STRUCTURED_VLM,B1_RULE` with append-only predictions and SAM2 observation cache.
+- [x] Record download/decode/inference failure rates, frame coverage, GPU peak memory, throughput, p50/p95 latency and projected full-run time.
 - [ ] Run the matched `gpt-5-mini` D0/B1 audit on the same frozen pilot only if a secret can be injected without repository or shell-history persistence.
-- [ ] Enter the full run if failure rate is below 5%, no OOM occurs, coverage meets the design gate and projected wall time is at most 72 hours; otherwise apply the specified finite fallback and repeat smoke/pilot.
+- [x] Enter the full run gate: failure rate was 0%, no OOM occurred, observation coverage was 300/300 and the pilot-derived full-run projection was approximately 37.5 hours, below the 72-hour limit.
 
 ## Task 8: Run all 3,397 VideoPhy-2 samples
 
 **Files:**
-- Create remote: `/root/pavg-benchmark/runs/videophy2-full-qwen25vl7b/`
-- Create local: `outputs/benchmarks/videophy2-full-qwen25vl7b/`
+- Create remote: `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/`
+- Create local: `outputs/benchmarks/videophy2-full-qwen3vl8b/`
 - Modify: this plan under `Execution results`
 
-- [ ] Launch the full matched D0/B1 matrix in a resumable session with one process owning the prediction lock.
-- [ ] Monitor progress, GPU state, failure count and ETA at least once per hour without altering prompts, thresholds or sample membership.
-- [ ] Resume interrupted work from valid sample×method keys until every manifest row has a terminal prediction for both methods.
-- [ ] Generate summaries, 2,000 action-group bootstrap confidence intervals, paired outcomes and generator/action/rule-family slices.
-- [ ] Apply the material-improvement arithmetic exactly as frozen in the design.
+- [x] Launch the full matched D0/B1 matrix in a resumable session with one process owning the prediction lock.
+- [x] Monitor progress, GPU state, failure count and ETA at least once per hour without altering prompts, thresholds or sample membership.
+- [x] Resume interrupted work from valid sample×method keys until every manifest row has a terminal prediction for both methods.
+- [x] Generate summaries, 2,000 action-group bootstrap confidence intervals, paired outcomes and generator/action/rule-family slices.
+- [x] Apply the material-improvement arithmetic exactly as frozen in the design.
 
 ## Task 9: Run frozen VideoPhy-1 OOD
 
+> **Deferred on 2026-07-17 by user request.** Finish and report the complete
+> VideoPhy-2 evaluation first; VideoPhy-1 OOD is outside the current execution
+> scope and remains an explicit future task rather than being treated as done.
+
 **Files:**
 - Create local: `evaluation/manifests/videophy1_test_full.json`
-- Create local: `outputs/benchmarks/videophy1-ood-qwen25vl7b/`
+- Create local: `outputs/benchmarks/videophy1-ood-qwen3vl8b/`
 - Modify: this plan under `Execution results`
 
 - [ ] Retrieve the official public test metadata, record row count/schema/checksum and materialize every accessible video.
@@ -128,11 +132,11 @@
 - Modify: this plan under `Execution results`
 - Create: `outputs/benchmarks/server-audit/artifact-audit.json`
 
-- [ ] Synchronize manifests, predictions, summaries, resolved configs and non-secret logs; do not copy videos or model weights into git-tracked paths.
-- [ ] Verify manifest/prediction key alignment, duplicate absence, checksums and terminal status for every sample×method pair.
-- [ ] Scan synchronized artifacts for the SSH password, API key prefixes, authorization headers, `.env` contents and raw provider payloads.
-- [ ] Run the local full pytest suite and regenerate the Chinese result narrative with exact tables, confidence intervals, runtime and negative results.
-- [ ] Commit only source, tests, manifests and documentation; preserve user-owned dirty files.
+- [x] Synchronize manifests, predictions, summaries, resolved configs and non-secret logs; do not copy videos or model weights into git-tracked paths.
+- [x] Verify manifest/prediction key alignment, duplicate absence, checksums and terminal status for every sample×method pair.
+- [x] Scan synchronized artifacts for the SSH password, API key prefixes, authorization headers, `.env` contents and raw provider payloads.
+- [x] Run the local full pytest suite and regenerate the Chinese result narrative with exact tables, confidence intervals, runtime and negative results.
+- [x] Commit only source, tests, manifests and documentation; preserve user-owned dirty files.
 
 ## Execution results
 
@@ -173,3 +177,97 @@ Results are appended here after every task checkpoint. Existing results are immu
 - Full remote test suite after the required overlay: `159 passed in 2.01s`.
 - Real A100 propagation on a three-frame moving-square video produced exactly one stable `sam2:0` track per frame with boxes `(20,48,39,79)`, `(40,48,59,79)` and `(60,48,79,79)`. The missing optional `_C` post-processing warning was recorded; propagation itself passed.
 - Frozen package inventory is stored at `/root/pavg-benchmark/logs/environment.txt`.
+
+### E5 — Open-model upgrade and CUDA compatibility
+
+- The initial latest `vLLM 0.25.1` environment resolved Torch `2.11.0+cu130`. Import succeeded, but the required real CUDA tensor operation failed because driver 570 exposes CUDA 12.8 and cannot execute CUDA 13.0 binaries.
+- A CUDA 12.8 `vLLM 0.10.2` installation was started, then stopped after the user rejected Qwen2.5-VL quality and the official compatibility matrix showed that v0.10.2 does not support `Qwen3VLForConditionalGeneration`.
+- Official vLLM matrices show Qwen3-VL support begins at v0.11.0. The selected environment is `vLLM 0.11.0`, Torch `2.8.0+cu128`, ModelScope `1.38.1`; a real A100 matrix multiplication returned `262144.0`.
+- Primary open backbone is now `Qwen/Qwen3-VL-8B-Instruct` (Apache-2.0). Qwen2.5-VL is limited to a pilot weak baseline. Model weights are downloading from the official Qwen ModelScope repository because direct Hugging Face TLS is unavailable on the server.
+
+### E6 — Qwen3-VL service bring-up
+
+- The official ModelScope snapshot completed with 17 repository files and four complete safetensor shards. JSON configuration/index validation passed; nine SHA-256 entries covering the configuration, tokenizer/index metadata and all weight shards are frozen at `/root/pavg-benchmark/artifacts/qwen3vl8b-sha256.txt`.
+- `vLLM 0.11.0` initially resolved the future `transformers 5.14.0`, which failed because vLLM accessed a tokenizer attribute removed in Transformers 5. The model's own README identifies `transformers 4.57.0`; pinning that exact release resolved tokenizer initialization without changing Torch or vLLM.
+- A 50% GPU-memory limit was insufficient: after 16.64 GiB of weights and multimodal profiling it left `-0.67 GiB` for KV cache. At 55%, vLLM measured 1.31 GiB available versus 2.25 GiB required for one 16,384-token request. The minimum verified configuration is therefore 58%, which provides 2.49 GiB / 18,128 KV tokens and 1.11× concurrency at 16,384 tokens.
+- The service accepts at most 16 image inputs and no native video input; frames remain deterministically decoded by the benchmark. The processor is capped at 1,003,520 pixels per image. Service idle residency is about 20.35 GiB.
+- A real 480×720 VideoPhy-2 first-frame request through the project adapter returned four visible objects in 4.52 seconds. A real 16-frame request exercised all 16 requested frames without OOM.
+
+### E7 — Strict structured output and joint SAM2 smoke
+
+- The first 16-frame direct request returned the JSON Schema definition rather than a score instance, causing a correctly captured `KeyError('semantic_score')`. The raw response ended normally after 145 completion tokens, proving this was schema adherence rather than truncation.
+- A test-first adapter change added an explicit `--chat-response-format json_schema` mode while leaving the compatible `json_object` default unchanged. Both new tests failed before implementation, passed after it, and the complete local suite passed `161/161` in 6.08 seconds.
+- The same 16-frame request under strict schema returned semantic `5`, physics `5`, confidence `1.0`, all 16 evidence-frame indices and no failure in 1.87 seconds.
+- A one-sample joint run completed Qwen3-VL object seeding, official SAM2 propagation over all 49 frames, direct judging and B1 critic scoring. Peak observed GPU memory was about 23.2 GiB; SAM2 propagation took about 16 seconds and no OOM occurred.
+- This first sample is human-labelled physical. D0 predicted physical correctly, while B1 predicted violation from `object_disappearance`. This is recorded as an initial critic false positive, not evidence of improvement; the frozen balanced smoke20 run is required before architecture changes.
+
+### E8 — Frozen Qwen3-VL smoke20 result
+
+- The pre-existing frozen smoke manifest contains 20 checksum-verified videos: 10 physical / 10 violation, spanning CogVideo, Hunyuan, Cosmos, VideoCrafter, Sora, Ray2 and Wan. Remote manifest SHA-256: `8156d04b04c7f0966794ab3a99520a6abc28e639302eaf6f40f330b8fe174461`.
+- The run completed 20/20 SAM2 observation caches and 140/140 sample×method predictions with zero failures, no duplicate keys and no OOM. Peak observed GPU memory was about 23.46 GiB.
+- On all 20 samples, D0 direct and D1 structured each reached accuracy `0.55` and Macro-F1 `0.549`. B1, M1, M2 and M3 each reached accuracy `0.70` and Macro-F1 `0.697`, a smoke delta of `+0.15` accuracy and `+0.148` Macro-F1 over D0. B1 violation precision/recall were `0.667/0.800`; D0 was `0.545/0.600`.
+- M4 VLM fusion collapsed to predicting no violations: accuracy `0.50`, Macro-F1 `0.333`, violation recall `0.0`. It is a recorded negative result and is not the primary critic method.
+- The frozen dev10 split favoured D0 (accuracy `0.70`, Macro-F1 `0.697`) over B1 (`0.60`, `0.600`). The untouched eval10 split favoured B1 (`0.80`, `0.792`, violation recall `1.0`) over D0 (`0.40`, `0.400`). Because the aggregate and eval directions favour B1 but the sample is small, no rule tuning is justified; proceed to the frozen 300-sample pilot.
+
+### E9 — Pilot300 freeze and launch
+
+- The existing source selector balanced only label/generator, so a test-first deterministic pilot selector was added. It covers each available action once, then balances labels, generators and label×generator pairs before using repeat action count as a tie-breaker. A code-review counterexample exposed why action count must not remain the first priority after coverage; the new regression test fails under the old strategy and passes under the corrected one.
+- Seed `20260716` froze a 300-row source CSV before any pilot prediction. Source CSV SHA-256: `7d29e0a6ba2cbd32daa1e58a7597e53d1f61a88e0f1d27a5f5d6cf670041fda6`. It contains 150 physical / 150 violation, all 198 action strata, and 42–43 samples from each of seven generators.
+- Two rows have blank source actions. They are retained under the explicit `__missing_action__` group rather than dropped. A regression test covers both pilot selection and manifest normalization for this case.
+- One selected S3 object contains Unicode `’` in its URL path. The old downloader raised `UnicodeEncodeError`; a failing test reproduced it, the path is now percent-encoded before requesting, and the same row downloaded successfully without changing pilot membership.
+- Decode audit passed 300/300 videos with readable first and last frames, 32–150 frames per video and zero failures in 13.42 seconds. Frozen pilot manifest SHA-256: `a97762fe4033789eb14a82717c72c14e89bc75a7a67200d5890ff1647f72a670`.
+- Review also found that the new dataclass field had shifted `OpenAIChatModel`'s legacy positional `transport` argument and that no supported CLI exposed the pilot selector. Both compatibility bugs now have regression tests; `source-pilot` is a first-class preparation command and the default chat response mode remains `json_object`.
+- Re-running the corrected selector on all 3,397 source rows produced exactly the same 300 members and source SHA-256 as the pre-review freeze. No pilot membership changed.
+- Pilot attempt 1 was archived after 41 predictions because four SAM2 seeds contained coordinates outside `[0,100]`. The fix adds schema bounds, rejects non-finite coordinates and projects finite coordinates onto valid image pixels. Attempt 2 verified 48 predictions with zero failures, then was archived solely for the independent selector review. Attempt 3 is the current canonical run and reuses only valid observation caches.
+- The local and remote full regression suites after all review and SAM2 seed fixes passed `171/171`; the remote run completed in 2.00 seconds.
+
+### E10 — Complete VideoPhy-2 materialization
+
+- The first full download completed 3,390/3,397 rows; all seven failures were Unicode `’` or `—` in S3 object paths. Re-running with the tested percent-encoding fix completed 3,397/3,397 without changing URLs or row membership.
+- Decode audit opened every video and read both first and last frames: 3,397 passed, zero failed, frame counts 32–150, elapsed 166.22 seconds. Resolution counts are recorded in `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/decode-audit.json`.
+- Three source rule cells contain the missing-value marker `[nan]`. A regression-tested normalization rule skips only `nan`/`[nan]` as missing metadata; it does not discard the samples or interpret the marker as a physics rule.
+- Frozen full manifest SHA-256: `d8be5fe97ddf6902515c09ccbb53f394b25230213db7c3058d61f84748624906`. It contains 3,397 samples, 1,785 physical / 1,612 violation, 198 action strata plus 70 samples in the explicit missing-action group, and the exact official generator counts.
+
+### E11 — M4 evidence-fusion repair and remote synchronization
+
+- Commit `6f8b6db61362edfbf073fa903164f3521c67a71c` adds the approved M4-only repair. The local full suite passes `178/178`; the remote suite passes `178/178` in 2.01 seconds after creating the isolated pytest temp parent. A first remote attempt produced 47 setup errors solely because the requested basetemp parent did not exist; it was rerun with `mkdir -p` and is not counted as a code failure.
+- SAM2 evidence is now used by M4 twice: when a VLM verifier is enabled, the pipeline attaches a bounded chronological `sam2_track` snapshot to each rule candidate, and the VLM prompt sends that snapshot alongside the selected keyframes. The snapshot is capped at 24 states per track and includes frame range, visibility, boxes, centers and motion fields. The NoOp rule baseline does not receive this payload, so its output path remains unchanged.
+- M4 reviews are no longer shared across unrelated candidates with the same category. Calls are grouped by object, category and exact candidate time segment. The response schema accepts optional `claim_status` values `confirmed`, `rejected` or `uncertain`; the status is retained in violation evidence.
+- M4's default fusion changed from detector/VLM `0.4/0.6` to `0.7/0.3`. The CLI still exposes `--m4-detector-weight` for the frozen dev sweep `0.7`, `0.6`, `0.5`; D0, D1 and B1 are unchanged.
+- The remote source received only the M4 files from bundle `pavg-6f8b6db.bundle` (SHA-256 `92fb9cd0f58d552920e006d957ca2d3732b41ffff4b7f12bc5d5c5ceb30f3fe2`); the source manifest was updated to schema 1.2. The running pilot process was not restarted or modified.
+
+### E12 — Pilot300 completion and M4 diagnostic result
+
+- The canonical pilot completed all 300 samples with 300/300 SAM2 observation caches and 900/900 unique predictions for `D0_DIRECT_VLM`, `D1_STRUCTURED_VLM` and `B1_RULE`; duplicate count and failure count were both zero.
+- Pilot metrics were D0 accuracy/Macro-F1 `0.503/0.503`, D1 `0.540/0.538`, and B1 `0.483/0.482`. D0/D1 mean model latency was about 3.28 seconds per sample; B1 mean latency was 0.007 seconds. The run occupied about 3 hours 18 minutes, or approximately 39.7 seconds per sample, projecting about 37.5 hours for all 3,397 rows. A sampled GPU residency was 25,605 MiB of 40,960 MiB; no OOM occurred.
+- The matched closed-model audit was not run because no secret was injected into the remote shell or repository.
+- M4 repair diagnostics are synchronized locally under `outputs/benchmarks/videophy2-m4-vlm-repair-smoke20/`. Dev10 weight 0.7 and 0.6 both scored `0.600/0.600` accuracy/Macro-F1; 0.5 scored `0.500/0.333`. The frozen tie-break selected 0.7. One eval10 run at 0.7 scored `0.800/0.792` with violation recall `1.0` and zero failures.
+- Compared with the old smoke20 M4 result (`0.500/0.333`), the repair removes the all-physical collapse. It matches the previously measured B1 eval10 score but does not yet establish a clear improvement over B1, so M4 remains a diagnostic candidate rather than the primary method for the full 3,397-row run.
+
+### E13 — Full VideoPhy-2 D0/B1 launch
+
+- At 2026-07-16 16:22 Asia/Shanghai, the remote A100 launched PID `144429` in a detached session. The command uses the frozen full manifest `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/manifest.json` (SHA-256 `d8be5fe97ddf6902515c09ccbb53f394b25230213db7c3058d61f84748624906`), methods `D0_DIRECT_VLM,B1_RULE`, provider `chat` with strict JSON schema, 16 frames, official SAM2.1 Hiera B+, and the resumable run directory `/root/pavg-benchmark/runs/videophy2-full-qwen3vl8b/run`.
+- The full dataset is already materialized and decode-audited: 3,397/3,397 videos. The process owns `predictions.jsonl.lock`; initial progress after startup was 7 predictions and 3 SAM2 observation caches. Logs are `/root/pavg-benchmark/logs/videophy2-full-qwen3vl8b.stdout.log` and `.stderr.log`.
+- The SSH launch command itself timed out after detaching, but an independent audit confirmed the intended process, lock, output file and SAM2 propagation log were active; no duplicate evaluator was started.
+
+### E14 — Current-scope freeze
+
+- On 2026-07-17 the user narrowed the active scope to completing VideoPhy-2, merging and auditing both disjoint A100 shards, and producing the final VideoPhy-2 Chinese summary report.
+- VideoPhy-1 OOD is explicitly deferred. Its Task 9 checkboxes remain open and no OOD result will be implied by the current report.
+- The active completion contract is therefore Task 8 plus the VideoPhy-2-relevant parts of Task 10: 6,794 terminal sample×method keys, exact merge/audit, frozen metrics and confidence intervals, synchronized non-secret artifacts, local tests and documentation.
+
+### E15 — Both full VideoPhy-2 inference shards complete
+
+- The frozen 3,397-sample population was evaluated once as two disjoint sample shards; neither evaluator was restarted. Shard A finished at `2026-07-17 11:34:19 +08:00` and shard B at `2026-07-17 12:18:05 +08:00`. Approximate elapsed times from each resolved configuration timestamp were 15 h 23 min and 15 h 13 min, respectively.
+- Shard A contains exactly 3,398 terminal records over 1,699 samples: 1,699 `D0_DIRECT_VLM`, 1,699 `B1_RULE`, 2 retained failures, and zero duplicate/missing/extra keys. Prediction SHA-256: `8722836330d6fa31c446184973c216f1481f4b97dabfb9d73ba246f91d72bff6`.
+- Shard B contains exactly 3,396 terminal records over 1,698 samples: 1,698 `D0_DIRECT_VLM`, 1,698 `B1_RULE`, 3 retained failures, and zero duplicate/missing/extra keys. Prediction SHA-256: `14e8ca76c1a942ddea73daa29af2943e30af02d1ad82934f952499a587e781f8`.
+- Combined inference therefore reached all 6,794 frozen sample×method terminal keys with 5 failures (`0.0736%`). Both evaluator processes exited normally, both append locks disappeared and both GPUs returned to 0% utilization. Idle vLLM services remain resident only until the deterministic report is regenerated and accepted; fine-tuning has not started.
+
+### E16 — Accepted full VideoPhy-2 report
+
+- The formal report was generated from source commit `f3719819bb61aacab249bf6ba83ad6d229986faa`; the remote clean snapshot passed `281/281` tests. Strict merge accepted exactly 6,794/6,794 keys with zero duplicate, missing or extra keys and five retained B1 failures.
+- Observation provenance is complete for 3,397 samples. A pre-split shared cache explained 33 shard-B metadata files on cloud2; the immutable final view uses shard-owner metadata where present and 32 exact cloud2 fallbacks where cloud1 had no metadata. No original cache or prediction was rewritten.
+- D0 accuracy/Macro-F1 is `0.551663/0.548897`; B1+SAM2 is `0.544598/0.544539`. Macro-F1 delta is `-0.004359`; the action-group bootstrap 95% interval is `[-0.031613, +0.020693]`. B1 improves violation recall by `+0.041563` but reduces physical recall by `-0.050980`.
+- The two primary material-improvement gates fail (`delta < 0.05`, interval lower bound `< 0`), so `videophy2_support=false`. VideoPhy-1 remains deferred and unchecked; the overall verdict is `not_evaluable_ood_deferred`.
+- The six remote report artifacts were stable under an identical second invocation. A local clean-room regeneration reproduced the five non-self-referential report files byte-for-byte and independently confirmed 6,794 keys with zero alignment errors. Synchronized artifacts passed a zero-hit credential/provider-payload scan.
+- The full Chinese report is `outputs/benchmarks/videophy2-full-qwen3vl8b/summary.md`; detailed results and limitations are appended to `docs/results/criticbenchmark.md`. This accepted negative result freezes the H0 baseline for the separately approved Qwen3-VL LoRA plan.

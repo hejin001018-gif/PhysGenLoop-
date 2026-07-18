@@ -9,7 +9,9 @@ Agent 定位真正根因。
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+import re
+from time import perf_counter
+from typing import Callable, Mapping, Sequence
 
 from .physics_rules import RULE_ID_TO_CATEGORY
 from .question_graph import QuestionGraphValidator
@@ -68,6 +70,18 @@ class QuestionGraphExecutor:
         self,
         graph: QuestionGraph,
         context: QuestionExecutionContext,
+        *,
+        node_observer: Callable[
+            [
+                QuestionNode,
+                Mapping[str, NodeResult],
+                NodeResult | None,
+                BaseException | None,
+                float,
+            ],
+            None,
+        ]
+        | None = None,
     ) -> tuple[NodeResult, ...]:
         """按稳定拓扑序执行全部节点，并返回与拓扑序一致的结果。"""
 
@@ -76,29 +90,53 @@ class QuestionGraphExecutor:
         ordered_results: list[NodeResult] = []
 
         for node in ordered_nodes:
-            blocked_by = tuple(
-                parent_id
-                for parent_id in node.parent_ids
-                if results_by_id[parent_id].status != "yes"
-            )
-            if blocked_by:
-                # blocked 不是对节点内容的 No 判断，而是“没有执行”的结构化记录。
-                parent_statuses = {
-                    parent_id: results_by_id[parent_id].status for parent_id in blocked_by
-                }
-                result = NodeResult(
-                    node_id=node.id,
-                    category=node.category,
-                    status="blocked",
-                    direct_score=None,
-                    confidence=1.0,
-                    reason="One or more prerequisite questions were not satisfied.",
-                    verifier="dependency_graph",
-                    blocked_by=blocked_by,
-                    evidence={"parent_statuses": parent_statuses},
+            parent_results = {
+                parent_id: results_by_id[parent_id] for parent_id in node.parent_ids
+            }
+            started = perf_counter()
+            try:
+                blocked_by = tuple(
+                    parent_id
+                    for parent_id in node.parent_ids
+                    if results_by_id[parent_id].status != "yes"
                 )
-            else:
-                result = self._verify(node, context)
+                if blocked_by:
+                    # blocked 不是对节点内容的 No 判断，而是“没有执行”的结构化记录。
+                    parent_statuses = {
+                        parent_id: results_by_id[parent_id].status
+                        for parent_id in blocked_by
+                    }
+                    result = NodeResult(
+                        node_id=node.id,
+                        category=node.category,
+                        status="blocked",
+                        direct_score=None,
+                        confidence=1.0,
+                        reason="One or more prerequisite questions were not satisfied.",
+                        verifier="dependency_graph",
+                        blocked_by=blocked_by,
+                        evidence={"parent_statuses": parent_statuses},
+                    )
+                else:
+                    result = self._verify(node, context)
+            except Exception as exc:
+                if node_observer is not None:
+                    node_observer(
+                        node,
+                        parent_results,
+                        None,
+                        exc,
+                        max(0.0, (perf_counter() - started) * 1_000.0),
+                    )
+                raise
+            if node_observer is not None:
+                node_observer(
+                    node,
+                    parent_results,
+                    result,
+                    None,
+                    max(0.0, (perf_counter() - started) * 1_000.0),
+                )
             results_by_id[node.id] = result
             ordered_results.append(result)
 
@@ -125,7 +163,11 @@ class QuestionGraphExecutor:
         """用可见轨迹验证对象；检测器未覆盖的类别返回 unknown 而非误判缺失。"""
 
         targets = set(node.target_objects)
-        matching_tracks = [track for track in context.tracks if track.object in targets]
+        matching_tracks = [
+            track
+            for track in context.tracks
+            if _matches_any_target(track.object, targets)
+        ]
         visible_states = [
             state for track in matching_tracks for state in track.states if state.visible
         ]
@@ -199,7 +241,7 @@ class QuestionGraphExecutor:
         aliases: list[str] = []
         unsupported: list[str] = []
         for expected_event in node.expected_events:
-            mapped = _EVENT_ALIASES.get(expected_event)
+            mapped = _event_aliases(expected_event)
             if mapped is None:
                 unsupported.append(expected_event)
             else:
@@ -215,7 +257,7 @@ class QuestionGraphExecutor:
             event
             for event in context.events
             if event.event_type in aliases
-            and (not targets or event.object in targets)
+            and (not targets or _matches_any_target(event.object, targets))
         ]
         if matches:
             frames = _unique_frames(
@@ -271,7 +313,7 @@ class QuestionGraphExecutor:
         targets = set(node.target_objects)
         matches: list[tuple[int, ViolationCandidate]] = []
         for index, candidate in enumerate(context.candidates):
-            if targets and candidate.object not in targets:
+            if targets and not _matches_any_target(candidate.object, targets):
                 continue
             if set(candidate.rules).intersection(node.rule_ids):
                 matches.append((index, candidate))
@@ -330,6 +372,27 @@ def _unknown(node: QuestionNode, reason: str) -> NodeResult:
         verifier="unavailable",
         rule_ids=node.rule_ids,
     )
+
+
+def _event_aliases(expected_event: str) -> tuple[str, ...] | None:
+    exact = _EVENT_ALIASES.get(expected_event)
+    if exact is not None:
+        return exact
+    normalized = expected_event.lower()
+    if "roll" in normalized and (
+        "slope" in normalized or "downhill" in normalized
+    ):
+        return ("fall",)
+    return None
+
+
+def _matches_any_target(actual: str, targets: set[str]) -> bool:
+    actual_tokens = set(re.findall(r"[a-z0-9]+", actual.lower()))
+    for target in targets:
+        target_tokens = set(re.findall(r"[a-z0-9]+", target.lower()))
+        if target_tokens and target_tokens.issubset(actual_tokens):
+            return True
+    return False
 
 
 def _unique_frames(frames) -> tuple[int, ...]:

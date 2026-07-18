@@ -36,6 +36,12 @@ class ResultFusion:
         violations: list[tuple[float, Violation]] = []
         for index, candidate in enumerate(candidates):
             review = reviews.get(index)
+            # ``rejected`` means the reviewer found that the candidate claim is
+            # contradicted by the keyframes.  Keeping it merely because a sparse
+            # tracker assigned a high detector score defeats the verifier's
+            # false-positive-rejection role.
+            if review is not None and review.claim_status != "confirmed":
+                continue
             score = self._score(candidate.detector_score, review)
             # 低于阈值的候选仍可在上游调试 artifacts 中看到，但不会污染公开报告。
             if score < self.config.violation_threshold:
@@ -44,13 +50,20 @@ class ResultFusion:
             evidence = dict(candidate.evidence)
             evidence.update(
                 {
+                    "candidate_index": index,
                     "rules": list(candidate.rules),
                     "detector_score": candidate.detector_score,
                     "fused_score": score,
                 }
             )
             if review is not None:
-                evidence.update({"vlm_score": review.score, "vlm_model": review.model})
+                evidence.update(
+                    {
+                        "vlm_score": review.score,
+                        "vlm_model": review.model,
+                        "vlm_claim_status": review.claim_status,
+                    }
+                )
             violations.append(
                 (
                     score,

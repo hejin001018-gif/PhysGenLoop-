@@ -27,6 +27,7 @@ CHECKLIST_DIMENSIONS = (
     "interaction_realism",
 )
 CHECKLIST_STATUSES = ("pass", "fail", "unknown")
+VLM_CLAIM_STATUSES = ("confirmed", "rejected", "uncertain")
 MECHANICS_EVALUATORS = ("freefall", "projectile", "rebound", "collision")
 MECHANICS_APPLICABILITY = ("applicable", "not_applicable", "failed")
 EVIDENCE_FAMILIES = ("rules", "pqsg", "checklist", "mechanics", "vlm")
@@ -791,9 +792,14 @@ class VLMReview:
     reason: str = ""
     repair_instruction: str = ""
     model: str = "unknown"
+    claim_status: str = "uncertain"
 
     def __post_init__(self) -> None:
         _score(self.score, "vlm score")
+        if self.claim_status not in VLM_CLAIM_STATUSES:
+            raise SchemaError(
+                f"claim_status must be one of {VLM_CLAIM_STATUSES}, got {self.claim_status!r}"
+            )
 
 
 @dataclass(frozen=True)
@@ -872,6 +878,8 @@ class CriticArtifacts:
     tracks: tuple[TrackSequence, ...]
     events: tuple[Event, ...]
     candidates: tuple[ViolationCandidate, ...] = ()
+    keyframes: dict[int, tuple[int, ...]] = field(default_factory=dict)
+    reviews: dict[int, VLMReview | None] = field(default_factory=dict)
     question_graph: QuestionGraph | None = None
     node_results: tuple[NodeResult, ...] = ()
     checklist_results: tuple[ChecklistResult, ...] = ()

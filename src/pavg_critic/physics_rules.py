@@ -32,6 +32,7 @@ class RuleContext:
     request: CriticRequest
     tracks: tuple[TrackSequence, ...]
     events: tuple[Event, ...]
+    floor_geometry_calibrated: bool
 
 
 class PhysicsRuleEngine:
@@ -107,10 +108,20 @@ class PhysicsRuleEngine:
     def _surface_penetration(self, context: RuleContext) -> list[ViolationCandidate]:
         """把超过容忍深度的地面穿透事件转换成实体性违规。"""
 
+        if not context.floor_geometry_calibrated:
+            return []
         plan = context.request.physics_plan
+        floor_tokens = ("floor", "ground")
         expects_contact = bool(
             set(plan.expected_events).intersection({"floor_contact", "rebound"})
-            or any(item.domain == "contact" for item in plan.physics_constraints)
+            or any(
+                item.domain == "contact"
+                and any(
+                    any(token in subject.lower() for token in floor_tokens)
+                    for subject in item.subjects
+                )
+                for item in plan.physics_constraints
+            )
         )
         if not expects_contact:
             return []

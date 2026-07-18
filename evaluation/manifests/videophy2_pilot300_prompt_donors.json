@@ -1,0 +1,2407 @@
+{
+  "mapping_count": 300,
+  "mappings": [
+    {
+      "donor_action": "clay pottery making",
+      "donor_prompt_sha256": "1c42cef0a5c316f6d95b92dc8573f3aa5a314c4c253cdb304d17316ad77db627",
+      "donor_sample_id": "videophy2-9adc02f50a9de12e6ae2",
+      "recipient_action": "wading through water",
+      "recipient_prompt_sha256": "1a44aba35343a4597210a95f5bfeae9cd1563481adb20a6ca7d2599efd731424",
+      "recipient_sample_id": "videophy2-00111bf7402bca39b0c3"
+    },
+    {
+      "donor_action": "pole vault",
+      "donor_prompt_sha256": "fc21c862583827f54ad69004eaa63261020b1d5ca8182bfa4aca0a42269d4d50",
+      "donor_sample_id": "videophy2-dae3d40a03375623fee8",
+      "recipient_action": "sharpening pencil",
+      "recipient_prompt_sha256": "fded0ea0600745e9f107574391147be41d09173dcbd936a14a0c9d19629d9a5d",
+      "recipient_sample_id": "videophy2-033609ae4d630a7095bc"
+    },
+    {
+      "donor_action": "twisting something",
+      "donor_prompt_sha256": "c8f1dfd1b9ef2967c133e52adfad45975d2550b71e5d84131048938a32d57cda",
+      "donor_sample_id": "videophy2-32acc0e701827e904799",
+      "recipient_action": "catching or throwing baseball",
+      "recipient_prompt_sha256": "b6cefa52a0bce5d5d7676c32dd81006c2776bc12169299595d325e2bd6aafb9f",
+      "recipient_sample_id": "videophy2-0662eb268be042fa99c6"
+    },
+    {
+      "donor_action": "catching or throwing frisbee",
+      "donor_prompt_sha256": "a7f1d4cb6cf76a0a3633f218d673174e0a5b2d8a14b6355d5d9e18725973491a",
+      "donor_sample_id": "videophy2-81e95f8f2be4b4f8b730",
+      "recipient_action": "putting something onto something else that cannot support it so it falls down",
+      "recipient_prompt_sha256": "242e01f46c083bce26723c7f907b3914e06f47913da5699cf369a189fdff0ebb",
+      "recipient_sample_id": "videophy2-072eb5a79d008def9fcd"
+    },
+    {
+      "donor_action": "juggling balls",
+      "donor_prompt_sha256": "39c8f9bb9d9d95d3e7e89b9c0e70da75a195196ade46e5e0077896f8a4ee9979",
+      "donor_sample_id": "videophy2-51d8179880af78521c8f",
+      "recipient_action": "poking a stack of something so the stack collapses",
+      "recipient_prompt_sha256": "17fb83f9dee833d49da52cb3bb247e510458bec8492aea3e7b4a594bfd088d76",
+      "recipient_sample_id": "videophy2-09967296ffb9a33eef91"
+    },
+    {
+      "donor_action": "stuffing something into something",
+      "donor_prompt_sha256": "cab173582e998349521f3d89f1c624d1332745f9b3fbf68d8bf8887e8a74de3f",
+      "donor_sample_id": "videophy2-b0981a9a0c8f0179ea33",
+      "recipient_action": "making snowman",
+      "recipient_prompt_sha256": "ec5c4457f384c8f97c16905be37e2fb5dbc42fcfe8fd0bac87242f2a2b9c69e0",
+      "recipient_sample_id": "videophy2-0a421e424877313d7221"
+    },
+    {
+      "donor_action": "blowdryhair",
+      "donor_prompt_sha256": "9fd892fe7c6c7f9cdf25bc56047ae480efd059f1660cb0ab4123048fada7e3ce",
+      "donor_sample_id": "videophy2-6881e24159067ae1d3bc",
+      "recipient_action": "golf",
+      "recipient_prompt_sha256": "3db4c165318f493a4bb159ffc120099bea82a93368be761368f2f54a185f6301",
+      "recipient_sample_id": "videophy2-0d482d87df561af7666b"
+    },
+    {
+      "donor_action": "tearing something just a little bit",
+      "donor_prompt_sha256": "856140a912d81a0e66e82bb9add73781c896cb6ce8e0b77a29a320f4e523b6a3",
+      "donor_sample_id": "videophy2-70d86d829ba4753244db",
+      "recipient_action": "letting something roll along a flat surface",
+      "recipient_prompt_sha256": "24d86e4e03391da44be04373fe71aba7ae8d07684d08a352b8da31e43c067069",
+      "recipient_sample_id": "videophy2-0d73fa7a8934fd945a20"
+    },
+    {
+      "donor_action": "playing tennis",
+      "donor_prompt_sha256": "5cf2d0144afd1647fc1a6f01b38757e9f9e4aaeeeffbf95da3daae7866e8b120",
+      "donor_sample_id": "videophy2-10c92cb7d75874d3a9e8",
+      "recipient_action": "ripping paper",
+      "recipient_prompt_sha256": "5c0d8d9480f6f202360fffe5900eada1d7d097b957ad7598ec5254e3cab2b75a",
+      "recipient_sample_id": "videophy2-0df1510f2b49a5ddc6c3"
+    },
+    {
+      "donor_action": "flint knapping",
+      "donor_prompt_sha256": "f498103ab8ab645e30415b9ff8d6539af8111bf09a4662ff28039a3c4656b2ac",
+      "donor_sample_id": "videophy2-ac7572c886381b2abb3c",
+      "recipient_action": "pouring something into something",
+      "recipient_prompt_sha256": "0c3ccb943d64bf90670a9bf1bee374de2eb078e10f96c8d5d93ff2c4f5322e94",
+      "recipient_sample_id": "videophy2-0f314afcdfc11750300d"
+    },
+    {
+      "donor_action": "playing kickball",
+      "donor_prompt_sha256": "3a90d86f92c49154ef2e576d555157f914668eaa11497ad078621feda5729a7f",
+      "donor_sample_id": "videophy2-b763d348d8aa37f2c4d0",
+      "recipient_action": "surfing",
+      "recipient_prompt_sha256": "7326fe4ea273637057dcc00dce15c61caa485f805a6f8bb3fb108cc5fc32ab6b",
+      "recipient_sample_id": "videophy2-0f812d40920cb4c0fef9"
+    },
+    {
+      "donor_action": "wiping something off of something",
+      "donor_prompt_sha256": "1b4c2b04ecbc1c705276ef9cf05b21754c3ff45355a1a446811c4276dd6b85b5",
+      "donor_sample_id": "videophy2-c3f159b854f8ad80d659",
+      "recipient_action": "lifting a surface with something on it until it starts sliding down",
+      "recipient_prompt_sha256": "dddfebf1b9c439fdb71ae9b0d8b636bf3270cdeb6c0a9c73118a5f2b9ffef8b5",
+      "recipient_sample_id": "videophy2-0f93d7b139bccc4bf59c"
+    },
+    {
+      "donor_action": "blowdrying hair",
+      "donor_prompt_sha256": "7d0a48a933e6b8e1f2fca8a0b08ac7ade4718bc9f4814260b4559531891dce3b",
+      "donor_sample_id": "videophy2-3233298b85f598b8fc7c",
+      "recipient_action": "ice climbing",
+      "recipient_prompt_sha256": "f87b717ba926ede8dadc4a0956b04ffa9ed226cf4feb269cc8671ff8bb32888b",
+      "recipient_sample_id": "videophy2-1095c34e5d419a0584de"
+    },
+    {
+      "donor_action": "riding mechanical bull",
+      "donor_prompt_sha256": "734cb58e020d732b9b4265480d2932d34456dd7705531d5ff1da58cffcb06ec8",
+      "donor_sample_id": "videophy2-81a270c57ecd6b3acc30",
+      "recipient_action": "playing tennis",
+      "recipient_prompt_sha256": "5cf2d0144afd1647fc1a6f01b38757e9f9e4aaeeeffbf95da3daae7866e8b120",
+      "recipient_sample_id": "videophy2-10c92cb7d75874d3a9e8"
+    },
+    {
+      "donor_action": "threading needle",
+      "donor_prompt_sha256": "349b4a9021122320389bd76014d62053f626bd838f32e0c80635a64d8fdb833e",
+      "donor_sample_id": "videophy2-e5ca3ab4085ec85bda20",
+      "recipient_action": "pouring something onto something",
+      "recipient_prompt_sha256": "29a4bb5fdf057af35bc8c9a5a1e4c2974ed05514283ef7b1ec4afcd37b7b8e3a",
+      "recipient_sample_id": "videophy2-10c9d961fb18a2b87a85"
+    },
+    {
+      "donor_action": "poking a stack of something so the stack collapses",
+      "donor_prompt_sha256": "78366a0f3f4f7032323fb8c37054b6d3f2dfbd82f7e0bbcea779ae54d1fca585",
+      "donor_sample_id": "videophy2-90f1b000e191da6b2a20",
+      "recipient_action": "putting something that can't roll onto a slanted surface so it stays where it is",
+      "recipient_prompt_sha256": "6264b00186c9635d71c20dad3384ff3cb98e522c13836cddf76b388db73c07f6",
+      "recipient_sample_id": "videophy2-1143b4fb81f2455f7888"
+    },
+    {
+      "donor_action": "mopping floor",
+      "donor_prompt_sha256": "f09be49cf38849b638b00679f5198fb19772b6c14d6a1fe6bbdd101d316d87fc",
+      "donor_sample_id": "videophy2-fc80c57b8d24868943c8",
+      "recipient_action": "yoyo",
+      "recipient_prompt_sha256": "961d2d8a12fafce3e6c1f023d8d4e92deaa87b943ac901d44e0d77849268cc3d",
+      "recipient_sample_id": "videophy2-11e98b004769bb02f24c"
+    },
+    {
+      "donor_action": "wood burning (art)",
+      "donor_prompt_sha256": "b107ae35b7ec785a8bac3b5fff69ed28827460338420c8f1d29b27b6b2584142",
+      "donor_sample_id": "videophy2-ce5b8400f0b829ba9ad8",
+      "recipient_action": "pulling two ends of something so that it gets stretched",
+      "recipient_prompt_sha256": "09f978c10a2689487e5fff1bc81b23ccab2ecd84967cabe3ec042a8e0b5ca6ca",
+      "recipient_sample_id": "videophy2-1412ca03968be794acc1"
+    },
+    {
+      "donor_action": "snatch weight lifting",
+      "donor_prompt_sha256": "100534b6ce8fd6435532af9b1f0e58789b025facc6a4250fe75642d9c01d1bdf",
+      "donor_sample_id": "videophy2-6922ae5cc2b4d3111cb2",
+      "recipient_action": "pushing something so it spins",
+      "recipient_prompt_sha256": "3f25a7517df443c3da61e6e0dcde325cf41dfc84560078601392e80cef916187",
+      "recipient_sample_id": "videophy2-16117f05a67c2736b9b1"
+    },
+    {
+      "donor_action": "hula hooping",
+      "donor_prompt_sha256": "87c60189f43b9e8546c4cd0d2e5a9d43a4fe5a0888d4c4cf5299813b9102063e",
+      "donor_sample_id": "videophy2-fb73affc6859d63ac03e",
+      "recipient_action": "poking something so it slightly moves",
+      "recipient_prompt_sha256": "266a7daf86885274b8361e815c542ed20e291c0064792d00f9720001cccfdbc6",
+      "recipient_sample_id": "videophy2-16200287c91acabf660a"
+    },
+    {
+      "donor_action": "blowing bubble gum",
+      "donor_prompt_sha256": "a5ae33b685b7abf881d8096f449d47711c57f0f508579b7cea852e9aa8e7bf57",
+      "donor_sample_id": "videophy2-397b4fc1bd9c67e52fa1",
+      "recipient_action": "cutting",
+      "recipient_prompt_sha256": "ec49a0a55c0eac524591b51ef50d21b12b442a78c0dde1171f9cc21a5096e870",
+      "recipient_sample_id": "videophy2-16704843052258ba5874"
+    },
+    {
+      "donor_action": "jetskiing",
+      "donor_prompt_sha256": "b006854407da355786d69cd6cdb38c6a2b17f5c4290cff61e7ab999c7bda42a9",
+      "donor_sample_id": "videophy2-243fa38475c7bef79331",
+      "recipient_action": "poking a hole into some substance",
+      "recipient_prompt_sha256": "3931123df20e7b117680b5b322b7c2798bf2b6b8a2cc6537139205609157898e",
+      "recipient_sample_id": "videophy2-17af9e3385c676e8ce73"
+    },
+    {
+      "donor_action": "canoeing or kayaking",
+      "donor_prompt_sha256": "3d0a1acc1851d259587afc6e0af31d6ac0ada5f65d5163f9a4d33bad12c049d6",
+      "donor_sample_id": "videophy2-95b3a27199e62c19f457",
+      "recipient_action": "unfolding something",
+      "recipient_prompt_sha256": "0a87d3e5e5e7490f4f27a1a3299ef84b498284b1a5a1a6735940cb343a74a681",
+      "recipient_sample_id": "videophy2-17ecb11467119cb23166"
+    },
+    {
+      "donor_action": "using a wrench",
+      "donor_prompt_sha256": "8f03386db3e0c6e5425b3717cfac453a1b0d7c076ddb63a1fd099dc25edfd661",
+      "donor_sample_id": "videophy2-e8b62eb2da2b2de2f4d9",
+      "recipient_action": "skijet",
+      "recipient_prompt_sha256": "b565570b4236d919894dfbd8db744a91500df330f38fd40b5030b130e0af0eed",
+      "recipient_sample_id": "videophy2-1a161e6354b9e7e610bd"
+    },
+    {
+      "donor_action": "inflating balloons",
+      "donor_prompt_sha256": "ce9d4591b79be87e1e21291e0f59be9e5c8af193478dfee534bfef2f4a4f415b",
+      "donor_sample_id": "videophy2-eee1356167f6c8372887",
+      "recipient_action": "spinning something so it continues spinning",
+      "recipient_prompt_sha256": "6c2f19964c41e8f113a4b61f2d6961772f3c4a5cc59e986f2b496237ecda5665",
+      "recipient_sample_id": "videophy2-1bea647a8dfee0352349"
+    },
+    {
+      "donor_action": "gymnastics tumbling",
+      "donor_prompt_sha256": "38643a1e766ee63787c0a4373b0f4fc53ddabeb9c6f14f4eb8d69c200dec4f50",
+      "donor_sample_id": "videophy2-6237b1a7bee31c683c90",
+      "recipient_action": "paragliding",
+      "recipient_prompt_sha256": "ce612778dd180a9a25102361ce34654ae73422323517e5925a81c0351921dda8",
+      "recipient_sample_id": "videophy2-1c6cacb081d4543b146c"
+    },
+    {
+      "donor_action": "picking fruit",
+      "donor_prompt_sha256": "fba9e48445fc1b34a85ffbd70c590ecfecad0923d4e7d531cee908239baae0f8",
+      "donor_sample_id": "videophy2-4c7e9d746a9ee32441e9",
+      "recipient_action": "uncovering something",
+      "recipient_prompt_sha256": "c9861e045d756c728fd3bb83d34fc92ef3d39b63a0dbc11875eaf30e6b208374",
+      "recipient_sample_id": "videophy2-1f2f0e39f797fa1aa9f4"
+    },
+    {
+      "donor_action": "twisting (wringing) something wet until water comes out",
+      "donor_prompt_sha256": "a6a6e2de03f90f11d9e8f9e36318d1e0ae272676c7b1340c6b131e2f270f9b53",
+      "donor_sample_id": "videophy2-b99219f3d7d4cd98e4e6",
+      "recipient_action": "pulling two ends of something so that it separates into two pieces",
+      "recipient_prompt_sha256": "9ebf610dfc39cea53138c31ff81be9323709eb57f96e396b4b454741ffd9d2f1",
+      "recipient_sample_id": "videophy2-20138cada84d457ce755"
+    },
+    {
+      "donor_action": "playing pinball",
+      "donor_prompt_sha256": "d3e8224798bbfb60c0cf9245c6aee25fee20c1dbe3cb49613b7c06608d3aaedb",
+      "donor_sample_id": "videophy2-ab7e586ec84a52d00a37",
+      "recipient_action": "gymnastics tumbling",
+      "recipient_prompt_sha256": "d20affcb52971a6151807dbbea27257d0be8fc602d3282d4cfac679a1d303cd9",
+      "recipient_sample_id": "videophy2-2100daef155b59d2d57c"
+    },
+    {
+      "donor_action": "letting something roll down a slanted surface",
+      "donor_prompt_sha256": "c38450a0959b5faa68b2e4abd9d884e326459651204934dd98ca944ce5f94ae8",
+      "donor_sample_id": "videophy2-2c0056ebff5ad0b1eab0",
+      "recipient_action": "spinning something so it continues spinning",
+      "recipient_prompt_sha256": "0671a1862bd35d473f727c6096116450ecd3ef06a6f37bf844fd7b5778ddc8da",
+      "recipient_sample_id": "videophy2-213be173c2b33378de7f"
+    },
+    {
+      "donor_action": "attaching something onto something",
+      "donor_prompt_sha256": "a7c3aef9c8d495e7c451f78ddfe792462d7392b181a4151003fbeb8a9a777444",
+      "donor_sample_id": "videophy2-83c9cc91476b0cbce4f2",
+      "recipient_action": "drop kicking",
+      "recipient_prompt_sha256": "a6fb98113865779b38d28f5285130c4405cb659b8ce6d192338a2d94ff180c86",
+      "recipient_sample_id": "videophy2-21ebe90cc4ef980d34e8"
+    },
+    {
+      "donor_action": "ice skating",
+      "donor_prompt_sha256": "48255a441729d087fdd2fba39492398ea0823c44f8fe2c6104b6e67afc980bfc",
+      "donor_sample_id": "videophy2-b1107805b44bcdf18d65",
+      "recipient_action": "wiping something off of something",
+      "recipient_prompt_sha256": "eb3358aa6a3a025c7883ffa3ddca6d548da9dac0702ee9c8367d800add22e37d",
+      "recipient_sample_id": "videophy2-2228c59fcb69ddf5d733"
+    },
+    {
+      "donor_action": "throwing snowballs",
+      "donor_prompt_sha256": "c461ec845f103bdbded00817af7d09b1d6471b8ac3e6b2af64da69afda35fbd5",
+      "donor_sample_id": "videophy2-a006c1e4124b6badcd71",
+      "recipient_action": "pushing something so that it almost falls off but doesn't",
+      "recipient_prompt_sha256": "95379f0178ac9f3edf919cf4b7f815f025f5ecf90704b11db4d305b226e30e79",
+      "recipient_sample_id": "videophy2-22430791fb0879182e3c"
+    },
+    {
+      "donor_action": "throwdiscus",
+      "donor_prompt_sha256": "fea3f371f90ba992a09b37b45db2434829fe05afe3a691e594325c5f3d488edc",
+      "donor_sample_id": "videophy2-9ae07d8fb8432e598087",
+      "recipient_action": "playing ice hockey",
+      "recipient_prompt_sha256": "b38597c41a14518768f719ffe70a05cb526749a43fcba8a8a95821f5fd54b7d0",
+      "recipient_sample_id": "videophy2-23c1469ef58590ffa658"
+    },
+    {
+      "donor_action": "swing",
+      "donor_prompt_sha256": "65145c4b1818ff63aaf65cb47b323bf8f6819f24f86dd62712ef4bed5605b4a4",
+      "donor_sample_id": "videophy2-a9b30ab855ee1a85aac7",
+      "recipient_action": "rock climbing",
+      "recipient_prompt_sha256": "2bbb1460d4f8c9befb2540a1f5ff819ac69d19bedd84e3b19a872abf564f4f8f",
+      "recipient_sample_id": "videophy2-23c669622430b5ba02c9"
+    },
+    {
+      "donor_action": "pizzatossing",
+      "donor_prompt_sha256": "b69b73d7b65fc7918483b04af9155e0cac4ea148ad689de98532f725b51c86b7",
+      "donor_sample_id": "videophy2-9558185bd9b618939a59",
+      "recipient_action": "spinning something that quickly stops spinning",
+      "recipient_prompt_sha256": "9037f401f8d11587b4b3c394e66096eef93728760e354937e9b82d9c437aa971",
+      "recipient_sample_id": "videophy2-23ecd611d58d07857d67"
+    },
+    {
+      "donor_action": "using a sledge hammer",
+      "donor_prompt_sha256": "727b290dcff76a1cad5d45c4c09f2fa84013fbf0ca69e66f9dca73adf8aeffad",
+      "donor_sample_id": "videophy2-979e07c04e91da49ca16",
+      "recipient_action": "pouring something into something until it overflows",
+      "recipient_prompt_sha256": "73e9417450796d608b7fab677c3d105a8236f0a52612defb4eda2a2f3940bf9c",
+      "recipient_sample_id": "videophy2-23fe2d5a170eaa72855a"
+    },
+    {
+      "donor_action": "poking something so that it falls over",
+      "donor_prompt_sha256": "c2853a5d7aa12544e5e83fc25a5846334d0cbe5f5447e3fec3c54781ec2d38fc",
+      "donor_sample_id": "videophy2-89faf461a14458409969",
+      "recipient_action": "playing darts",
+      "recipient_prompt_sha256": "2db7ce10fffbd1d2859b61edf1776653282198ef9a1f4452d6dbf129cbd0b090",
+      "recipient_sample_id": "videophy2-2406979145d68e185cb4"
+    },
+    {
+      "donor_action": "yarn spinning",
+      "donor_prompt_sha256": "433a3c42a8767c7486756d34dfa205f3f54e2e0a7dcd84457d1945ed1a951d6b",
+      "donor_sample_id": "videophy2-67b845ea5d6166994cad",
+      "recipient_action": "jetskiing",
+      "recipient_prompt_sha256": "b006854407da355786d69cd6cdb38c6a2b17f5c4290cff61e7ab999c7bda42a9",
+      "recipient_sample_id": "videophy2-243fa38475c7bef79331"
+    },
+    {
+      "donor_action": "flying kite",
+      "donor_prompt_sha256": "50a962a8c42e79c36835a1e7c35333d5f00ec87ed45e548023a0f73d73db034b",
+      "donor_sample_id": "videophy2-a2c05cf53a5d84a04f3b",
+      "recipient_action": "shot put",
+      "recipient_prompt_sha256": "3599195622dac0c169558e41bc42c7ed4ea6fb258e0f479e0a268bf36830bb2b",
+      "recipient_sample_id": "videophy2-246d5572ce6661781369"
+    },
+    {
+      "donor_action": "lifting a surface with something on it until it starts sliding down",
+      "donor_prompt_sha256": "dddfebf1b9c439fdb71ae9b0d8b636bf3270cdeb6c0a9c73118a5f2b9ffef8b5",
+      "donor_sample_id": "videophy2-0f93d7b139bccc4bf59c",
+      "recipient_action": "roller skating",
+      "recipient_prompt_sha256": "7d52efe4df474e6445d9baab0d93c0c1ade5971240a5d563d95c90fb237444ab",
+      "recipient_sample_id": "videophy2-264694e3a22d25cb425f"
+    },
+    {
+      "donor_action": "pushing something so it spins",
+      "donor_prompt_sha256": "3f25a7517df443c3da61e6e0dcde325cf41dfc84560078601392e80cef916187",
+      "donor_sample_id": "videophy2-16117f05a67c2736b9b1",
+      "recipient_action": "threading needle",
+      "recipient_prompt_sha256": "9c1b5d07334a8fc9986b2a74679bd6aa91de2d66f6239a9294e7d3696ddcd4de",
+      "recipient_sample_id": "videophy2-2714d62f904c75c1ed60"
+    },
+    {
+      "donor_action": "folding something",
+      "donor_prompt_sha256": "d9ad0c05b2df19ecadcdfb49e9f91200c5decd9f73451b9406e9f47589868386",
+      "donor_sample_id": "videophy2-cded6e4b165c0c8932e5",
+      "recipient_action": "longjump",
+      "recipient_prompt_sha256": "6e3afea492853bb6c816d341f33039e9ffcc3a0c8272c96ed1f10044890b9e4c",
+      "recipient_sample_id": "videophy2-275787dc0b51e939402d"
+    },
+    {
+      "donor_action": "wrapping present",
+      "donor_prompt_sha256": "733c50adb0c0b128d54b937edc854402fee850e27df912faecaac23a1c01d9ae",
+      "donor_sample_id": "videophy2-66d347c052fcefb6f202",
+      "recipient_action": "opening bottle (not wine)",
+      "recipient_prompt_sha256": "266006b7e692adf6409333bc406c261ffe9730e0742f0447735e591d485deb30",
+      "recipient_sample_id": "videophy2-27debf4f2fc76ee70909"
+    },
+    {
+      "donor_action": "catching or throwing frisbee",
+      "donor_prompt_sha256": "a7f1d4cb6cf76a0a3633f218d673174e0a5b2d8a14b6355d5d9e18725973491a",
+      "donor_sample_id": "videophy2-48170a1000b93a270f95",
+      "recipient_action": "pushing something so that it almost falls off but doesn't",
+      "recipient_prompt_sha256": "9b34245d0ece3bc73e95e546c0171f8c33df169f1032d7b6affb32ebc01a2855",
+      "recipient_sample_id": "videophy2-27e4903fb632c3236213"
+    },
+    {
+      "donor_action": "bending something so that it deforms",
+      "donor_prompt_sha256": "990c80c3b894706780696886ab469d0cc35259e968008b22aa838400670b3342",
+      "donor_sample_id": "videophy2-5d6fd4dc670f840b41b0",
+      "recipient_action": "ropeclimbing",
+      "recipient_prompt_sha256": "acd6c56ccdfaf6953bbc1ba97978caed16a717e71e12c10cd2dab08e4287e73f",
+      "recipient_sample_id": "videophy2-2997bd0ba290a1bd47a2"
+    },
+    {
+      "donor_action": "lifting a surface with something on it but not enough for it to slide down",
+      "donor_prompt_sha256": "e60921901a72092aa558bacccb3d4f79bc2bc73ac539e9e3d2329a7c3103dfb6",
+      "donor_sample_id": "videophy2-788a9bcddfebdf4e2686",
+      "recipient_action": "bowling",
+      "recipient_prompt_sha256": "3b1f7d45a6c5f9f7aebf8dd5e4430a653e1f54b90e215577035efa520845d104",
+      "recipient_sample_id": "videophy2-29e98a1ef3c8350177fe"
+    },
+    {
+      "donor_action": "soccerjuggling",
+      "donor_prompt_sha256": "2f94325034ce106402cfbedbdf10ee9b6c4a604b4046c0978a439180a06e2a6e",
+      "donor_sample_id": "videophy2-55b69a55ef6aedce5c15",
+      "recipient_action": "blasting sand",
+      "recipient_prompt_sha256": "6313af0ec3fd36aa05c1ac0323bacb9ffd6400523fda0d3a50663c2e61d90a7e",
+      "recipient_sample_id": "videophy2-2ae680e09ad2b5b6a309"
+    },
+    {
+      "donor_action": "pouring something out of something",
+      "donor_prompt_sha256": "06a8939e642073c79610c1b08ee03ca9d8a5a567afdc50eccd9c15e790e4734c",
+      "donor_sample_id": "videophy2-cdd6ee1271e0a97c0b88",
+      "recipient_action": "blowing out candles",
+      "recipient_prompt_sha256": "d412cc73bc2b1fe92bf85ce4dbf69dae7f2e0b2c89a72198f9762920901eef6f",
+      "recipient_sample_id": "videophy2-2b29a15bc7bfba29db8c"
+    },
+    {
+      "donor_action": "wading through water",
+      "donor_prompt_sha256": "1a44aba35343a4597210a95f5bfeae9cd1563481adb20a6ca7d2599efd731424",
+      "donor_sample_id": "videophy2-00111bf7402bca39b0c3",
+      "recipient_action": "letting something roll down a slanted surface",
+      "recipient_prompt_sha256": "c38450a0959b5faa68b2e4abd9d884e326459651204934dd98ca944ce5f94ae8",
+      "recipient_sample_id": "videophy2-2c0056ebff5ad0b1eab0"
+    },
+    {
+      "donor_action": "sharpening pencil",
+      "donor_prompt_sha256": "fded0ea0600745e9f107574391147be41d09173dcbd936a14a0c9d19629d9a5d",
+      "donor_sample_id": "videophy2-033609ae4d630a7095bc",
+      "recipient_action": "pulling two ends of something so that it separates into two pieces",
+      "recipient_prompt_sha256": "9ebf610dfc39cea53138c31ff81be9323709eb57f96e396b4b454741ffd9d2f1",
+      "recipient_sample_id": "videophy2-2e4188e91f7b3c887756"
+    },
+    {
+      "donor_action": "threading needle",
+      "donor_prompt_sha256": "9c1b5d07334a8fc9986b2a74679bd6aa91de2d66f6239a9294e7d3696ddcd4de",
+      "donor_sample_id": "videophy2-2714d62f904c75c1ed60",
+      "recipient_action": "throwing knife",
+      "recipient_prompt_sha256": "d32cf6d093264f648ff31495240925de1fb7b849c5eee146695c5c07b8e659db",
+      "recipient_sample_id": "videophy2-2edad32cfa00263a652b"
+    },
+    {
+      "donor_action": "blowdrying hair",
+      "donor_prompt_sha256": "72c0343061b9d6fffb7fe19ea68f5018417bd42668d2daab7b473d2cb1b73289",
+      "donor_sample_id": "videophy2-f12ab764e0465fdac994",
+      "recipient_action": "juggling balls",
+      "recipient_prompt_sha256": "39c8f9bb9d9d95d3e7e89b9c0e70da75a195196ade46e5e0077896f8a4ee9979",
+      "recipient_sample_id": "videophy2-302f0f332e3532ce46a7"
+    },
+    {
+      "donor_action": "peeling fruit",
+      "donor_prompt_sha256": "496100d3e6b9c6697d0a4d9a31535a319860eccc2a6854dce6dfaa68fdf02a5a",
+      "donor_sample_id": "videophy2-a416d7fddfb89c4326b5",
+      "recipient_action": "blowdryhair",
+      "recipient_prompt_sha256": "7fe61e4785b1cb2b98dd608d69a8fe5d3ac737d86dfc4bad881165e25e204e8e",
+      "recipient_sample_id": "videophy2-30ba5584d9feba1efcde"
+    },
+    {
+      "donor_action": "playing ping pong",
+      "donor_prompt_sha256": "94b2849533354ee92b9e4d7faf42a1861a8b41560f76cc3d34e6931ca350d807",
+      "donor_sample_id": "videophy2-bfaa3f1d00e5c1df6700",
+      "recipient_action": "blowdrying hair",
+      "recipient_prompt_sha256": "7d0a48a933e6b8e1f2fca8a0b08ac7ade4718bc9f4814260b4559531891dce3b",
+      "recipient_sample_id": "videophy2-3233298b85f598b8fc7c"
+    },
+    {
+      "donor_action": "tearing something into two pieces",
+      "donor_prompt_sha256": "46cf61aca7e29aed411ba66f7634f1648cc77e047582719b0cc12e43f1429457",
+      "donor_sample_id": "videophy2-fce2915d440d63f61693",
+      "recipient_action": "bending something until it breaks",
+      "recipient_prompt_sha256": "49624cb2a81119ea49ead836566bad63a03dc8f0febd130ea554708b66a401bc",
+      "recipient_sample_id": "videophy2-3242307fa8eb514b3feb"
+    },
+    {
+      "donor_action": "hammerthrow",
+      "donor_prompt_sha256": "0b8d74a9b282e7f7ddb78eb2a60a1eaa99a2424e0c7fa1241a3f843c3d6471bc",
+      "donor_sample_id": "videophy2-5da9b3ff0626b3b9961c",
+      "recipient_action": "twisting something",
+      "recipient_prompt_sha256": "c8f1dfd1b9ef2967c133e52adfad45975d2550b71e5d84131048938a32d57cda",
+      "recipient_sample_id": "videophy2-32acc0e701827e904799"
+    },
+    {
+      "donor_action": "riding unicycle",
+      "donor_prompt_sha256": "6498c2c50c9de8ac98f04ee487f4a94045aa0a996650255b134a9d5263a1cad9",
+      "donor_sample_id": "videophy2-9971fea213b5fe9a6fd6",
+      "recipient_action": "flying kite",
+      "recipient_prompt_sha256": "50a962a8c42e79c36835a1e7c35333d5f00ec87ed45e548023a0f73d73db034b",
+      "recipient_sample_id": "videophy2-3375330fb4a7db96c11e"
+    },
+    {
+      "donor_action": "throwdiscus",
+      "donor_prompt_sha256": "f98d4c21140b42739b1c861a7604735603bba32c50274b49b9ac07213b532486",
+      "donor_sample_id": "videophy2-4291245290ecb02ec81d",
+      "recipient_action": "shoveling snow",
+      "recipient_prompt_sha256": "24aa46fd84a0876aa256e2e162e54265987ef60bbb668b250054a793f988d470",
+      "recipient_sample_id": "videophy2-34de8249d16c9abdc77c"
+    },
+    {
+      "donor_action": "bulldozing",
+      "donor_prompt_sha256": "e58ef12a469b3751e9d314ce7f30574fda76caff1d365a53452c50078f1fd960",
+      "donor_sample_id": "videophy2-f3b432fc46392a743ba5",
+      "recipient_action": "blasting sand",
+      "recipient_prompt_sha256": "6313af0ec3fd36aa05c1ac0323bacb9ffd6400523fda0d3a50663c2e61d90a7e",
+      "recipient_sample_id": "videophy2-3547a1047a3ddd2959ca"
+    },
+    {
+      "donor_action": "bending something until it breaks",
+      "donor_prompt_sha256": "49624cb2a81119ea49ead836566bad63a03dc8f0febd130ea554708b66a401bc",
+      "donor_sample_id": "videophy2-3242307fa8eb514b3feb",
+      "recipient_action": "blowing bubble gum",
+      "recipient_prompt_sha256": "602566aa28284e57f325d038efb200870ff81fc717cba9f6159543ba6a2fde8c",
+      "recipient_sample_id": "videophy2-36192b985b72258c3c6b"
+    },
+    {
+      "donor_action": "chiseling stone",
+      "donor_prompt_sha256": "2e0410a2981dc9a9bb9b36fbc9009bba3f2d70a089783ddc725c1bd7cddd7f38",
+      "donor_sample_id": "videophy2-416fc43a3a845143bdb7",
+      "recipient_action": "folding napkins",
+      "recipient_prompt_sha256": "60f405f026a7177cf37e31c99af3f6e696e6beb6da4c8660b51d1740e9fd1bc7",
+      "recipient_sample_id": "videophy2-36a6ef68f78367ca33eb"
+    },
+    {
+      "donor_action": "luge",
+      "donor_prompt_sha256": "b3c69de18f092d34680eb7ff54b2c5274ed9919789ceb7ee5a4b3dbf0c800f69",
+      "donor_sample_id": "videophy2-8d586cf5807f6c9a7230",
+      "recipient_action": "making snowman",
+      "recipient_prompt_sha256": "ec5c4457f384c8f97c16905be37e2fb5dbc42fcfe8fd0bac87242f2a2b9c69e0",
+      "recipient_sample_id": "videophy2-37f0183bbefb8740d284"
+    },
+    {
+      "donor_action": "sailing",
+      "donor_prompt_sha256": "64286c1234eda497e0aa301352fa75a6298235e0ac2c7c3dd4cbcaae7f9b4f62",
+      "donor_sample_id": "videophy2-7f4f78ed95c8d984e193",
+      "recipient_action": "riding unicycle",
+      "recipient_prompt_sha256": "6498c2c50c9de8ac98f04ee487f4a94045aa0a996650255b134a9d5263a1cad9",
+      "recipient_sample_id": "videophy2-3973f91b01eb234a1efb"
+    },
+    {
+      "donor_action": "throwing something",
+      "donor_prompt_sha256": "4afd538ae8bc3155d1020bdb02371b475f850b2546fb7a4d914429667effeced",
+      "donor_sample_id": "videophy2-fafa9bedacb6ff7b7a43",
+      "recipient_action": "blowing bubble gum",
+      "recipient_prompt_sha256": "a5ae33b685b7abf881d8096f449d47711c57f0f508579b7cea852e9aa8e7bf57",
+      "recipient_sample_id": "videophy2-397b4fc1bd9c67e52fa1"
+    },
+    {
+      "donor_action": "bodysurfing",
+      "donor_prompt_sha256": "b1725187f5c4b41e97245e084f3d5b75d5ce2dbc7308aff64c8ce41c6aa2cd8b",
+      "donor_sample_id": "videophy2-b7827132eac7f3615bde",
+      "recipient_action": "throwing water balloon",
+      "recipient_prompt_sha256": "8f8b14d04c412261a4423f9bd147df8627a11f4f7f42519378c646f3f0951416",
+      "recipient_sample_id": "videophy2-3b1be1641e679ed21430"
+    },
+    {
+      "donor_action": "mopping floor",
+      "donor_prompt_sha256": "f09be49cf38849b638b00679f5198fb19772b6c14d6a1fe6bbdd101d316d87fc",
+      "donor_sample_id": "videophy2-8a99e5f82253fdd17239",
+      "recipient_action": "wrapping present",
+      "recipient_prompt_sha256": "57a0aeb14a4b2ac46fedb887a584ead4c3468cdc2a144156b95ff1b5f017e599",
+      "recipient_sample_id": "videophy2-3bc7013bc960e6621731"
+    },
+    {
+      "donor_action": "putting something that can't roll onto a slanted surface so it slides down",
+      "donor_prompt_sha256": "499acc5374441906e57c4640b61d7e7d63d45b8ab97576e6148e36d5b5f3958c",
+      "donor_sample_id": "videophy2-988fe808398a56e968e8",
+      "recipient_action": "poking something so it slightly moves",
+      "recipient_prompt_sha256": "e8b5dbd2d3b7760660b98766a4745e35352daac40b68ab8f9ef0ddaa9d13b430",
+      "recipient_sample_id": "videophy2-3bdd61aeb029029551ae"
+    },
+    {
+      "donor_action": "bobsledding",
+      "donor_prompt_sha256": "b126c2623520332ae056798311247f6ef946717bb6f0aeeea5f2d3ade9a358cb",
+      "donor_sample_id": "videophy2-5584c355710b5a985b1b",
+      "recipient_action": "poking something so that it spins around",
+      "recipient_prompt_sha256": "224e7647b7cde9ea79aaaf219abbaa7d83f92de80333315b3bedc79b053ca407",
+      "recipient_sample_id": "videophy2-3c290199761918bdd86e"
+    },
+    {
+      "donor_action": "folding something",
+      "donor_prompt_sha256": "2881331a0da5c8795558581cbb308b08df8da9252651ded64b0b63f1b82f90d9",
+      "donor_sample_id": "videophy2-f52ca8d3051a090da457",
+      "recipient_action": "trapezing",
+      "recipient_prompt_sha256": "7789e83b98aa5507c71ad685f46c7752641d512b290acd6aa033fcb3ddc437ab",
+      "recipient_sample_id": "videophy2-3c69f747876d94847632"
+    },
+    {
+      "donor_action": "playing darts",
+      "donor_prompt_sha256": "2db7ce10fffbd1d2859b61edf1776653282198ef9a1f4452d6dbf129cbd0b090",
+      "donor_sample_id": "videophy2-2406979145d68e185cb4",
+      "recipient_action": "burying something in something",
+      "recipient_prompt_sha256": "3d5954480c6fddebbcf1f973e9b2fa6c297f1975b29f48720f202dfd556e94e8",
+      "recipient_sample_id": "videophy2-3ce5debbdedad3f7cd7b"
+    },
+    {
+      "donor_action": "tying necktie",
+      "donor_prompt_sha256": "0263e5f790b1851b86880471aca10988dad1ee727c8dfc375f856b26702105f0",
+      "donor_sample_id": "videophy2-f358dcd43e610ebc57f2",
+      "recipient_action": "tying knot (not on a tie)",
+      "recipient_prompt_sha256": "89f610e382aa991a669c145f1c8755c9644377c4b32a114ae935aac4074fb577",
+      "recipient_sample_id": "videophy2-3ddde6893524849e97c8"
+    },
+    {
+      "donor_action": "digging something out of something",
+      "donor_prompt_sha256": "8c0bf4e067be143c693cfa9ee3da12a573239c0bd81c0c7f57d606fddfedb69c",
+      "donor_sample_id": "videophy2-f1c08295cb221e402b58",
+      "recipient_action": "riding scooter",
+      "recipient_prompt_sha256": "d8215f42f04d3ba7142cbb5e9faedd38bae727a40a99d97de80583181d9ddd62",
+      "recipient_sample_id": "videophy2-3efe9831aa21e0bc40df"
+    },
+    {
+      "donor_action": "spinning something so it continues spinning",
+      "donor_prompt_sha256": "0671a1862bd35d473f727c6096116450ecd3ef06a6f37bf844fd7b5778ddc8da",
+      "donor_sample_id": "videophy2-213be173c2b33378de7f",
+      "recipient_action": "opening bottle (not wine)",
+      "recipient_prompt_sha256": "266006b7e692adf6409333bc406c261ffe9730e0742f0447735e591d485deb30",
+      "recipient_sample_id": "videophy2-3f5fa786b5d2a228f97f"
+    },
+    {
+      "donor_action": "pommelhorse",
+      "donor_prompt_sha256": "88a64320c31dc1ee4ff2c229ee9226f29259662b9bde2a5116cf1986bfdfaf3a",
+      "donor_sample_id": "videophy2-9bd7dd54a640d5c59264",
+      "recipient_action": "pushing something off of something",
+      "recipient_prompt_sha256": "71e8a61cf9b6ec06196b23503a8f10a43312797cffd6b570bcdd022b975ac9d5",
+      "recipient_sample_id": "videophy2-40b90ba6b92a841bc2cc"
+    },
+    {
+      "donor_action": "backflip (human)",
+      "donor_prompt_sha256": "de911df9251a50f8a5c3b46932bb56eed389c4b4c8a3525080254f3ee3fa3c6c",
+      "donor_sample_id": "videophy2-684bd21778ebea0f0b2e",
+      "recipient_action": "chiseling stone",
+      "recipient_prompt_sha256": "2e0410a2981dc9a9bb9b36fbc9009bba3f2d70a089783ddc725c1bd7cddd7f38",
+      "recipient_sample_id": "videophy2-416fc43a3a845143bdb7"
+    },
+    {
+      "donor_action": "pouring beer",
+      "donor_prompt_sha256": "451551454118e4095533704de56bf11431ad2ece325d621cd396fd96baee97e0",
+      "donor_sample_id": "videophy2-816f6bbf9fd26f395607",
+      "recipient_action": "pushing something so that it slightly moves",
+      "recipient_prompt_sha256": "e91802dad430393eeb082d547eb2407f3c2cfd85fc3156809a7f7d8f5e02c85e",
+      "recipient_sample_id": "videophy2-419829691c14308ec29b"
+    },
+    {
+      "donor_action": "skateboarding",
+      "donor_prompt_sha256": "e573894e2378cc14d1f647056cea20943e3dbc81a8a0488da2c5ff8fc0f575fc",
+      "donor_sample_id": "videophy2-658e3b3971d11865d702",
+      "recipient_action": "smashing",
+      "recipient_prompt_sha256": "ccb464c03793889efd2d54b730b9222e3a4e12cff86dbefbc9b467a4409e28fd",
+      "recipient_sample_id": "videophy2-4265600dffa466218fe8"
+    },
+    {
+      "donor_action": "pulling two ends of something so that it separates into two pieces",
+      "donor_prompt_sha256": "9ebf610dfc39cea53138c31ff81be9323709eb57f96e396b4b454741ffd9d2f1",
+      "donor_sample_id": "videophy2-2e4188e91f7b3c887756",
+      "recipient_action": "pizzatossing",
+      "recipient_prompt_sha256": "b69b73d7b65fc7918483b04af9155e0cac4ea148ad689de98532f725b51c86b7",
+      "recipient_sample_id": "videophy2-42783db38d398263cea8"
+    },
+    {
+      "donor_action": "poking a hole into some substance",
+      "donor_prompt_sha256": "3931123df20e7b117680b5b322b7c2798bf2b6b8a2cc6537139205609157898e",
+      "donor_sample_id": "videophy2-17af9e3385c676e8ce73",
+      "recipient_action": "throwdiscus",
+      "recipient_prompt_sha256": "f98d4c21140b42739b1c861a7604735603bba32c50274b49b9ac07213b532486",
+      "recipient_sample_id": "videophy2-4291245290ecb02ec81d"
+    },
+    {
+      "donor_action": "long jump",
+      "donor_prompt_sha256": "d87c547481a175e5683c8901cb8a691cbd62143f18a33f56030ddc1faf6c2516",
+      "donor_sample_id": "videophy2-cfa773298337acf798bc",
+      "recipient_action": "breaststroke",
+      "recipient_prompt_sha256": "f110be5a2ddcc7997e8714a4d613aac4de7cfe44ce4aa02f4b9a33c7f99921d8",
+      "recipient_sample_id": "videophy2-42acfd87ee793fe6c636"
+    },
+    {
+      "donor_action": "something colliding with something and both are being deflected",
+      "donor_prompt_sha256": "70d3b1b89e194aa263e754ea919b3f012e60b860b786acd4a2478e18040da5c8",
+      "donor_sample_id": "videophy2-9ff2c2fce7d6d665e0d0",
+      "recipient_action": "hammering",
+      "recipient_prompt_sha256": "58e7c9e584ef48d7764407c49eebef8dd4c6c77157708fe8be329e95fd7ca7d6",
+      "recipient_sample_id": "videophy2-449999483054e7999ac6"
+    },
+    {
+      "donor_action": "blowing out candles",
+      "donor_prompt_sha256": "c14044f66ab5b9cf473bc7ab59a0a3388cf9a0fff9d107e396cf9df46e5416f1",
+      "donor_sample_id": "videophy2-946997a16662b62b29b5",
+      "recipient_action": "poking a hole into something soft",
+      "recipient_prompt_sha256": "ca403c3910c1834b2dbb22c5b1f6886a9860af0bd4b29493866d128adbf3502a",
+      "recipient_sample_id": "videophy2-45621dc20fe61980ee40"
+    },
+    {
+      "donor_action": "breaking boards",
+      "donor_prompt_sha256": "550fa06666a2682251f6769e4e2dbf92e76d865416c704de7e74f068a89568b9",
+      "donor_sample_id": "videophy2-6b5f50d2be1955868a77",
+      "recipient_action": "__missing_action__",
+      "recipient_prompt_sha256": "6ccfcb4ddd915c1c9dbb971c1a70e554bf371f77ec8b91f13d9223ad0d1d2893",
+      "recipient_sample_id": "videophy2-4615ab8848f033733581"
+    },
+    {
+      "donor_action": "throwing knife",
+      "donor_prompt_sha256": "d32cf6d093264f648ff31495240925de1fb7b849c5eee146695c5c07b8e659db",
+      "donor_sample_id": "videophy2-2edad32cfa00263a652b",
+      "recipient_action": "popping balloons",
+      "recipient_prompt_sha256": "e4bdcc9866ddee93379a25af78dc9b1486de014496dc67f9fa5590240fbb9012",
+      "recipient_sample_id": "videophy2-47941fad2da31cd8b718"
+    },
+    {
+      "donor_action": "tearing something just a little bit",
+      "donor_prompt_sha256": "770a92227537515514049f370ec2afbadc2796319613d7645fb9cc097114c336",
+      "donor_sample_id": "videophy2-fa42d8640cfb13871a45",
+      "recipient_action": "catching or throwing frisbee",
+      "recipient_prompt_sha256": "a7f1d4cb6cf76a0a3633f218d673174e0a5b2d8a14b6355d5d9e18725973491a",
+      "recipient_sample_id": "videophy2-48170a1000b93a270f95"
+    },
+    {
+      "donor_action": "bouncing on trampoline",
+      "donor_prompt_sha256": "d2ff354ef2e6e6525c222d52c645030c12768a892a761c214abd688d2b237a81",
+      "donor_sample_id": "videophy2-ccf4a1c0ba3d0da4a6b4",
+      "recipient_action": "pulling two ends of something so that it gets stretched",
+      "recipient_prompt_sha256": "09f978c10a2689487e5fff1bc81b23ccab2ecd84967cabe3ec042a8e0b5ca6ca",
+      "recipient_sample_id": "videophy2-48578566d2b28904e12d"
+    },
+    {
+      "donor_action": "pushing something so that it almost falls off but doesn't",
+      "donor_prompt_sha256": "95379f0178ac9f3edf919cf4b7f815f025f5ecf90704b11db4d305b226e30e79",
+      "donor_sample_id": "videophy2-22430791fb0879182e3c",
+      "recipient_action": "using a paint roller",
+      "recipient_prompt_sha256": "16c313e2c808db5f775aeb7b7b9e3f5d82751e6c4994a8e2707c077d18de9205",
+      "recipient_sample_id": "videophy2-48688367eb6217d8c727"
+    },
+    {
+      "donor_action": "catching or throwing baseball",
+      "donor_prompt_sha256": "b6cefa52a0bce5d5d7676c32dd81006c2776bc12169299595d325e2bd6aafb9f",
+      "donor_sample_id": "videophy2-0662eb268be042fa99c6",
+      "recipient_action": "picking fruit",
+      "recipient_prompt_sha256": "fba9e48445fc1b34a85ffbd70c590ecfecad0923d4e7d531cee908239baae0f8",
+      "recipient_sample_id": "videophy2-4c7e9d746a9ee32441e9"
+    },
+    {
+      "donor_action": "poking something so that it falls over",
+      "donor_prompt_sha256": "c2853a5d7aa12544e5e83fc25a5846334d0cbe5f5447e3fec3c54781ec2d38fc",
+      "donor_sample_id": "videophy2-b7fb36d1c8a0bf31d314",
+      "recipient_action": "mountain climber (exercise)",
+      "recipient_prompt_sha256": "8645eb5a7739e241deaf633f85b2dad6a4fc013da04f71a0f2cdd2d741d23d07",
+      "recipient_sample_id": "videophy2-4e1cb467e85347ed5b1d"
+    },
+    {
+      "donor_action": "catching or throwing softball",
+      "donor_prompt_sha256": "09d09b0c95e8e4551975dde3858208e560286a1b90c12d1db4345a177dbb8c12",
+      "donor_sample_id": "videophy2-7f89e2189aab1cc57815",
+      "recipient_action": "welding",
+      "recipient_prompt_sha256": "fe163b1b1cff2954bc2a45e09136d53904da0c238ba5b632082ab5dd7434380d",
+      "recipient_sample_id": "videophy2-4f2e9746e40787c8c8d8"
+    },
+    {
+      "donor_action": "playing badminton",
+      "donor_prompt_sha256": "4ab73de26852e53450ade0d8bc089a68c8aa34ea6bfcf5c08a5c74dccdde77af",
+      "donor_sample_id": "videophy2-8daf2aaba59e364571d9",
+      "recipient_action": "hurdling",
+      "recipient_prompt_sha256": "5f68f5951b6b42dfe7145a61181f6f7d537e830eb9ca068d9346dc8d9c8cd64f",
+      "recipient_sample_id": "videophy2-51799a2d1e76210952ca"
+    },
+    {
+      "donor_action": "balancebeam",
+      "donor_prompt_sha256": "ee0c9ceb46ac6def113bad91ba78b2e934de697c2e6d5a7d69619fed24b5c3c2",
+      "donor_sample_id": "videophy2-6d69cfa82f27c20cf042",
+      "recipient_action": "juggling balls",
+      "recipient_prompt_sha256": "39c8f9bb9d9d95d3e7e89b9c0e70da75a195196ade46e5e0077896f8a4ee9979",
+      "recipient_sample_id": "videophy2-51d8179880af78521c8f"
+    },
+    {
+      "donor_action": "gymnastics tumbling",
+      "donor_prompt_sha256": "d20affcb52971a6151807dbbea27257d0be8fc602d3282d4cfac679a1d303cd9",
+      "donor_sample_id": "videophy2-2100daef155b59d2d57c",
+      "recipient_action": "trimming shrubs",
+      "recipient_prompt_sha256": "bc9ed1b8e3c8cdc4796fda00caf47d717944c8ef1478d4635922ce0337f2b281",
+      "recipient_sample_id": "videophy2-5556ed16e8ce0d2098bf"
+    },
+    {
+      "donor_action": "throwing axe",
+      "donor_prompt_sha256": "2b17ca6ee0610d0a0b17536823b42e35d594fe9e7bc4079324996e62ac035fa4",
+      "donor_sample_id": "videophy2-7ccef70c67b0821694d0",
+      "recipient_action": "bobsledding",
+      "recipient_prompt_sha256": "b126c2623520332ae056798311247f6ef946717bb6f0aeeea5f2d3ade9a358cb",
+      "recipient_sample_id": "videophy2-5584c355710b5a985b1b"
+    },
+    {
+      "donor_action": "bungee jumping",
+      "donor_prompt_sha256": "729d63d497f1a6d7898267c94560f312893ac797953323a9d55880a0b6ddf4f8",
+      "donor_sample_id": "videophy2-7cf04897a58877e3a329",
+      "recipient_action": "soccerjuggling",
+      "recipient_prompt_sha256": "2f94325034ce106402cfbedbdf10ee9b6c4a604b4046c0978a439180a06e2a6e",
+      "recipient_sample_id": "videophy2-55b69a55ef6aedce5c15"
+    },
+    {
+      "donor_action": "something falling like a rock",
+      "donor_prompt_sha256": "d7d5ee237bbe7373e0bc93d55aa43f41f9f2572e607f2b877f4b41f9d6b9c3db",
+      "donor_sample_id": "videophy2-ad4077ff26e09b756043",
+      "recipient_action": "playing volleyball",
+      "recipient_prompt_sha256": "80589ac68530473ae6a0e2cf1e94d9d57216c0db8b2fe69e5451df67505440d2",
+      "recipient_sample_id": "videophy2-56c8b3247aa5edbdb1fd"
+    },
+    {
+      "donor_action": "making snowman",
+      "donor_prompt_sha256": "ec5c4457f384c8f97c16905be37e2fb5dbc42fcfe8fd0bac87242f2a2b9c69e0",
+      "donor_sample_id": "videophy2-37f0183bbefb8740d284",
+      "recipient_action": "backflip (human)",
+      "recipient_prompt_sha256": "de911df9251a50f8a5c3b46932bb56eed389c4b4c8a3525080254f3ee3fa3c6c",
+      "recipient_sample_id": "videophy2-58f4f4b8563b5a8dfad5"
+    },
+    {
+      "donor_action": "swimming",
+      "donor_prompt_sha256": "08020afc17621f9994604be3913ba4597b080065946a18d8a85bcd838ef1a936",
+      "donor_sample_id": "videophy2-7fd11a61671ec264d1d5",
+      "recipient_action": "unfolding something",
+      "recipient_prompt_sha256": "09da3d20e0fc3867a749668af6ced0c7d7c0e321005131926f27050a1d264ce0",
+      "recipient_sample_id": "videophy2-5a682e973637a4d7dee2"
+    },
+    {
+      "donor_action": "pushing something onto something",
+      "donor_prompt_sha256": "8fa2a68583d4e12e871b75d323315ad5a32f29e7247b4842b5e0edcc224dde73",
+      "donor_sample_id": "videophy2-b4b23371cca59d8b701b",
+      "recipient_action": "breaking boards",
+      "recipient_prompt_sha256": "550fa06666a2682251f6769e4e2dbf92e76d865416c704de7e74f068a89568b9",
+      "recipient_sample_id": "videophy2-5ba0042492f060e82ccb"
+    },
+    {
+      "donor_action": "stuffing something into something",
+      "donor_prompt_sha256": "cab173582e998349521f3d89f1c624d1332745f9b3fbf68d8bf8887e8a74de3f",
+      "donor_sample_id": "videophy2-b5fac15c8d0ca44b0c24",
+      "recipient_action": "bending something so that it deforms",
+      "recipient_prompt_sha256": "990c80c3b894706780696886ab469d0cc35259e968008b22aa838400670b3342",
+      "recipient_sample_id": "videophy2-5d6fd4dc670f840b41b0"
+    },
+    {
+      "donor_action": "tying shoe laces",
+      "donor_prompt_sha256": "d1f2605b6623d8b682191702b5dd20eaeb2ebd80324ef08573ac247ef086402f",
+      "donor_sample_id": "videophy2-7e0f2ab85c4651107833",
+      "recipient_action": "hammerthrow",
+      "recipient_prompt_sha256": "0b8d74a9b282e7f7ddb78eb2a60a1eaa99a2424e0c7fa1241a3f843c3d6471bc",
+      "recipient_sample_id": "videophy2-5da9b3ff0626b3b9961c"
+    },
+    {
+      "donor_action": "throwing discus",
+      "donor_prompt_sha256": "eff6f1812e35e90c35dce1b9f3458ff76abcce04eff3ca42b71e7a37744a9c1a",
+      "donor_sample_id": "videophy2-d4b443078b52ea9ffcca",
+      "recipient_action": "tossing coin",
+      "recipient_prompt_sha256": "6d164ade027e64e1f50dba02fb9bf5fbc877ff73344e96b1112e0d6e3c4b32bd",
+      "recipient_sample_id": "videophy2-5dd83e340a99a4209710"
+    },
+    {
+      "donor_action": "volleyballspiking",
+      "donor_prompt_sha256": "77bbb14b61083dd88dc5b28e033a46843b358df5149c1fa2e10a2d4fba6416c3",
+      "donor_sample_id": "videophy2-fee9a05cb683378bcf11",
+      "recipient_action": "long jump",
+      "recipient_prompt_sha256": "08e3a0afae37ede0ab18c5a9ee67a4c8c1843a41247705a8ddda735b56945e94",
+      "recipient_sample_id": "videophy2-5eeded79d9d24d86a0c9"
+    },
+    {
+      "donor_action": "smoking",
+      "donor_prompt_sha256": "32f2864b89ecb90905d242ab1f41cc908edc91e2ec50a2ec355337ec90e94721",
+      "donor_sample_id": "videophy2-81926ce96bfc78332cc6",
+      "recipient_action": "gymnastics tumbling",
+      "recipient_prompt_sha256": "38643a1e766ee63787c0a4373b0f4fc53ddabeb9c6f14f4eb8d69c200dec4f50",
+      "recipient_sample_id": "videophy2-6237b1a7bee31c683c90"
+    },
+    {
+      "donor_action": "kicking soccer ball",
+      "donor_prompt_sha256": "70e1d852f1121180b757eaef1bf0425fef6b87d13d08cdb4085736178b9fe3fb",
+      "donor_sample_id": "videophy2-78f00a12ea662e1a6556",
+      "recipient_action": "swimming",
+      "recipient_prompt_sha256": "b34cab307e7bba774bbb48be9ca4bca52e78ad91c78ec32ea296e308a34bda77",
+      "recipient_sample_id": "videophy2-6272f5a6a06c48ddd786"
+    },
+    {
+      "donor_action": "welding",
+      "donor_prompt_sha256": "fe163b1b1cff2954bc2a45e09136d53904da0c238ba5b632082ab5dd7434380d",
+      "donor_sample_id": "videophy2-de381e5d55d4738f73c8",
+      "recipient_action": "pole vault",
+      "recipient_prompt_sha256": "5fb62c63a0c77584cfd92775e2d95ea3d33d7e478289f431cb2d39b223cecc0a",
+      "recipient_sample_id": "videophy2-653d9e2f2b5944eaa21a"
+    },
+    {
+      "donor_action": "pulling two ends of something so that it gets stretched",
+      "donor_prompt_sha256": "09f978c10a2689487e5fff1bc81b23ccab2ecd84967cabe3ec042a8e0b5ca6ca",
+      "donor_sample_id": "videophy2-48578566d2b28904e12d",
+      "recipient_action": "skateboarding",
+      "recipient_prompt_sha256": "e573894e2378cc14d1f647056cea20943e3dbc81a8a0488da2c5ff8fc0f575fc",
+      "recipient_sample_id": "videophy2-658e3b3971d11865d702"
+    },
+    {
+      "donor_action": "folding paper",
+      "donor_prompt_sha256": "7cbfe4ea7f16a8c20adb7d521fb968cf5fe0111eb05cbfc0426aff9069f72dca",
+      "donor_sample_id": "videophy2-adeb78ca73150d66cec0",
+      "recipient_action": "wrapping present",
+      "recipient_prompt_sha256": "733c50adb0c0b128d54b937edc854402fee850e27df912faecaac23a1c01d9ae",
+      "recipient_sample_id": "videophy2-66d347c052fcefb6f202"
+    },
+    {
+      "donor_action": "hammerthrow",
+      "donor_prompt_sha256": "a7f8ea755f2dea04efe625b415502e49adfa6fe3fd7b267470f428b2f0eb66ce",
+      "donor_sample_id": "videophy2-a4d25d0b9920c75f0f4d",
+      "recipient_action": "yarn spinning",
+      "recipient_prompt_sha256": "433a3c42a8767c7486756d34dfa205f3f54e2e0a7dcd84457d1945ed1a951d6b",
+      "recipient_sample_id": "videophy2-67b845ea5d6166994cad"
+    },
+    {
+      "donor_action": "uncovering something",
+      "donor_prompt_sha256": "c9861e045d756c728fd3bb83d34fc92ef3d39b63a0dbc11875eaf30e6b208374",
+      "donor_sample_id": "videophy2-bef7dd75eb9e5f7ac173",
+      "recipient_action": "backflip (human)",
+      "recipient_prompt_sha256": "de911df9251a50f8a5c3b46932bb56eed389c4b4c8a3525080254f3ee3fa3c6c",
+      "recipient_sample_id": "videophy2-684bd21778ebea0f0b2e"
+    },
+    {
+      "donor_action": "shooting basketball",
+      "donor_prompt_sha256": "4c3349b2f13d3391c97f8cdfd9bae63a40c45a4b453ec34355b7c3766ca84bbb",
+      "donor_sample_id": "videophy2-9c2e479023564644b243",
+      "recipient_action": "blowdryhair",
+      "recipient_prompt_sha256": "9fd892fe7c6c7f9cdf25bc56047ae480efd059f1660cb0ab4123048fada7e3ce",
+      "recipient_sample_id": "videophy2-6881e24159067ae1d3bc"
+    },
+    {
+      "donor_action": "playing pinball",
+      "donor_prompt_sha256": "d3e8224798bbfb60c0cf9245c6aee25fee20c1dbe3cb49613b7c06608d3aaedb",
+      "donor_sample_id": "videophy2-7dd118aa0372c45a9feb",
+      "recipient_action": "snatch weight lifting",
+      "recipient_prompt_sha256": "100534b6ce8fd6435532af9b1f0e58789b025facc6a4250fe75642d9c01d1bdf",
+      "recipient_sample_id": "videophy2-6922ae5cc2b4d3111cb2"
+    },
+    {
+      "donor_action": "sharpening pencil",
+      "donor_prompt_sha256": "fded0ea0600745e9f107574391147be41d09173dcbd936a14a0c9d19629d9a5d",
+      "donor_sample_id": "videophy2-828cb94a78e31b2fb92a",
+      "recipient_action": "breaking boards",
+      "recipient_prompt_sha256": "550fa06666a2682251f6769e4e2dbf92e76d865416c704de7e74f068a89568b9",
+      "recipient_sample_id": "videophy2-6b5f50d2be1955868a77"
+    },
+    {
+      "donor_action": "burying something in something",
+      "donor_prompt_sha256": "3d5954480c6fddebbcf1f973e9b2fa6c297f1975b29f48720f202dfd556e94e8",
+      "donor_sample_id": "videophy2-8412783c7079fa130d28",
+      "recipient_action": "balancebeam",
+      "recipient_prompt_sha256": "ee0c9ceb46ac6def113bad91ba78b2e934de697c2e6d5a7d69619fed24b5c3c2",
+      "recipient_sample_id": "videophy2-6d69cfa82f27c20cf042"
+    },
+    {
+      "donor_action": "archery",
+      "donor_prompt_sha256": "6a111e5279ec781bdce95e661384f72e0dc6ef94e45fe61eba4709ecf9e42c86",
+      "donor_sample_id": "videophy2-d2aa02d3fff45bc0deda",
+      "recipient_action": "canoeing or kayaking",
+      "recipient_prompt_sha256": "2216f221461418616b0b4913f18f16a7e332e7d4021117eca6fd3a68227ff9c5",
+      "recipient_sample_id": "videophy2-6fa8ce69bfbd83282e01"
+    },
+    {
+      "donor_action": "pouring something out of something",
+      "donor_prompt_sha256": "f6ca595cdc5cc630a32230b44292fd3969360568aca2ad79a77103a584b59382",
+      "donor_sample_id": "videophy2-7cd7db63c400860d471f",
+      "recipient_action": "tearing something just a little bit",
+      "recipient_prompt_sha256": "856140a912d81a0e66e82bb9add73781c896cb6ce8e0b77a29a320f4e523b6a3",
+      "recipient_sample_id": "videophy2-70d86d829ba4753244db"
+    },
+    {
+      "donor_action": "unfolding something",
+      "donor_prompt_sha256": "09da3d20e0fc3867a749668af6ced0c7d7c0e321005131926f27050a1d264ce0",
+      "donor_sample_id": "videophy2-5a682e973637a4d7dee2",
+      "recipient_action": "chopping wood",
+      "recipient_prompt_sha256": "ffe86b33537b8da77c27eaa366d9af4459ac90ca58dc7361395d9463abf14e18",
+      "recipient_sample_id": "videophy2-71475fe437f0733999c0"
+    },
+    {
+      "donor_action": "popping balloons",
+      "donor_prompt_sha256": "e4bdcc9866ddee93379a25af78dc9b1486de014496dc67f9fa5590240fbb9012",
+      "donor_sample_id": "videophy2-47941fad2da31cd8b718",
+      "recipient_action": "playing tennis",
+      "recipient_prompt_sha256": "ca7551d788979ae17cae3030fa076499099ac952799262754a0a0ee1584f750d",
+      "recipient_sample_id": "videophy2-719f244afecd81555740"
+    },
+    {
+      "donor_action": "using circular saw",
+      "donor_prompt_sha256": "fc82d4ea96e4efb92619af025db290c426b05136c86ddc4e466f2bd7cd0fb38e",
+      "donor_sample_id": "videophy2-edf47409ce91d7c2e906",
+      "recipient_action": "jetskiing",
+      "recipient_prompt_sha256": "4bf6563d7d2f26af30e41f62b7264638c0cc3bc01a98c139501e95c7b6e843e1",
+      "recipient_sample_id": "videophy2-727dc9e2bb12e59eaa3e"
+    },
+    {
+      "donor_action": "flying kite",
+      "donor_prompt_sha256": "50a962a8c42e79c36835a1e7c35333d5f00ec87ed45e548023a0f73d73db034b",
+      "donor_sample_id": "videophy2-3375330fb4a7db96c11e",
+      "recipient_action": "biking through snow",
+      "recipient_prompt_sha256": "132308fa775e1b12fb25b1109cc7cd549f9587c2d539e3177681769503648336",
+      "recipient_sample_id": "videophy2-739dc45c6420c9854ee3"
+    },
+    {
+      "donor_action": "pole vault",
+      "donor_prompt_sha256": "5fb62c63a0c77584cfd92775e2d95ea3d33d7e478289f431cb2d39b223cecc0a",
+      "donor_sample_id": "videophy2-653d9e2f2b5944eaa21a",
+      "recipient_action": "something falling like a feather or paper",
+      "recipient_prompt_sha256": "1baf0c23891268578368f289f11de1046a83ccfd1fc181bd4dfebf61d9e3e793",
+      "recipient_sample_id": "videophy2-73aa0891058c15c7d625"
+    },
+    {
+      "donor_action": "making snowman",
+      "donor_prompt_sha256": "ec5c4457f384c8f97c16905be37e2fb5dbc42fcfe8fd0bac87242f2a2b9c69e0",
+      "donor_sample_id": "videophy2-0a421e424877313d7221",
+      "recipient_action": "somersaulting",
+      "recipient_prompt_sha256": "5adc950c484d3821ae2ef222f623edb36c242228418676fa4979677bf6bca734",
+      "recipient_sample_id": "videophy2-73be8ae541847f945c21"
+    },
+    {
+      "donor_action": "hoverboarding",
+      "donor_prompt_sha256": "d511edcb5ae5745e7920c370616a61bfc320eb07a26363e6c15ca70839437a9b",
+      "donor_sample_id": "videophy2-f07578afacc1eb72f93e",
+      "recipient_action": "extinguishing fire",
+      "recipient_prompt_sha256": "f500c99b5214f92f657c0a2bdd511d364f9138d0b52fdad1efa6d22220085459",
+      "recipient_sample_id": "videophy2-73cdb0701cd0636e5234"
+    },
+    {
+      "donor_action": "unfolding something",
+      "donor_prompt_sha256": "0a87d3e5e5e7490f4f27a1a3299ef84b498284b1a5a1a6735940cb343a74a681",
+      "donor_sample_id": "videophy2-17ecb11467119cb23166",
+      "recipient_action": "pouring something onto something",
+      "recipient_prompt_sha256": "b657f71917274853c08fa2d3fc6f2bf8434036e35d05222e9fa557e16b2d0734",
+      "recipient_sample_id": "videophy2-7566c2e5802c1fabb679"
+    },
+    {
+      "donor_action": "playing volleyball",
+      "donor_prompt_sha256": "80589ac68530473ae6a0e2cf1e94d9d57216c0db8b2fe69e5451df67505440d2",
+      "donor_sample_id": "videophy2-56c8b3247aa5edbdb1fd",
+      "recipient_action": "poking a stack of something without the stack collapsing",
+      "recipient_prompt_sha256": "1428a7f428e0189c53783e54feb11593cb3cb04dd6d4f4b2479dabd3924cf645",
+      "recipient_sample_id": "videophy2-767f56a0c4254450b2d8"
+    },
+    {
+      "donor_action": "javelinthrow",
+      "donor_prompt_sha256": "c3cbedf774a9b9da7b85249ed91bc8363a221652bb2cea6d6605db774fee5e0c",
+      "donor_sample_id": "videophy2-b4ee71e172b59ddb41f5",
+      "recipient_action": "kicking soccer ball",
+      "recipient_prompt_sha256": "e4cbd65032328a3c85b7a9d7dd930354eb3004cd2c48bc4ed30342f080c900c4",
+      "recipient_sample_id": "videophy2-76dc7a46a3a0793f8db4"
+    },
+    {
+      "donor_action": "pushing something off of something",
+      "donor_prompt_sha256": "71e8a61cf9b6ec06196b23503a8f10a43312797cffd6b570bcdd022b975ac9d5",
+      "donor_sample_id": "videophy2-cbe3dcd0e6948997c575",
+      "recipient_action": "lifting a surface with something on it but not enough for it to slide down",
+      "recipient_prompt_sha256": "e60921901a72092aa558bacccb3d4f79bc2bc73ac539e9e3d2329a7c3103dfb6",
+      "recipient_sample_id": "videophy2-788a9bcddfebdf4e2686"
+    },
+    {
+      "donor_action": "something falling like a feather or paper",
+      "donor_prompt_sha256": "1baf0c23891268578368f289f11de1046a83ccfd1fc181bd4dfebf61d9e3e793",
+      "donor_sample_id": "videophy2-c118a9dcc493b3343c23",
+      "recipient_action": "kicking soccer ball",
+      "recipient_prompt_sha256": "70e1d852f1121180b757eaef1bf0425fef6b87d13d08cdb4085736178b9fe3fb",
+      "recipient_sample_id": "videophy2-78f00a12ea662e1a6556"
+    },
+    {
+      "donor_action": "poking something so that it spins around",
+      "donor_prompt_sha256": "224e7647b7cde9ea79aaaf219abbaa7d83f92de80333315b3bedc79b053ca407",
+      "donor_sample_id": "videophy2-3c290199761918bdd86e",
+      "recipient_action": "knitting",
+      "recipient_prompt_sha256": "552d2bc7122a3966cfc20bf6c51ffec20e3ac57e74eb9ba1cc5fae3753365939",
+      "recipient_sample_id": "videophy2-799f12b1ccc99d51c877"
+    },
+    {
+      "donor_action": "shoveling snow",
+      "donor_prompt_sha256": "24aa46fd84a0876aa256e2e162e54265987ef60bbb668b250054a793f988d470",
+      "donor_sample_id": "videophy2-34de8249d16c9abdc77c",
+      "recipient_action": "luge",
+      "recipient_prompt_sha256": "d076f4d3f428962cfea961cb7a63aa25d247bc6bd4cc567ae5535d05a750e8ab",
+      "recipient_sample_id": "videophy2-79aa079d11cf0e74c340"
+    },
+    {
+      "donor_action": "letting something roll up a slanted surface so it rolls back down",
+      "donor_prompt_sha256": "37e2e7e6a11375ab14b7da7ee580b6463e97784ba57785cc267dbfd79e0cb583",
+      "donor_sample_id": "videophy2-cf815d67ccab16d2c3b2",
+      "recipient_action": "balancebeam",
+      "recipient_prompt_sha256": "a934bc422e80caf1797479f005f48e72470c298f4cda2b1bb1fe38be9bc52293",
+      "recipient_sample_id": "videophy2-79d00aace4dda399fd58"
+    },
+    {
+      "donor_action": "spinning poi",
+      "donor_prompt_sha256": "a00038910c6c558e13e3fbc5cb5b86ce7430247d64913d5739506609a2c80983",
+      "donor_sample_id": "videophy2-f2d01853b1a6680e5735",
+      "recipient_action": "dribbling basketball",
+      "recipient_prompt_sha256": "b08798801a3b88ce51ade56eeeb5f78bb3536ab186e3dc6ea7601386dbff98a6",
+      "recipient_sample_id": "videophy2-79f8b68fed2aad29ced9"
+    },
+    {
+      "donor_action": "chopping wood",
+      "donor_prompt_sha256": "ffe86b33537b8da77c27eaa366d9af4459ac90ca58dc7361395d9463abf14e18",
+      "donor_sample_id": "videophy2-71475fe437f0733999c0",
+      "recipient_action": "putting something that can't roll onto a slanted surface so it slides down",
+      "recipient_prompt_sha256": "f5bf57412cc1d8331e6337bf213b789aff2f1015bd83e8593e532873f6acdcb8",
+      "recipient_sample_id": "videophy2-7a1d725829afe689fece"
+    },
+    {
+      "donor_action": "spinning something that quickly stops spinning",
+      "donor_prompt_sha256": "9037f401f8d11587b4b3c394e66096eef93728760e354937e9b82d9c437aa971",
+      "donor_sample_id": "videophy2-23ecd611d58d07857d67",
+      "recipient_action": "throwing axe",
+      "recipient_prompt_sha256": "2b17ca6ee0610d0a0b17536823b42e35d594fe9e7bc4079324996e62ac035fa4",
+      "recipient_sample_id": "videophy2-7ccef70c67b0821694d0"
+    },
+    {
+      "donor_action": "squeezing something",
+      "donor_prompt_sha256": "2be476eeac0d38fd6125aade21e1aab39e6903c5a97aa868d2e5556a190bfd15",
+      "donor_sample_id": "videophy2-ccbe55fdf564ba15abff",
+      "recipient_action": "pouring something out of something",
+      "recipient_prompt_sha256": "f6ca595cdc5cc630a32230b44292fd3969360568aca2ad79a77103a584b59382",
+      "recipient_sample_id": "videophy2-7cd7db63c400860d471f"
+    },
+    {
+      "donor_action": "cutting",
+      "donor_prompt_sha256": "ec49a0a55c0eac524591b51ef50d21b12b442a78c0dde1171f9cc21a5096e870",
+      "donor_sample_id": "videophy2-16704843052258ba5874",
+      "recipient_action": "bungee jumping",
+      "recipient_prompt_sha256": "729d63d497f1a6d7898267c94560f312893ac797953323a9d55880a0b6ddf4f8",
+      "recipient_sample_id": "videophy2-7cf04897a58877e3a329"
+    },
+    {
+      "donor_action": "smashing",
+      "donor_prompt_sha256": "d858e0d67470d410f4dca51e7f184a8d0ab6d55f5b5000b2f4587b7a94728440",
+      "donor_sample_id": "videophy2-b1cd5bcf7baf2c1aba85",
+      "recipient_action": "playing pinball",
+      "recipient_prompt_sha256": "d3e8224798bbfb60c0cf9245c6aee25fee20c1dbe3cb49613b7c06608d3aaedb",
+      "recipient_sample_id": "videophy2-7dd118aa0372c45a9feb"
+    },
+    {
+      "donor_action": "spinning something so it continues spinning",
+      "donor_prompt_sha256": "6c2f19964c41e8f113a4b61f2d6961772f3c4a5cc59e986f2b496237ecda5665",
+      "donor_sample_id": "videophy2-1bea647a8dfee0352349",
+      "recipient_action": "tying shoe laces",
+      "recipient_prompt_sha256": "d1f2605b6623d8b682191702b5dd20eaeb2ebd80324ef08573ac247ef086402f",
+      "recipient_sample_id": "videophy2-7e0f2ab85c4651107833"
+    },
+    {
+      "donor_action": "rolling something on a flat surface",
+      "donor_prompt_sha256": "38717035e543c060b5dccdd554fcdc69223b3ed9cf7b850ae01fe5915a755432",
+      "donor_sample_id": "videophy2-ce3e029d97871de4d3d9",
+      "recipient_action": "sailing",
+      "recipient_prompt_sha256": "64286c1234eda497e0aa301352fa75a6298235e0ac2c7c3dd4cbcaae7f9b4f62",
+      "recipient_sample_id": "videophy2-7f4f78ed95c8d984e193"
+    },
+    {
+      "donor_action": "putting something that can't roll onto a slanted surface so it stays where it is",
+      "donor_prompt_sha256": "6264b00186c9635d71c20dad3384ff3cb98e522c13836cddf76b388db73c07f6",
+      "donor_sample_id": "videophy2-1143b4fb81f2455f7888",
+      "recipient_action": "catching or throwing softball",
+      "recipient_prompt_sha256": "09d09b0c95e8e4551975dde3858208e560286a1b90c12d1db4345a177dbb8c12",
+      "recipient_sample_id": "videophy2-7f89e2189aab1cc57815"
+    },
+    {
+      "donor_action": "poking a stack of something without the stack collapsing",
+      "donor_prompt_sha256": "1428a7f428e0189c53783e54feb11593cb3cb04dd6d4f4b2479dabd3924cf645",
+      "donor_sample_id": "videophy2-767f56a0c4254450b2d8",
+      "recipient_action": "swimming",
+      "recipient_prompt_sha256": "08020afc17621f9994604be3913ba4597b080065946a18d8a85bcd838ef1a936",
+      "recipient_sample_id": "videophy2-7fd11a61671ec264d1d5"
+    },
+    {
+      "donor_action": "tying knot (not on a tie)",
+      "donor_prompt_sha256": "8c7204140e2691ea418d645a04e758443b7436462f6714d34478503922435f20",
+      "donor_sample_id": "videophy2-d26685bf0e15f62051a1",
+      "recipient_action": "hammering",
+      "recipient_prompt_sha256": "58e7c9e584ef48d7764407c49eebef8dd4c6c77157708fe8be329e95fd7ca7d6",
+      "recipient_sample_id": "videophy2-8113a67548f8b3487f94"
+    },
+    {
+      "donor_action": "pouring something onto something",
+      "donor_prompt_sha256": "b657f71917274853c08fa2d3fc6f2bf8434036e35d05222e9fa557e16b2d0734",
+      "donor_sample_id": "videophy2-7566c2e5802c1fabb679",
+      "recipient_action": "pouring beer",
+      "recipient_prompt_sha256": "451551454118e4095533704de56bf11431ad2ece325d621cd396fd96baee97e0",
+      "recipient_sample_id": "videophy2-816f6bbf9fd26f395607"
+    },
+    {
+      "donor_action": "pushing something so that it slightly moves",
+      "donor_prompt_sha256": "e91802dad430393eeb082d547eb2407f3c2cfd85fc3156809a7f7d8f5e02c85e",
+      "donor_sample_id": "videophy2-419829691c14308ec29b",
+      "recipient_action": "smoking",
+      "recipient_prompt_sha256": "32f2864b89ecb90905d242ab1f41cc908edc91e2ec50a2ec355337ec90e94721",
+      "recipient_sample_id": "videophy2-81926ce96bfc78332cc6"
+    },
+    {
+      "donor_action": "pulling two ends of something so that it separates into two pieces",
+      "donor_prompt_sha256": "9ebf610dfc39cea53138c31ff81be9323709eb57f96e396b4b454741ffd9d2f1",
+      "donor_sample_id": "videophy2-20138cada84d457ce755",
+      "recipient_action": "riding mechanical bull",
+      "recipient_prompt_sha256": "734cb58e020d732b9b4265480d2932d34456dd7705531d5ff1da58cffcb06ec8",
+      "recipient_sample_id": "videophy2-81a270c57ecd6b3acc30"
+    },
+    {
+      "donor_action": "wading through water",
+      "donor_prompt_sha256": "b4391283d743b870211554d5f4228244dab1b13e768288f314405b309fa80136",
+      "donor_sample_id": "videophy2-a5935d8b9238d5fcd644",
+      "recipient_action": "passing american football",
+      "recipient_prompt_sha256": "64de34b2170c73b28e69c4f8df8b44e3f29283205c606672071bbfdd03de7460",
+      "recipient_sample_id": "videophy2-81b47de03a1c399da224"
+    },
+    {
+      "donor_action": "letting something roll down a slanted surface",
+      "donor_prompt_sha256": "c38450a0959b5faa68b2e4abd9d884e326459651204934dd98ca944ce5f94ae8",
+      "donor_sample_id": "videophy2-ceeb1537b89a5cd124e1",
+      "recipient_action": "catching or throwing frisbee",
+      "recipient_prompt_sha256": "a7f1d4cb6cf76a0a3633f218d673174e0a5b2d8a14b6355d5d9e18725973491a",
+      "recipient_sample_id": "videophy2-81e95f8f2be4b4f8b730"
+    },
+    {
+      "donor_action": "playing kickball",
+      "donor_prompt_sha256": "3a90d86f92c49154ef2e576d555157f914668eaa11497ad078621feda5729a7f",
+      "donor_sample_id": "videophy2-82f114b20420f743f3b9",
+      "recipient_action": "chopping wood",
+      "recipient_prompt_sha256": "3f6ec5eb8203e1cd5f948da0971883817ffad2c8aa8488366c64318fdd7c20ff",
+      "recipient_sample_id": "videophy2-8205e05d8d1d6d3d4cb4"
+    },
+    {
+      "donor_action": "riding scooter",
+      "donor_prompt_sha256": "d8215f42f04d3ba7142cbb5e9faedd38bae727a40a99d97de80583181d9ddd62",
+      "donor_sample_id": "videophy2-b4b5f0f71bde31013b72",
+      "recipient_action": "playing squash or racquetball",
+      "recipient_prompt_sha256": "2559ab47b909bc585b020813a2a2ad00529c0782edffdb55607503b49be7a3f5",
+      "recipient_sample_id": "videophy2-822c4dcb2e81bc2864c9"
+    },
+    {
+      "donor_action": "roller skating",
+      "donor_prompt_sha256": "7d52efe4df474e6445d9baab0d93c0c1ade5971240a5d563d95c90fb237444ab",
+      "donor_sample_id": "videophy2-264694e3a22d25cb425f",
+      "recipient_action": "sharpening pencil",
+      "recipient_prompt_sha256": "fded0ea0600745e9f107574391147be41d09173dcbd936a14a0c9d19629d9a5d",
+      "recipient_sample_id": "videophy2-828cb94a78e31b2fb92a"
+    },
+    {
+      "donor_action": "poking something so it slightly moves",
+      "donor_prompt_sha256": "e8b5dbd2d3b7760660b98766a4745e35352daac40b68ab8f9ef0ddaa9d13b430",
+      "donor_sample_id": "videophy2-3bdd61aeb029029551ae",
+      "recipient_action": "playing kickball",
+      "recipient_prompt_sha256": "3a90d86f92c49154ef2e576d555157f914668eaa11497ad078621feda5729a7f",
+      "recipient_sample_id": "videophy2-82f114b20420f743f3b9"
+    },
+    {
+      "donor_action": "pulling two ends of something so that it gets stretched",
+      "donor_prompt_sha256": "09f978c10a2689487e5fff1bc81b23ccab2ecd84967cabe3ec042a8e0b5ca6ca",
+      "donor_sample_id": "videophy2-1412ca03968be794acc1",
+      "recipient_action": "attaching something onto something",
+      "recipient_prompt_sha256": "a7c3aef9c8d495e7c451f78ddfe792462d7392b181a4151003fbeb8a9a777444",
+      "recipient_sample_id": "videophy2-83c9cc91476b0cbce4f2"
+    },
+    {
+      "donor_action": "tying bow tie",
+      "donor_prompt_sha256": "027c343a569e393a1970c2dce712fd68186168e80883d49020b4d538a7e0c563",
+      "donor_sample_id": "videophy2-fce5bf3717d734cc5bc8",
+      "recipient_action": "burying something in something",
+      "recipient_prompt_sha256": "3d5954480c6fddebbcf1f973e9b2fa6c297f1975b29f48720f202dfd556e94e8",
+      "recipient_sample_id": "videophy2-8412783c7079fa130d28"
+    },
+    {
+      "donor_action": "rolling pastry",
+      "donor_prompt_sha256": "248e64c1e6cd0964ba4d4a41f3fd302ab068880b2dad74405e8ceb10e34f5d8f",
+      "donor_sample_id": "videophy2-939fe50adbda2772f04d",
+      "recipient_action": "attaching something onto something",
+      "recipient_prompt_sha256": "815eee382182c66e7bb5150fc9e884d7c9892a5c9aa7ae97780c65e29813c0c5",
+      "recipient_sample_id": "videophy2-846384fa86cb5caa3145"
+    },
+    {
+      "donor_action": "bulldozing",
+      "donor_prompt_sha256": "e58ef12a469b3751e9d314ce7f30574fda76caff1d365a53452c50078f1fd960",
+      "donor_sample_id": "videophy2-dea8cdd7f73a24e34100",
+      "recipient_action": "somersaulting",
+      "recipient_prompt_sha256": "4912e2250431c2bc539683df74a2c6baf8ff8f2665829e10b1932403b622430d",
+      "recipient_sample_id": "videophy2-85bea71cd3409555ba80"
+    },
+    {
+      "donor_action": "putting something onto something else that cannot support it so it falls down",
+      "donor_prompt_sha256": "242e01f46c083bce26723c7f907b3914e06f47913da5699cf369a189fdff0ebb",
+      "donor_sample_id": "videophy2-072eb5a79d008def9fcd",
+      "recipient_action": "bending something until it breaks",
+      "recipient_prompt_sha256": "c9c9a3ec0c6a4c2c0f9162c25a54ae039ef936b5ebe9afbf8bb8d2842caae386",
+      "recipient_sample_id": "videophy2-872e28eca2c60496ff0a"
+    },
+    {
+      "donor_action": "blowdryhair",
+      "donor_prompt_sha256": "7fe61e4785b1cb2b98dd608d69a8fe5d3ac737d86dfc4bad881165e25e204e8e",
+      "donor_sample_id": "videophy2-30ba5584d9feba1efcde",
+      "recipient_action": "shot put",
+      "recipient_prompt_sha256": "ea1e29b9e1b086b56a2fb85189477c6a39ebe57713ebfdfe1500fff136848229",
+      "recipient_sample_id": "videophy2-8851badcfda4258d84b7"
+    },
+    {
+      "donor_action": "poking something so that it spins around",
+      "donor_prompt_sha256": "ea86e25315567607677c738c0c1d733e4207c0b29f920248a97794910961da57",
+      "donor_sample_id": "videophy2-d159402ecabaf4c1a3a8",
+      "recipient_action": "skateboarding",
+      "recipient_prompt_sha256": "bf08fb738ee93d12a6e74d0d03f29ab2dc3f257099fa383e28181271cf83b676",
+      "recipient_sample_id": "videophy2-898e21647bf356a53661"
+    },
+    {
+      "donor_action": "skijet",
+      "donor_prompt_sha256": "b565570b4236d919894dfbd8db744a91500df330f38fd40b5030b130e0af0eed",
+      "donor_sample_id": "videophy2-1a161e6354b9e7e610bd",
+      "recipient_action": "poking something so that it falls over",
+      "recipient_prompt_sha256": "c2853a5d7aa12544e5e83fc25a5846334d0cbe5f5447e3fec3c54781ec2d38fc",
+      "recipient_sample_id": "videophy2-89faf461a14458409969"
+    },
+    {
+      "donor_action": "tightrope walking",
+      "donor_prompt_sha256": "83e6def6f73751f60fd289db37fd641e1fccd2f3a4cdc0910336eb90fd83336e",
+      "donor_sample_id": "videophy2-bf0430cabc0ea394b3d6",
+      "recipient_action": "mopping floor",
+      "recipient_prompt_sha256": "f09be49cf38849b638b00679f5198fb19772b6c14d6a1fe6bbdd101d316d87fc",
+      "recipient_sample_id": "videophy2-8a99e5f82253fdd17239"
+    },
+    {
+      "donor_action": "bowling",
+      "donor_prompt_sha256": "3b1f7d45a6c5f9f7aebf8dd5e4430a653e1f54b90e215577035efa520845d104",
+      "donor_sample_id": "videophy2-29e98a1ef3c8350177fe",
+      "recipient_action": "sewing",
+      "recipient_prompt_sha256": "f3be0c4d1371f74e7f78ea9f5fe823cfe26b2ab5c6b5229619e843c1b4167125",
+      "recipient_sample_id": "videophy2-8bdae05456259733e660"
+    },
+    {
+      "donor_action": "playing squash or racquetball",
+      "donor_prompt_sha256": "1828e995fd0ade250efefd66298c59c88e513829a345241102200d68429aecf0",
+      "donor_sample_id": "videophy2-baef2f4da619fa23e0ec",
+      "recipient_action": "luge",
+      "recipient_prompt_sha256": "b3c69de18f092d34680eb7ff54b2c5274ed9919789ceb7ee5a4b3dbf0c800f69",
+      "recipient_sample_id": "videophy2-8d586cf5807f6c9a7230"
+    },
+    {
+      "donor_action": "playing ping pong",
+      "donor_prompt_sha256": "3719b41ec796cda9c8119fbd2f3215132baa7dca259cf0a19584e16a7657c18d",
+      "donor_sample_id": "videophy2-c50096c4b68e2e202ba6",
+      "recipient_action": "playing badminton",
+      "recipient_prompt_sha256": "4ab73de26852e53450ade0d8bc089a68c8aa34ea6bfcf5c08a5c74dccdde77af",
+      "recipient_sample_id": "videophy2-8daf2aaba59e364571d9"
+    },
+    {
+      "donor_action": "playing tennis",
+      "donor_prompt_sha256": "ca7551d788979ae17cae3030fa076499099ac952799262754a0a0ee1584f750d",
+      "donor_sample_id": "videophy2-719f244afecd81555740",
+      "recipient_action": "hitting baseball",
+      "recipient_prompt_sha256": "94879cee3a9f8ff5c8f35fa44b5491de1fe0b9e2b360c99b768f4107e5e64616",
+      "recipient_sample_id": "videophy2-8e776e10825a7a57fe4a"
+    },
+    {
+      "donor_action": "pouring something onto something",
+      "donor_prompt_sha256": "29a4bb5fdf057af35bc8c9a5a1e4c2974ed05514283ef7b1ec4afcd37b7b8e3a",
+      "donor_sample_id": "videophy2-10c9d961fb18a2b87a85",
+      "recipient_action": "hammer throw",
+      "recipient_prompt_sha256": "daed47f0fab302e923f20b40786147dbef972c5658ed2a0dcad81a2de5aabc8c",
+      "recipient_sample_id": "videophy2-8fa1ed083f746c426fd0"
+    },
+    {
+      "donor_action": "wrapping present",
+      "donor_prompt_sha256": "57a0aeb14a4b2ac46fedb887a584ead4c3468cdc2a144156b95ff1b5f017e599",
+      "donor_sample_id": "videophy2-3bc7013bc960e6621731",
+      "recipient_action": "poking a stack of something so the stack collapses",
+      "recipient_prompt_sha256": "78366a0f3f4f7032323fb8c37054b6d3f2dfbd82f7e0bbcea779ae54d1fca585",
+      "recipient_sample_id": "videophy2-90f1b000e191da6b2a20"
+    },
+    {
+      "donor_action": "throwing water balloon",
+      "donor_prompt_sha256": "8f8b14d04c412261a4423f9bd147df8627a11f4f7f42519378c646f3f0951416",
+      "donor_sample_id": "videophy2-3b1be1641e679ed21430",
+      "recipient_action": "rolling pastry",
+      "recipient_prompt_sha256": "248e64c1e6cd0964ba4d4a41f3fd302ab068880b2dad74405e8ceb10e34f5d8f",
+      "recipient_sample_id": "videophy2-939fe50adbda2772f04d"
+    },
+    {
+      "donor_action": "somersaulting",
+      "donor_prompt_sha256": "4912e2250431c2bc539683df74a2c6baf8ff8f2665829e10b1932403b622430d",
+      "donor_sample_id": "videophy2-85bea71cd3409555ba80",
+      "recipient_action": "tying bow tie",
+      "recipient_prompt_sha256": "044d887ca04781687f69df2f9d4aa928b4b4123ac85f2ee7bbbfda55fcbae0cc",
+      "recipient_sample_id": "videophy2-94349f8a15ea1160585e"
+    },
+    {
+      "donor_action": "bending something until it breaks",
+      "donor_prompt_sha256": "c9c9a3ec0c6a4c2c0f9162c25a54ae039ef936b5ebe9afbf8bb8d2842caae386",
+      "donor_sample_id": "videophy2-872e28eca2c60496ff0a",
+      "recipient_action": "blowing out candles",
+      "recipient_prompt_sha256": "c14044f66ab5b9cf473bc7ab59a0a3388cf9a0fff9d107e396cf9df46e5416f1",
+      "recipient_sample_id": "videophy2-946997a16662b62b29b5"
+    },
+    {
+      "donor_action": "clay pottery making",
+      "donor_prompt_sha256": "1c42cef0a5c316f6d95b92dc8573f3aa5a314c4c253cdb304d17316ad77db627",
+      "donor_sample_id": "videophy2-a76cfcce39c6a6c1c4dd",
+      "recipient_action": "curling (sport)",
+      "recipient_prompt_sha256": "02035055195d08a333bac3bcb82340396a517df7fb9f624fe08276cd1aa5f18b",
+      "recipient_sample_id": "videophy2-9496c4a8790ce37753e0"
+    },
+    {
+      "donor_action": "catching or throwing baseball",
+      "donor_prompt_sha256": "b6cefa52a0bce5d5d7676c32dd81006c2776bc12169299595d325e2bd6aafb9f",
+      "donor_sample_id": "videophy2-decc5242754e08bc224a",
+      "recipient_action": "cutting",
+      "recipient_prompt_sha256": "8d44a2958eb4e6947ed800c6893431a3d839066d6bd88593d3261a343519d768",
+      "recipient_sample_id": "videophy2-94ae2d1b069aa8544eda"
+    },
+    {
+      "donor_action": "breaking boards",
+      "donor_prompt_sha256": "550fa06666a2682251f6769e4e2dbf92e76d865416c704de7e74f068a89568b9",
+      "donor_sample_id": "videophy2-5ba0042492f060e82ccb",
+      "recipient_action": "parasailing",
+      "recipient_prompt_sha256": "8d02d242437676e5096b6f0580644d8a1071c11c379488de55c603e9889397fb",
+      "recipient_sample_id": "videophy2-94ceb05b1b89af430bc2"
+    },
+    {
+      "donor_action": "trapezing",
+      "donor_prompt_sha256": "7789e83b98aa5507c71ad685f46c7752641d512b290acd6aa033fcb3ddc437ab",
+      "donor_sample_id": "videophy2-3c69f747876d94847632",
+      "recipient_action": "punching bag",
+      "recipient_prompt_sha256": "d259e32f27bb6e37d3af5cf06601ea06bda04ac027158a05359ec6bbb0774ea2",
+      "recipient_sample_id": "videophy2-954b28ad716462231525"
+    },
+    {
+      "donor_action": "tying bow tie",
+      "donor_prompt_sha256": "044d887ca04781687f69df2f9d4aa928b4b4123ac85f2ee7bbbfda55fcbae0cc",
+      "donor_sample_id": "videophy2-94349f8a15ea1160585e",
+      "recipient_action": "pizzatossing",
+      "recipient_prompt_sha256": "b69b73d7b65fc7918483b04af9155e0cac4ea148ad689de98532f725b51c86b7",
+      "recipient_sample_id": "videophy2-9558185bd9b618939a59"
+    },
+    {
+      "donor_action": "pouring something into something",
+      "donor_prompt_sha256": "0c3ccb943d64bf90670a9bf1bee374de2eb078e10f96c8d5d93ff2c4f5322e94",
+      "donor_sample_id": "videophy2-0f314afcdfc11750300d",
+      "recipient_action": "canoeing or kayaking",
+      "recipient_prompt_sha256": "3d0a1acc1851d259587afc6e0af31d6ac0ada5f65d5163f9a4d33bad12c049d6",
+      "recipient_sample_id": "videophy2-95b3a27199e62c19f457"
+    },
+    {
+      "donor_action": "using a paint roller",
+      "donor_prompt_sha256": "16c313e2c808db5f775aeb7b7b9e3f5d82751e6c4994a8e2707c077d18de9205",
+      "donor_sample_id": "videophy2-48688367eb6217d8c727",
+      "recipient_action": "blowing leaves",
+      "recipient_prompt_sha256": "94948839582cc684a0273f74c97786254c6118d23d0dfd58877f991a70ba4aca",
+      "recipient_sample_id": "videophy2-96b7ba543d900fc1541d"
+    },
+    {
+      "donor_action": "parasailing",
+      "donor_prompt_sha256": "018d5ee51e6f46fc68a0b3e477f7778ad5592069b73d95f283891aca4a35fd2c",
+      "donor_sample_id": "videophy2-cd9ad13778dda747721c",
+      "recipient_action": "using a sledge hammer",
+      "recipient_prompt_sha256": "727b290dcff76a1cad5d45c4c09f2fa84013fbf0ca69e66f9dca73adf8aeffad",
+      "recipient_sample_id": "videophy2-979e07c04e91da49ca16"
+    },
+    {
+      "donor_action": "longjump",
+      "donor_prompt_sha256": "6e3afea492853bb6c816d341f33039e9ffcc3a0c8272c96ed1f10044890b9e4c",
+      "donor_sample_id": "videophy2-275787dc0b51e939402d",
+      "recipient_action": "putting something that can't roll onto a slanted surface so it slides down",
+      "recipient_prompt_sha256": "499acc5374441906e57c4640b61d7e7d63d45b8ab97576e6148e36d5b5f3958c",
+      "recipient_sample_id": "videophy2-988fe808398a56e968e8"
+    },
+    {
+      "donor_action": "javelin throw",
+      "donor_prompt_sha256": "e53d4afc12ea913916bc2680dfc82ed6a5812250deb1b1b3071827bc198ae64b",
+      "donor_sample_id": "videophy2-9baf631e58b7a1ecf9c5",
+      "recipient_action": "riding unicycle",
+      "recipient_prompt_sha256": "6498c2c50c9de8ac98f04ee487f4a94045aa0a996650255b134a9d5263a1cad9",
+      "recipient_sample_id": "videophy2-9971fea213b5fe9a6fd6"
+    },
+    {
+      "donor_action": "hammering",
+      "donor_prompt_sha256": "58e7c9e584ef48d7764407c49eebef8dd4c6c77157708fe8be329e95fd7ca7d6",
+      "donor_sample_id": "videophy2-449999483054e7999ac6",
+      "recipient_action": "clay pottery making",
+      "recipient_prompt_sha256": "1c42cef0a5c316f6d95b92dc8573f3aa5a314c4c253cdb304d17316ad77db627",
+      "recipient_sample_id": "videophy2-9adc02f50a9de12e6ae2"
+    },
+    {
+      "donor_action": "hitting baseball",
+      "donor_prompt_sha256": "94879cee3a9f8ff5c8f35fa44b5491de1fe0b9e2b360c99b768f4107e5e64616",
+      "donor_sample_id": "videophy2-8e776e10825a7a57fe4a",
+      "recipient_action": "throwdiscus",
+      "recipient_prompt_sha256": "fea3f371f90ba992a09b37b45db2434829fe05afe3a691e594325c5f3d488edc",
+      "recipient_sample_id": "videophy2-9ae07d8fb8432e598087"
+    },
+    {
+      "donor_action": "using segway",
+      "donor_prompt_sha256": "3faf732d28643f46987fa1162dcbc6507c7d403d0349649794698e29739bbaed",
+      "donor_sample_id": "videophy2-a0e2a91a4cce9df52858",
+      "recipient_action": "javelin throw",
+      "recipient_prompt_sha256": "e53d4afc12ea913916bc2680dfc82ed6a5812250deb1b1b3071827bc198ae64b",
+      "recipient_sample_id": "videophy2-9baf631e58b7a1ecf9c5"
+    },
+    {
+      "donor_action": "shaping bread dough",
+      "donor_prompt_sha256": "ab2cb46e579358ae84eeef054c971e80dfe0199386953a4e2a9ca6f6273e5444",
+      "donor_sample_id": "videophy2-f0b70984671930223900",
+      "recipient_action": "pommelhorse",
+      "recipient_prompt_sha256": "88a64320c31dc1ee4ff2c229ee9226f29259662b9bde2a5116cf1986bfdfaf3a",
+      "recipient_sample_id": "videophy2-9bd7dd54a640d5c59264"
+    },
+    {
+      "donor_action": "playing field hockey",
+      "donor_prompt_sha256": "28fb8711c0e5422305343d118fb0b35c283a29b8b11b6fba7806deeecf2a8c34",
+      "donor_sample_id": "videophy2-cdb77a49afe5091ba4ba",
+      "recipient_action": "shooting basketball",
+      "recipient_prompt_sha256": "4c3349b2f13d3391c97f8cdfd9bae63a40c45a4b453ec34355b7c3766ca84bbb",
+      "recipient_sample_id": "videophy2-9c2e479023564644b243"
+    },
+    {
+      "donor_action": "canoeing or kayaking",
+      "donor_prompt_sha256": "2216f221461418616b0b4913f18f16a7e332e7d4021117eca6fd3a68227ff9c5",
+      "donor_sample_id": "videophy2-6fa8ce69bfbd83282e01",
+      "recipient_action": "parallelbars",
+      "recipient_prompt_sha256": "fde60b4efce478cad7e55ab27b891e76db86cce9f11a09273b04a04bc3765b0a",
+      "recipient_sample_id": "videophy2-9ddb44d6141967b323d6"
+    },
+    {
+      "donor_action": "swimming",
+      "donor_prompt_sha256": "b34cab307e7bba774bbb48be9ca4bca52e78ad91c78ec32ea296e308a34bda77",
+      "donor_sample_id": "videophy2-6272f5a6a06c48ddd786",
+      "recipient_action": "spinning something that quickly stops spinning",
+      "recipient_prompt_sha256": "9037f401f8d11587b4b3c394e66096eef93728760e354937e9b82d9c437aa971",
+      "recipient_sample_id": "videophy2-9f3cca1d71c2b46251f9"
+    },
+    {
+      "donor_action": "letting something roll along a flat surface",
+      "donor_prompt_sha256": "75d265ece0b57828357dd606493aacf39926bcb9cddb313e096df496abbaba9b",
+      "donor_sample_id": "videophy2-a014b438227be9cc99b9",
+      "recipient_action": "playing darts",
+      "recipient_prompt_sha256": "6457f7130d9ae9c755065fd2db342d18e118a3b60dea7de621d2b482610295f9",
+      "recipient_sample_id": "videophy2-9f670487323fc46f48ff"
+    },
+    {
+      "donor_action": "rowing",
+      "donor_prompt_sha256": "6e3732c60533855711819268f66e4d8c269d1ee464283914bc416cd97786038c",
+      "donor_sample_id": "videophy2-f58bbca6c781b4e9a53d",
+      "recipient_action": "something colliding with something and both are being deflected",
+      "recipient_prompt_sha256": "70d3b1b89e194aa263e754ea919b3f012e60b860b786acd4a2478e18040da5c8",
+      "recipient_sample_id": "videophy2-9ff2c2fce7d6d665e0d0"
+    },
+    {
+      "donor_action": "tossing coin",
+      "donor_prompt_sha256": "6d164ade027e64e1f50dba02fb9bf5fbc877ff73344e96b1112e0d6e3c4b32bd",
+      "donor_sample_id": "videophy2-5dd83e340a99a4209710",
+      "recipient_action": "throwing snowballs",
+      "recipient_prompt_sha256": "c461ec845f103bdbded00817af7d09b1d6471b8ac3e6b2af64da69afda35fbd5",
+      "recipient_sample_id": "videophy2-a006c1e4124b6badcd71"
+    },
+    {
+      "donor_action": "folding clothes",
+      "donor_prompt_sha256": "0d45abda1ba2d32b5888e6009b24075569b22e930034bfbaaca953239d5a7b0c",
+      "donor_sample_id": "videophy2-b5e06bbad62d13754bf8",
+      "recipient_action": "nunchucks",
+      "recipient_prompt_sha256": "e400cd67a20cb08697f753d88b7c0ae385e1bda930a9344f3efaadb3211d0164",
+      "recipient_sample_id": "videophy2-a01402f5f43d9a4150bc"
+    },
+    {
+      "donor_action": "putting something that can't roll onto a slanted surface so it stays where it is",
+      "donor_prompt_sha256": "49d72b8d8e6b3a04370015e62434494e2dbb449635a3ca1a0c9066ec4c28122b",
+      "donor_sample_id": "videophy2-fb80ea2db4f37244e3f6",
+      "recipient_action": "letting something roll along a flat surface",
+      "recipient_prompt_sha256": "75d265ece0b57828357dd606493aacf39926bcb9cddb313e096df496abbaba9b",
+      "recipient_sample_id": "videophy2-a014b438227be9cc99b9"
+    },
+    {
+      "donor_action": "pushing something so that it almost falls off but doesn't",
+      "donor_prompt_sha256": "9b34245d0ece3bc73e95e546c0171f8c33df169f1032d7b6affb32ebc01a2855",
+      "donor_sample_id": "videophy2-27e4903fb632c3236213",
+      "recipient_action": "using segway",
+      "recipient_prompt_sha256": "3faf732d28643f46987fa1162dcbc6507c7d403d0349649794698e29739bbaed",
+      "recipient_sample_id": "videophy2-a0e2a91a4cce9df52858"
+    },
+    {
+      "donor_action": "playing ice hockey",
+      "donor_prompt_sha256": "b38597c41a14518768f719ffe70a05cb526749a43fcba8a8a95821f5fd54b7d0",
+      "donor_sample_id": "videophy2-23c1469ef58590ffa658",
+      "recipient_action": "bungee jumping",
+      "recipient_prompt_sha256": "89e595f0e682b65bccdbea141e85b0ff6383bab84197dfae0b67e7ff9fbd50f1",
+      "recipient_sample_id": "videophy2-a1bb0dd51a60ee8aa9c3"
+    },
+    {
+      "donor_action": "folding napkins",
+      "donor_prompt_sha256": "60f405f026a7177cf37e31c99af3f6e696e6beb6da4c8660b51d1740e9fd1bc7",
+      "donor_sample_id": "videophy2-36a6ef68f78367ca33eb",
+      "recipient_action": "wading through mud",
+      "recipient_prompt_sha256": "20c9c2461880b65dd99c26455f0d6a92559d8ffd29195a4f72ddd68c9c8f80db",
+      "recipient_sample_id": "videophy2-a24065d2e36e7399dc03"
+    },
+    {
+      "donor_action": "parasailing",
+      "donor_prompt_sha256": "8d02d242437676e5096b6f0580644d8a1071c11c379488de55c603e9889397fb",
+      "donor_sample_id": "videophy2-94ceb05b1b89af430bc2",
+      "recipient_action": "flying kite",
+      "recipient_prompt_sha256": "50a962a8c42e79c36835a1e7c35333d5f00ec87ed45e548023a0f73d73db034b",
+      "recipient_sample_id": "videophy2-a2c05cf53a5d84a04f3b"
+    },
+    {
+      "donor_action": "punching bag",
+      "donor_prompt_sha256": "d259e32f27bb6e37d3af5cf06601ea06bda04ac027158a05359ec6bbb0774ea2",
+      "donor_sample_id": "videophy2-954b28ad716462231525",
+      "recipient_action": "peeling fruit",
+      "recipient_prompt_sha256": "496100d3e6b9c6697d0a4d9a31535a319860eccc2a6854dce6dfaa68fdf02a5a",
+      "recipient_sample_id": "videophy2-a416d7fddfb89c4326b5"
+    },
+    {
+      "donor_action": "poking a stack of something so the stack collapses",
+      "donor_prompt_sha256": "17fb83f9dee833d49da52cb3bb247e510458bec8492aea3e7b4a594bfd088d76",
+      "donor_sample_id": "videophy2-09967296ffb9a33eef91",
+      "recipient_action": "hammerthrow",
+      "recipient_prompt_sha256": "a7f8ea755f2dea04efe625b415502e49adfa6fe3fd7b267470f428b2f0eb66ce",
+      "recipient_sample_id": "videophy2-a4d25d0b9920c75f0f4d"
+    },
+    {
+      "donor_action": "riding unicycle",
+      "donor_prompt_sha256": "6498c2c50c9de8ac98f04ee487f4a94045aa0a996650255b134a9d5263a1cad9",
+      "donor_sample_id": "videophy2-3973f91b01eb234a1efb",
+      "recipient_action": "wading through water",
+      "recipient_prompt_sha256": "b4391283d743b870211554d5f4228244dab1b13e768288f314405b309fa80136",
+      "recipient_sample_id": "videophy2-a5935d8b9238d5fcd644"
+    },
+    {
+      "donor_action": "something falling like a feather or paper",
+      "donor_prompt_sha256": "1baf0c23891268578368f289f11de1046a83ccfd1fc181bd4dfebf61d9e3e793",
+      "donor_sample_id": "videophy2-73aa0891058c15c7d625",
+      "recipient_action": "twisting something",
+      "recipient_prompt_sha256": "6f80643016c77d5b9e1affc214e631095692ec5a6f7e323beb4dad4e95036c70",
+      "recipient_sample_id": "videophy2-a6506e5a13f8e9920a01"
+    },
+    {
+      "donor_action": "twisting (wringing) something wet until water comes out",
+      "donor_prompt_sha256": "a6a6e2de03f90f11d9e8f9e36318d1e0ae272676c7b1340c6b131e2f270f9b53",
+      "donor_sample_id": "videophy2-f90306ca93dfdcbcd02b",
+      "recipient_action": "playing polo",
+      "recipient_prompt_sha256": "d05a393b5bc5d772395e1a7a4b622fc0e74fb8691e4d466f1d458ff24d1a2d2e",
+      "recipient_sample_id": "videophy2-a760e7c6ce8c24a348ab"
+    },
+    {
+      "donor_action": "blasting sand",
+      "donor_prompt_sha256": "6313af0ec3fd36aa05c1ac0323bacb9ffd6400523fda0d3a50663c2e61d90a7e",
+      "donor_sample_id": "videophy2-2ae680e09ad2b5b6a309",
+      "recipient_action": "clay pottery making",
+      "recipient_prompt_sha256": "1c42cef0a5c316f6d95b92dc8573f3aa5a314c4c253cdb304d17316ad77db627",
+      "recipient_sample_id": "videophy2-a76cfcce39c6a6c1c4dd"
+    },
+    {
+      "donor_action": "pizzatossing",
+      "donor_prompt_sha256": "b69b73d7b65fc7918483b04af9155e0cac4ea148ad689de98532f725b51c86b7",
+      "donor_sample_id": "videophy2-42783db38d398263cea8",
+      "recipient_action": "tearing something into two pieces",
+      "recipient_prompt_sha256": "c64daa2ea828f3b17d35eebfa87a1d0b52fef5119be9a5d7adcce88a0ead1e72",
+      "recipient_sample_id": "videophy2-a7fe4ff4e8ac2529b3e8"
+    },
+    {
+      "donor_action": "walking through snow",
+      "donor_prompt_sha256": "2c5ec654038ad905b678315a99881f55494fa7e5941a84e37b26cc66578eb5f0",
+      "donor_sample_id": "videophy2-b192c88906f4654c7ff6",
+      "recipient_action": "swing",
+      "recipient_prompt_sha256": "65145c4b1818ff63aaf65cb47b323bf8f6819f24f86dd62712ef4bed5605b4a4",
+      "recipient_sample_id": "videophy2-a9b30ab855ee1a85aac7"
+    },
+    {
+      "donor_action": "riding scooter",
+      "donor_prompt_sha256": "d8215f42f04d3ba7142cbb5e9faedd38bae727a40a99d97de80583181d9ddd62",
+      "donor_sample_id": "videophy2-3efe9831aa21e0bc40df",
+      "recipient_action": "playing pinball",
+      "recipient_prompt_sha256": "d3e8224798bbfb60c0cf9245c6aee25fee20c1dbe3cb49613b7c06608d3aaedb",
+      "recipient_sample_id": "videophy2-ab7e586ec84a52d00a37"
+    },
+    {
+      "donor_action": "balancebeam",
+      "donor_prompt_sha256": "a934bc422e80caf1797479f005f48e72470c298f4cda2b1bb1fe38be9bc52293",
+      "donor_sample_id": "videophy2-79d00aace4dda399fd58",
+      "recipient_action": "breaststroke",
+      "recipient_prompt_sha256": "c55a90eba7c0c6099ed2e795f9694f10bece4ea3af043ae5ed9a8c1fb4f2ae61",
+      "recipient_sample_id": "videophy2-ab9661cdb2499ed61dc4"
+    },
+    {
+      "donor_action": "playing volleyball",
+      "donor_prompt_sha256": "a5926c6451ad8d412b186944d60ba81353809ba0c880d6d96940365ab5e0e81d",
+      "donor_sample_id": "videophy2-dc7e3ff4b65274e457d2",
+      "recipient_action": "flint knapping",
+      "recipient_prompt_sha256": "f498103ab8ab645e30415b9ff8d6539af8111bf09a4662ff28039a3c4656b2ac",
+      "recipient_sample_id": "videophy2-ac7572c886381b2abb3c"
+    },
+    {
+      "donor_action": "pushing something off of something",
+      "donor_prompt_sha256": "71e8a61cf9b6ec06196b23503a8f10a43312797cffd6b570bcdd022b975ac9d5",
+      "donor_sample_id": "videophy2-40b90ba6b92a841bc2cc",
+      "recipient_action": "something falling like a rock",
+      "recipient_prompt_sha256": "d7d5ee237bbe7373e0bc93d55aa43f41f9f2572e607f2b877f4b41f9d6b9c3db",
+      "recipient_sample_id": "videophy2-ad4077ff26e09b756043"
+    },
+    {
+      "donor_action": "rolling something on a flat surface",
+      "donor_prompt_sha256": "d576234589edc5b8b32f9e7e7199a506545d61d4b7298246002c56d70c81a5ad",
+      "donor_sample_id": "videophy2-fde052207b17400e0002",
+      "recipient_action": "folding paper",
+      "recipient_prompt_sha256": "7cbfe4ea7f16a8c20adb7d521fb968cf5fe0111eb05cbfc0426aff9069f72dca",
+      "recipient_sample_id": "videophy2-adeb78ca73150d66cec0"
+    },
+    {
+      "donor_action": "chopping wood",
+      "donor_prompt_sha256": "3f6ec5eb8203e1cd5f948da0971883817ffad2c8aa8488366c64318fdd7c20ff",
+      "donor_sample_id": "videophy2-8205e05d8d1d6d3d4cb4",
+      "recipient_action": "billiards",
+      "recipient_prompt_sha256": "d26711b83c8ff3ba09fc574bd14af2f553ed28fc66dfa19b4bb1eb6e9d39a2d4",
+      "recipient_sample_id": "videophy2-ae4eed47a4b2c98ff973"
+    },
+    {
+      "donor_action": "biking through snow",
+      "donor_prompt_sha256": "132308fa775e1b12fb25b1109cc7cd549f9587c2d539e3177681769503648336",
+      "donor_sample_id": "videophy2-739dc45c6420c9854ee3",
+      "recipient_action": "stuffing something into something",
+      "recipient_prompt_sha256": "cab173582e998349521f3d89f1c624d1332745f9b3fbf68d8bf8887e8a74de3f",
+      "recipient_sample_id": "videophy2-b0981a9a0c8f0179ea33"
+    },
+    {
+      "donor_action": "tying knot (not on a tie)",
+      "donor_prompt_sha256": "89f610e382aa991a669c145f1c8755c9644377c4b32a114ae935aac4074fb577",
+      "donor_sample_id": "videophy2-3ddde6893524849e97c8",
+      "recipient_action": "ice skating",
+      "recipient_prompt_sha256": "48255a441729d087fdd2fba39492398ea0823c44f8fe2c6104b6e67afc980bfc",
+      "recipient_sample_id": "videophy2-b1107805b44bcdf18d65"
+    },
+    {
+      "donor_action": "smoking",
+      "donor_prompt_sha256": "32f2864b89ecb90905d242ab1f41cc908edc91e2ec50a2ec355337ec90e94721",
+      "donor_sample_id": "videophy2-ef3e0f4dec97f202a7f2",
+      "recipient_action": "walking through snow",
+      "recipient_prompt_sha256": "2c5ec654038ad905b678315a99881f55494fa7e5941a84e37b26cc66578eb5f0",
+      "recipient_sample_id": "videophy2-b192c88906f4654c7ff6"
+    },
+    {
+      "donor_action": "pouring something into something",
+      "donor_prompt_sha256": "54e4f1498bd71b0d2a36394d5ee2ee22ca7015eb821b8a67a9d3acb02831671e",
+      "donor_sample_id": "videophy2-d41c13f78adb963a6eab",
+      "recipient_action": "smashing",
+      "recipient_prompt_sha256": "d858e0d67470d410f4dca51e7f184a8d0ab6d55f5b5000b2f4587b7a94728440",
+      "recipient_sample_id": "videophy2-b1cd5bcf7baf2c1aba85"
+    },
+    {
+      "donor_action": "shot put",
+      "donor_prompt_sha256": "ea1e29b9e1b086b56a2fb85189477c6a39ebe57713ebfdfe1500fff136848229",
+      "donor_sample_id": "videophy2-8851badcfda4258d84b7",
+      "recipient_action": "pushing something onto something",
+      "recipient_prompt_sha256": "8fa2a68583d4e12e871b75d323315ad5a32f29e7247b4842b5e0edcc224dde73",
+      "recipient_sample_id": "videophy2-b4b23371cca59d8b701b"
+    },
+    {
+      "donor_action": "juggling balls",
+      "donor_prompt_sha256": "39c8f9bb9d9d95d3e7e89b9c0e70da75a195196ade46e5e0077896f8a4ee9979",
+      "donor_sample_id": "videophy2-302f0f332e3532ce46a7",
+      "recipient_action": "riding scooter",
+      "recipient_prompt_sha256": "d8215f42f04d3ba7142cbb5e9faedd38bae727a40a99d97de80583181d9ddd62",
+      "recipient_sample_id": "videophy2-b4b5f0f71bde31013b72"
+    },
+    {
+      "donor_action": "mountain climber (exercise)",
+      "donor_prompt_sha256": "8645eb5a7739e241deaf633f85b2dad6a4fc013da04f71a0f2cdd2d741d23d07",
+      "donor_sample_id": "videophy2-4e1cb467e85347ed5b1d",
+      "recipient_action": "javelinthrow",
+      "recipient_prompt_sha256": "c3cbedf774a9b9da7b85249ed91bc8363a221652bb2cea6d6605db774fee5e0c",
+      "recipient_sample_id": "videophy2-b4ee71e172b59ddb41f5"
+    },
+    {
+      "donor_action": "smashing",
+      "donor_prompt_sha256": "ccb464c03793889efd2d54b730b9222e3a4e12cff86dbefbc9b467a4409e28fd",
+      "donor_sample_id": "videophy2-4265600dffa466218fe8",
+      "recipient_action": "bouncing on bouncy castle",
+      "recipient_prompt_sha256": "032fadc9efa7be537b029a7b86b1d205649496e65952e35e6bc72bd14baf58ff",
+      "recipient_sample_id": "videophy2-b551ed6ff8e8b7fd7c2b"
+    },
+    {
+      "donor_action": "hammering",
+      "donor_prompt_sha256": "58e7c9e584ef48d7764407c49eebef8dd4c6c77157708fe8be329e95fd7ca7d6",
+      "donor_sample_id": "videophy2-8113a67548f8b3487f94",
+      "recipient_action": "folding clothes",
+      "recipient_prompt_sha256": "0d45abda1ba2d32b5888e6009b24075569b22e930034bfbaaca953239d5a7b0c",
+      "recipient_sample_id": "videophy2-b5e06bbad62d13754bf8"
+    },
+    {
+      "donor_action": "ice climbing",
+      "donor_prompt_sha256": "f87b717ba926ede8dadc4a0956b04ffa9ed226cf4feb269cc8671ff8bb32888b",
+      "donor_sample_id": "videophy2-1095c34e5d419a0584de",
+      "recipient_action": "stuffing something into something",
+      "recipient_prompt_sha256": "cab173582e998349521f3d89f1c624d1332745f9b3fbf68d8bf8887e8a74de3f",
+      "recipient_sample_id": "videophy2-b5fac15c8d0ca44b0c24"
+    },
+    {
+      "donor_action": "trimming shrubs",
+      "donor_prompt_sha256": "bc9ed1b8e3c8cdc4796fda00caf47d717944c8ef1478d4635922ce0337f2b281",
+      "donor_sample_id": "videophy2-5556ed16e8ce0d2098bf",
+      "recipient_action": "digging something out of something",
+      "recipient_prompt_sha256": "8c0bf4e067be143c693cfa9ee3da12a573239c0bd81c0c7f57d606fddfedb69c",
+      "recipient_sample_id": "videophy2-b6aa825a68bd0b968f78"
+    },
+    {
+      "donor_action": "wiping something off of something",
+      "donor_prompt_sha256": "eb3358aa6a3a025c7883ffa3ddca6d548da9dac0702ee9c8367d800add22e37d",
+      "donor_sample_id": "videophy2-2228c59fcb69ddf5d733",
+      "recipient_action": "playing kickball",
+      "recipient_prompt_sha256": "3a90d86f92c49154ef2e576d555157f914668eaa11497ad078621feda5729a7f",
+      "recipient_sample_id": "videophy2-b763d348d8aa37f2c4d0"
+    },
+    {
+      "donor_action": "luge",
+      "donor_prompt_sha256": "d076f4d3f428962cfea961cb7a63aa25d247bc6bd4cc567ae5535d05a750e8ab",
+      "donor_sample_id": "videophy2-79aa079d11cf0e74c340",
+      "recipient_action": "bodysurfing",
+      "recipient_prompt_sha256": "b1725187f5c4b41e97245e084f3d5b75d5ce2dbc7308aff64c8ce41c6aa2cd8b",
+      "recipient_sample_id": "videophy2-b7827132eac7f3615bde"
+    },
+    {
+      "donor_action": "shoveling snow",
+      "donor_prompt_sha256": "24aa46fd84a0876aa256e2e162e54265987ef60bbb668b250054a793f988d470",
+      "donor_sample_id": "videophy2-d81d407274177fbfa235",
+      "recipient_action": "poking something so that it falls over",
+      "recipient_prompt_sha256": "c2853a5d7aa12544e5e83fc25a5846334d0cbe5f5447e3fec3c54781ec2d38fc",
+      "recipient_sample_id": "videophy2-b7fb36d1c8a0bf31d314"
+    },
+    {
+      "donor_action": "playing darts",
+      "donor_prompt_sha256": "6457f7130d9ae9c755065fd2db342d18e118a3b60dea7de621d2b482610295f9",
+      "donor_sample_id": "videophy2-9f670487323fc46f48ff",
+      "recipient_action": "twisting (wringing) something wet until water comes out",
+      "recipient_prompt_sha256": "a6a6e2de03f90f11d9e8f9e36318d1e0ae272676c7b1340c6b131e2f270f9b53",
+      "recipient_sample_id": "videophy2-b99219f3d7d4cd98e4e6"
+    },
+    {
+      "donor_action": "bouncing on bouncy castle",
+      "donor_prompt_sha256": "032fadc9efa7be537b029a7b86b1d205649496e65952e35e6bc72bd14baf58ff",
+      "donor_sample_id": "videophy2-b551ed6ff8e8b7fd7c2b",
+      "recipient_action": "playing squash or racquetball",
+      "recipient_prompt_sha256": "1828e995fd0ade250efefd66298c59c88e513829a345241102200d68429aecf0",
+      "recipient_sample_id": "videophy2-baef2f4da619fa23e0ec"
+    },
+    {
+      "donor_action": "drop kicking",
+      "donor_prompt_sha256": "a6fb98113865779b38d28f5285130c4405cb659b8ce6d192338a2d94ff180c86",
+      "donor_sample_id": "videophy2-21ebe90cc4ef980d34e8",
+      "recipient_action": "uncovering something",
+      "recipient_prompt_sha256": "c9861e045d756c728fd3bb83d34fc92ef3d39b63a0dbc11875eaf30e6b208374",
+      "recipient_sample_id": "videophy2-bef7dd75eb9e5f7ac173"
+    },
+    {
+      "donor_action": "somersaulting",
+      "donor_prompt_sha256": "5adc950c484d3821ae2ef222f623edb36c242228418676fa4979677bf6bca734",
+      "donor_sample_id": "videophy2-73be8ae541847f945c21",
+      "recipient_action": "tightrope walking",
+      "recipient_prompt_sha256": "83e6def6f73751f60fd289db37fd641e1fccd2f3a4cdc0910336eb90fd83336e",
+      "recipient_sample_id": "videophy2-bf0430cabc0ea394b3d6"
+    },
+    {
+      "donor_action": "kicking soccer ball",
+      "donor_prompt_sha256": "e4cbd65032328a3c85b7a9d7dd930354eb3004cd2c48bc4ed30342f080c900c4",
+      "donor_sample_id": "videophy2-76dc7a46a3a0793f8db4",
+      "recipient_action": "playing ping pong",
+      "recipient_prompt_sha256": "94b2849533354ee92b9e4d7faf42a1861a8b41560f76cc3d34e6931ca350d807",
+      "recipient_sample_id": "videophy2-bfaa3f1d00e5c1df6700"
+    },
+    {
+      "donor_action": "dribbling basketball",
+      "donor_prompt_sha256": "6c538db732e7726df711b30d056fb523a76d59c7cfd0cde07d4ec1db8de19986",
+      "donor_sample_id": "videophy2-c55789487965a0ac57fb",
+      "recipient_action": "chiseling stone",
+      "recipient_prompt_sha256": "7da48f5e784dd63bc4fe21c5e690ed56d0accc1751d0abba3f79b09c12b7a895",
+      "recipient_sample_id": "videophy2-c07747772251ed35c1f0"
+    },
+    {
+      "donor_action": "something colliding with something and both are being deflected",
+      "donor_prompt_sha256": "8683e33aca5f164157ae5cb4102a30a6bb415cf49524db31706e0a6748a906ed",
+      "donor_sample_id": "videophy2-d3c253046aba890d947c",
+      "recipient_action": "something falling like a feather or paper",
+      "recipient_prompt_sha256": "1baf0c23891268578368f289f11de1046a83ccfd1fc181bd4dfebf61d9e3e793",
+      "recipient_sample_id": "videophy2-c118a9dcc493b3343c23"
+    },
+    {
+      "donor_action": "poking a hole into something soft",
+      "donor_prompt_sha256": "ca403c3910c1834b2dbb22c5b1f6886a9860af0bd4b29493866d128adbf3502a",
+      "donor_sample_id": "videophy2-45621dc20fe61980ee40",
+      "recipient_action": "parallelbars",
+      "recipient_prompt_sha256": "fde60b4efce478cad7e55ab27b891e76db86cce9f11a09273b04a04bc3765b0a",
+      "recipient_sample_id": "videophy2-c2b035ce9f6dfd4194e1"
+    },
+    {
+      "donor_action": "ice skating",
+      "donor_prompt_sha256": "d4ab1747bcb880fc7e98556ca1f1a20cf0defa69291dad4fd2c5699ac65011bb",
+      "donor_sample_id": "videophy2-decc204d3519198c2cf6",
+      "recipient_action": "wiping something off of something",
+      "recipient_prompt_sha256": "1b4c2b04ecbc1c705276ef9cf05b21754c3ff45355a1a446811c4276dd6b85b5",
+      "recipient_sample_id": "videophy2-c3f159b854f8ad80d659"
+    },
+    {
+      "donor_action": "rock climbing",
+      "donor_prompt_sha256": "2bbb1460d4f8c9befb2540a1f5ff819ac69d19bedd84e3b19a872abf564f4f8f",
+      "donor_sample_id": "videophy2-23c669622430b5ba02c9",
+      "recipient_action": "playing ping pong",
+      "recipient_prompt_sha256": "3719b41ec796cda9c8119fbd2f3215132baa7dca259cf0a19584e16a7657c18d",
+      "recipient_sample_id": "videophy2-c50096c4b68e2e202ba6"
+    },
+    {
+      "donor_action": "extinguishing fire",
+      "donor_prompt_sha256": "f500c99b5214f92f657c0a2bdd511d364f9138d0b52fdad1efa6d22220085459",
+      "donor_sample_id": "videophy2-73cdb0701cd0636e5234",
+      "recipient_action": "dribbling basketball",
+      "recipient_prompt_sha256": "6c538db732e7726df711b30d056fb523a76d59c7cfd0cde07d4ec1db8de19986",
+      "recipient_sample_id": "videophy2-c55789487965a0ac57fb"
+    },
+    {
+      "donor_action": "pushing something so that it falls off the table",
+      "donor_prompt_sha256": "eef805df1ba9b8349a1f6692551bcb6ae24510527af73d68e27d96fe64487278",
+      "donor_sample_id": "videophy2-d12bb69190c527b569cc",
+      "recipient_action": "pushing something off of something",
+      "recipient_prompt_sha256": "71e8a61cf9b6ec06196b23503a8f10a43312797cffd6b570bcdd022b975ac9d5",
+      "recipient_sample_id": "videophy2-cbe3dcd0e6948997c575"
+    },
+    {
+      "donor_action": "shot put",
+      "donor_prompt_sha256": "3599195622dac0c169558e41bc42c7ed4ea6fb258e0f479e0a268bf36830bb2b",
+      "donor_sample_id": "videophy2-246d5572ce6661781369",
+      "recipient_action": "soccerjuggling",
+      "recipient_prompt_sha256": "2f94325034ce106402cfbedbdf10ee9b6c4a604b4046c0978a439180a06e2a6e",
+      "recipient_sample_id": "videophy2-ccbac33a565f1f8d0a6b"
+    },
+    {
+      "donor_action": "hammer throw",
+      "donor_prompt_sha256": "daed47f0fab302e923f20b40786147dbef972c5658ed2a0dcad81a2de5aabc8c",
+      "donor_sample_id": "videophy2-8fa1ed083f746c426fd0",
+      "recipient_action": "squeezing something",
+      "recipient_prompt_sha256": "2be476eeac0d38fd6125aade21e1aab39e6903c5a97aa868d2e5556a190bfd15",
+      "recipient_sample_id": "videophy2-ccbe55fdf564ba15abff"
+    },
+    {
+      "donor_action": "parallelbars",
+      "donor_prompt_sha256": "fde60b4efce478cad7e55ab27b891e76db86cce9f11a09273b04a04bc3765b0a",
+      "donor_sample_id": "videophy2-c2b035ce9f6dfd4194e1",
+      "recipient_action": "bouncing on trampoline",
+      "recipient_prompt_sha256": "d2ff354ef2e6e6525c222d52c645030c12768a892a761c214abd688d2b237a81",
+      "recipient_sample_id": "videophy2-ccf4a1c0ba3d0da4a6b4"
+    },
+    {
+      "donor_action": "putting something that can't roll onto a slanted surface so it slides down",
+      "donor_prompt_sha256": "f5bf57412cc1d8331e6337bf213b789aff2f1015bd83e8593e532873f6acdcb8",
+      "donor_sample_id": "videophy2-7a1d725829afe689fece",
+      "recipient_action": "parasailing",
+      "recipient_prompt_sha256": "018d5ee51e6f46fc68a0b3e477f7778ad5592069b73d95f283891aca4a35fd2c",
+      "recipient_sample_id": "videophy2-cd9ad13778dda747721c"
+    },
+    {
+      "donor_action": "jetskiing",
+      "donor_prompt_sha256": "4bf6563d7d2f26af30e41f62b7264638c0cc3bc01a98c139501e95c7b6e843e1",
+      "donor_sample_id": "videophy2-727dc9e2bb12e59eaa3e",
+      "recipient_action": "playing field hockey",
+      "recipient_prompt_sha256": "28fb8711c0e5422305343d118fb0b35c283a29b8b11b6fba7806deeecf2a8c34",
+      "recipient_sample_id": "videophy2-cdb77a49afe5091ba4ba"
+    },
+    {
+      "donor_action": "ropeclimbing",
+      "donor_prompt_sha256": "56ac7ae1527be132a36116f054bf9ecd0f2035fe29fbfbfdf3fc5668399fc78d",
+      "donor_sample_id": "videophy2-e40baca5edd1a79034b7",
+      "recipient_action": "pouring something out of something",
+      "recipient_prompt_sha256": "06a8939e642073c79610c1b08ee03ca9d8a5a567afdc50eccd9c15e790e4734c",
+      "recipient_sample_id": "videophy2-cdd6ee1271e0a97c0b88"
+    },
+    {
+      "donor_action": "blasting sand",
+      "donor_prompt_sha256": "6313af0ec3fd36aa05c1ac0323bacb9ffd6400523fda0d3a50663c2e61d90a7e",
+      "donor_sample_id": "videophy2-3547a1047a3ddd2959ca",
+      "recipient_action": "folding something",
+      "recipient_prompt_sha256": "d9ad0c05b2df19ecadcdfb49e9f91200c5decd9f73451b9406e9f47589868386",
+      "recipient_sample_id": "videophy2-cded6e4b165c0c8932e5"
+    },
+    {
+      "donor_action": "uncovering something",
+      "donor_prompt_sha256": "c9861e045d756c728fd3bb83d34fc92ef3d39b63a0dbc11875eaf30e6b208374",
+      "donor_sample_id": "videophy2-1f2f0e39f797fa1aa9f4",
+      "recipient_action": "rolling something on a flat surface",
+      "recipient_prompt_sha256": "38717035e543c060b5dccdd554fcdc69223b3ed9cf7b850ae01fe5915a755432",
+      "recipient_sample_id": "videophy2-ce3e029d97871de4d3d9"
+    },
+    {
+      "donor_action": "opening bottle (not wine)",
+      "donor_prompt_sha256": "266006b7e692adf6409333bc406c261ffe9730e0742f0447735e591d485deb30",
+      "donor_sample_id": "videophy2-27debf4f2fc76ee70909",
+      "recipient_action": "wood burning (art)",
+      "recipient_prompt_sha256": "b107ae35b7ec785a8bac3b5fff69ed28827460338420c8f1d29b27b6b2584142",
+      "recipient_sample_id": "videophy2-ce5b8400f0b829ba9ad8"
+    },
+    {
+      "donor_action": "pommelhorse",
+      "donor_prompt_sha256": "0a6294b1ea61a6ec9688674ac02cbdc858311568ffe1fee65509c352699a21bb",
+      "donor_sample_id": "videophy2-e51b35fe29334edcc5c0",
+      "recipient_action": "letting something roll down a slanted surface",
+      "recipient_prompt_sha256": "c38450a0959b5faa68b2e4abd9d884e326459651204934dd98ca944ce5f94ae8",
+      "recipient_sample_id": "videophy2-ceeb1537b89a5cd124e1"
+    },
+    {
+      "donor_action": "something colliding with something and both come to a halt",
+      "donor_prompt_sha256": "eef5be6cabd2711210b4586962d85d283100788a0d8de37be2be5ebe32b9352e",
+      "donor_sample_id": "videophy2-f0da163ee32c68914ef8",
+      "recipient_action": "letting something roll up a slanted surface so it rolls back down",
+      "recipient_prompt_sha256": "37e2e7e6a11375ab14b7da7ee580b6463e97784ba57785cc267dbfd79e0cb583",
+      "recipient_sample_id": "videophy2-cf815d67ccab16d2c3b2"
+    },
+    {
+      "donor_action": "putting something that cannot actually stand upright upright on the table so it falls on its side",
+      "donor_prompt_sha256": "3e2bd4f9275fba992146924e4701bb1f278a45b09931d6249477e3fe10e8b65b",
+      "donor_sample_id": "videophy2-e6eb33e48e621583eaf8",
+      "recipient_action": "long jump",
+      "recipient_prompt_sha256": "d87c547481a175e5683c8901cb8a691cbd62143f18a33f56030ddc1faf6c2516",
+      "recipient_sample_id": "videophy2-cfa773298337acf798bc"
+    },
+    {
+      "donor_action": "nunchucks",
+      "donor_prompt_sha256": "e400cd67a20cb08697f753d88b7c0ae385e1bda930a9344f3efaadb3211d0164",
+      "donor_sample_id": "videophy2-a01402f5f43d9a4150bc",
+      "recipient_action": "pushing something so that it falls off the table",
+      "recipient_prompt_sha256": "eef805df1ba9b8349a1f6692551bcb6ae24510527af73d68e27d96fe64487278",
+      "recipient_sample_id": "videophy2-d12bb69190c527b569cc"
+    },
+    {
+      "donor_action": "breaststroke",
+      "donor_prompt_sha256": "f110be5a2ddcc7997e8714a4d613aac4de7cfe44ce4aa02f4b9a33c7f99921d8",
+      "donor_sample_id": "videophy2-42acfd87ee793fe6c636",
+      "recipient_action": "poking something so that it spins around",
+      "recipient_prompt_sha256": "ea86e25315567607677c738c0c1d733e4207c0b29f920248a97794910961da57",
+      "recipient_sample_id": "videophy2-d159402ecabaf4c1a3a8"
+    },
+    {
+      "donor_action": "blowing out candles",
+      "donor_prompt_sha256": "d412cc73bc2b1fe92bf85ce4dbf69dae7f2e0b2c89a72198f9762920901eef6f",
+      "donor_sample_id": "videophy2-2b29a15bc7bfba29db8c",
+      "recipient_action": "tying knot (not on a tie)",
+      "recipient_prompt_sha256": "8c7204140e2691ea418d645a04e758443b7436462f6714d34478503922435f20",
+      "recipient_sample_id": "videophy2-d26685bf0e15f62051a1"
+    },
+    {
+      "donor_action": "paragliding",
+      "donor_prompt_sha256": "ce612778dd180a9a25102361ce34654ae73422323517e5925a81c0351921dda8",
+      "donor_sample_id": "videophy2-1c6cacb081d4543b146c",
+      "recipient_action": "archery",
+      "recipient_prompt_sha256": "6a111e5279ec781bdce95e661384f72e0dc6ef94e45fe61eba4709ecf9e42c86",
+      "recipient_sample_id": "videophy2-d2aa02d3fff45bc0deda"
+    },
+    {
+      "donor_action": "poking something so it slightly moves",
+      "donor_prompt_sha256": "266a7daf86885274b8361e815c542ed20e291c0064792d00f9720001cccfdbc6",
+      "donor_sample_id": "videophy2-16200287c91acabf660a",
+      "recipient_action": "something colliding with something and both are being deflected",
+      "recipient_prompt_sha256": "8683e33aca5f164157ae5cb4102a30a6bb415cf49524db31706e0a6748a906ed",
+      "recipient_sample_id": "videophy2-d3c253046aba890d947c"
+    },
+    {
+      "donor_action": "curling (sport)",
+      "donor_prompt_sha256": "02035055195d08a333bac3bcb82340396a517df7fb9f624fe08276cd1aa5f18b",
+      "donor_sample_id": "videophy2-9496c4a8790ce37753e0",
+      "recipient_action": "pouring something into something",
+      "recipient_prompt_sha256": "54e4f1498bd71b0d2a36394d5ee2ee22ca7015eb821b8a67a9d3acb02831671e",
+      "recipient_sample_id": "videophy2-d41c13f78adb963a6eab"
+    },
+    {
+      "donor_action": "wading through mud",
+      "donor_prompt_sha256": "20c9c2461880b65dd99c26455f0d6a92559d8ffd29195a4f72ddd68c9c8f80db",
+      "donor_sample_id": "videophy2-a24065d2e36e7399dc03",
+      "recipient_action": "throwing discus",
+      "recipient_prompt_sha256": "eff6f1812e35e90c35dce1b9f3458ff76abcce04eff3ca42b71e7a37744a9c1a",
+      "recipient_sample_id": "videophy2-d4b443078b52ea9ffcca"
+    },
+    {
+      "donor_action": "passing american football",
+      "donor_prompt_sha256": "64de34b2170c73b28e69c4f8df8b44e3f29283205c606672071bbfdd03de7460",
+      "donor_sample_id": "videophy2-81b47de03a1c399da224",
+      "recipient_action": "carving ice",
+      "recipient_prompt_sha256": "8a07bc65a444e8a6ce549b6e0cdf53346303f6751f3aa55593519a4fc3e6b6e3",
+      "recipient_sample_id": "videophy2-d714bc2d1d568d03b2e3"
+    },
+    {
+      "donor_action": "poking something so lightly that it doesn't or almost doesn't move",
+      "donor_prompt_sha256": "23c1fc33ab51d026ee06fee72a452cd45e514cdc07fbf2166ba0c06404cfa4e9",
+      "donor_sample_id": "videophy2-ff51b7bb63f70086363e",
+      "recipient_action": "shoveling snow",
+      "recipient_prompt_sha256": "24aa46fd84a0876aa256e2e162e54265987ef60bbb668b250054a793f988d470",
+      "recipient_sample_id": "videophy2-d81d407274177fbfa235"
+    },
+    {
+      "donor_action": "welding",
+      "donor_prompt_sha256": "fe163b1b1cff2954bc2a45e09136d53904da0c238ba5b632082ab5dd7434380d",
+      "donor_sample_id": "videophy2-4f2e9746e40787c8c8d8",
+      "recipient_action": "pole vault",
+      "recipient_prompt_sha256": "fc21c862583827f54ad69004eaa63261020b1d5ca8182bfa4aca0a42269d4d50",
+      "recipient_sample_id": "videophy2-dae3d40a03375623fee8"
+    },
+    {
+      "donor_action": "throwing water balloon",
+      "donor_prompt_sha256": "8f8b14d04c412261a4423f9bd147df8627a11f4f7f42519378c646f3f0951416",
+      "donor_sample_id": "videophy2-f5a9fcaee9a89496ef02",
+      "recipient_action": "playing volleyball",
+      "recipient_prompt_sha256": "a5926c6451ad8d412b186944d60ba81353809ba0c880d6d96940365ab5e0e81d",
+      "recipient_sample_id": "videophy2-dc7e3ff4b65274e457d2"
+    },
+    {
+      "donor_action": "__missing_action__",
+      "donor_prompt_sha256": "6ccfcb4ddd915c1c9dbb971c1a70e554bf371f77ec8b91f13d9223ad0d1d2893",
+      "donor_sample_id": "videophy2-4615ab8848f033733581",
+      "recipient_action": "welding",
+      "recipient_prompt_sha256": "fe163b1b1cff2954bc2a45e09136d53904da0c238ba5b632082ab5dd7434380d",
+      "recipient_sample_id": "videophy2-de381e5d55d4738f73c8"
+    },
+    {
+      "donor_action": "playing polo",
+      "donor_prompt_sha256": "d05a393b5bc5d772395e1a7a4b622fc0e74fb8691e4d466f1d458ff24d1a2d2e",
+      "donor_sample_id": "videophy2-a760e7c6ce8c24a348ab",
+      "recipient_action": "bulldozing",
+      "recipient_prompt_sha256": "e58ef12a469b3751e9d314ce7f30574fda76caff1d365a53452c50078f1fd960",
+      "recipient_sample_id": "videophy2-dea8cdd7f73a24e34100"
+    },
+    {
+      "donor_action": "long jump",
+      "donor_prompt_sha256": "08e3a0afae37ede0ab18c5a9ee67a4c8c1843a41247705a8ddda735b56945e94",
+      "donor_sample_id": "videophy2-5eeded79d9d24d86a0c9",
+      "recipient_action": "ice skating",
+      "recipient_prompt_sha256": "d4ab1747bcb880fc7e98556ca1f1a20cf0defa69291dad4fd2c5699ac65011bb",
+      "recipient_sample_id": "videophy2-decc204d3519198c2cf6"
+    },
+    {
+      "donor_action": "soccerjuggling",
+      "donor_prompt_sha256": "2f94325034ce106402cfbedbdf10ee9b6c4a604b4046c0978a439180a06e2a6e",
+      "donor_sample_id": "videophy2-ccbac33a565f1f8d0a6b",
+      "recipient_action": "catching or throwing baseball",
+      "recipient_prompt_sha256": "b6cefa52a0bce5d5d7676c32dd81006c2776bc12169299595d325e2bd6aafb9f",
+      "recipient_sample_id": "videophy2-decc5242754e08bc224a"
+    },
+    {
+      "donor_action": "knitting",
+      "donor_prompt_sha256": "552d2bc7122a3966cfc20bf6c51ffec20e3ac57e74eb9ba1cc5fae3753365939",
+      "donor_sample_id": "videophy2-799f12b1ccc99d51c877",
+      "recipient_action": "playing cricket",
+      "recipient_prompt_sha256": "3c80933f8c7351ef78fa12bad593dc9432e9336d3b96d5ca2d1caabcb22558c5",
+      "recipient_sample_id": "videophy2-e03b6529774a5c069a33"
+    },
+    {
+      "donor_action": "pouring something into something until it overflows",
+      "donor_prompt_sha256": "73e9417450796d608b7fab677c3d105a8236f0a52612defb4eda2a2f3940bf9c",
+      "donor_sample_id": "videophy2-23fe2d5a170eaa72855a",
+      "recipient_action": "wading through mud",
+      "recipient_prompt_sha256": "20c9c2461880b65dd99c26455f0d6a92559d8ffd29195a4f72ddd68c9c8f80db",
+      "recipient_sample_id": "videophy2-e1b0abbdf5e0c21b4d9d"
+    },
+    {
+      "donor_action": "using a sledge hammer",
+      "donor_prompt_sha256": "45b080f9c27445fd263b19c209af25bbb1aeefbcc6991fdfec05fdb1fc8ac1da",
+      "donor_sample_id": "videophy2-efece58901184db88145",
+      "recipient_action": "jumprope",
+      "recipient_prompt_sha256": "b98e4749fbec293622682a631494e9a65dad67a36c478a3d0171e204f12504a6",
+      "recipient_sample_id": "videophy2-e325079739b3cf4be777"
+    },
+    {
+      "donor_action": "ripping paper",
+      "donor_prompt_sha256": "5c0d8d9480f6f202360fffe5900eada1d7d097b957ad7598ec5254e3cab2b75a",
+      "donor_sample_id": "videophy2-0df1510f2b49a5ddc6c3",
+      "recipient_action": "ropeclimbing",
+      "recipient_prompt_sha256": "56ac7ae1527be132a36116f054bf9ecd0f2035fe29fbfbfdf3fc5668399fc78d",
+      "recipient_sample_id": "videophy2-e40baca5edd1a79034b7"
+    },
+    {
+      "donor_action": "blowing bubble gum",
+      "donor_prompt_sha256": "602566aa28284e57f325d038efb200870ff81fc717cba9f6159543ba6a2fde8c",
+      "donor_sample_id": "videophy2-36192b985b72258c3c6b",
+      "recipient_action": "pommelhorse",
+      "recipient_prompt_sha256": "0a6294b1ea61a6ec9688674ac02cbdc858311568ffe1fee65509c352699a21bb",
+      "recipient_sample_id": "videophy2-e51b35fe29334edcc5c0"
+    },
+    {
+      "donor_action": "yoyo",
+      "donor_prompt_sha256": "961d2d8a12fafce3e6c1f023d8d4e92deaa87b943ac901d44e0d77849268cc3d",
+      "donor_sample_id": "videophy2-11e98b004769bb02f24c",
+      "recipient_action": "threading needle",
+      "recipient_prompt_sha256": "349b4a9021122320389bd76014d62053f626bd838f32e0c80635a64d8fdb833e",
+      "recipient_sample_id": "videophy2-e5ca3ab4085ec85bda20"
+    },
+    {
+      "donor_action": "ropeclimbing",
+      "donor_prompt_sha256": "acd6c56ccdfaf6953bbc1ba97978caed16a717e71e12c10cd2dab08e4287e73f",
+      "donor_sample_id": "videophy2-2997bd0ba290a1bd47a2",
+      "recipient_action": "putting something that cannot actually stand upright upright on the table so it falls on its side",
+      "recipient_prompt_sha256": "3e2bd4f9275fba992146924e4701bb1f278a45b09931d6249477e3fe10e8b65b",
+      "recipient_sample_id": "videophy2-e6eb33e48e621583eaf8"
+    },
+    {
+      "donor_action": "golf",
+      "donor_prompt_sha256": "3db4c165318f493a4bb159ffc120099bea82a93368be761368f2f54a185f6301",
+      "donor_sample_id": "videophy2-0d482d87df561af7666b",
+      "recipient_action": "using a wrench",
+      "recipient_prompt_sha256": "8f03386db3e0c6e5425b3717cfac453a1b0d7c076ddb63a1fd099dc25edfd661",
+      "recipient_sample_id": "videophy2-e8b62eb2da2b2de2f4d9"
+    },
+    {
+      "donor_action": "letting something roll along a flat surface",
+      "donor_prompt_sha256": "24d86e4e03391da44be04373fe71aba7ae8d07684d08a352b8da31e43c067069",
+      "donor_sample_id": "videophy2-0d73fa7a8934fd945a20",
+      "recipient_action": "using circular saw",
+      "recipient_prompt_sha256": "fc82d4ea96e4efb92619af025db290c426b05136c86ddc4e466f2bd7cd0fb38e",
+      "recipient_sample_id": "videophy2-edf47409ce91d7c2e906"
+    },
+    {
+      "donor_action": "playing cricket",
+      "donor_prompt_sha256": "3c80933f8c7351ef78fa12bad593dc9432e9336d3b96d5ca2d1caabcb22558c5",
+      "donor_sample_id": "videophy2-e03b6529774a5c069a33",
+      "recipient_action": "inflating balloons",
+      "recipient_prompt_sha256": "ce9d4591b79be87e1e21291e0f59be9e5c8af193478dfee534bfef2f4a4f415b",
+      "recipient_sample_id": "videophy2-eee1356167f6c8372887"
+    },
+    {
+      "donor_action": "dribbling basketball",
+      "donor_prompt_sha256": "b08798801a3b88ce51ade56eeeb5f78bb3536ab186e3dc6ea7601386dbff98a6",
+      "donor_sample_id": "videophy2-79f8b68fed2aad29ced9",
+      "recipient_action": "smoking",
+      "recipient_prompt_sha256": "32f2864b89ecb90905d242ab1f41cc908edc91e2ec50a2ec355337ec90e94721",
+      "recipient_sample_id": "videophy2-ef3e0f4dec97f202a7f2"
+    },
+    {
+      "donor_action": "opening bottle (not wine)",
+      "donor_prompt_sha256": "266006b7e692adf6409333bc406c261ffe9730e0742f0447735e591d485deb30",
+      "donor_sample_id": "videophy2-3f5fa786b5d2a228f97f",
+      "recipient_action": "hitting baseball",
+      "recipient_prompt_sha256": "cdfd6afaeaf28396b44c5aa872330084ca9286c65d0b05b30ca7b76acd0a2c83",
+      "recipient_sample_id": "videophy2-ef92c9ce7f575d137c34"
+    },
+    {
+      "donor_action": "wading through mud",
+      "donor_prompt_sha256": "20c9c2461880b65dd99c26455f0d6a92559d8ffd29195a4f72ddd68c9c8f80db",
+      "donor_sample_id": "videophy2-e1b0abbdf5e0c21b4d9d",
+      "recipient_action": "using a sledge hammer",
+      "recipient_prompt_sha256": "45b080f9c27445fd263b19c209af25bbb1aeefbcc6991fdfec05fdb1fc8ac1da",
+      "recipient_sample_id": "videophy2-efece58901184db88145"
+    },
+    {
+      "donor_action": "sewing",
+      "donor_prompt_sha256": "f3be0c4d1371f74e7f78ea9f5fe823cfe26b2ab5c6b5229619e843c1b4167125",
+      "donor_sample_id": "videophy2-8bdae05456259733e660",
+      "recipient_action": "hoverboarding",
+      "recipient_prompt_sha256": "d511edcb5ae5745e7920c370616a61bfc320eb07a26363e6c15ca70839437a9b",
+      "recipient_sample_id": "videophy2-f07578afacc1eb72f93e"
+    },
+    {
+      "donor_action": "burying something in something",
+      "donor_prompt_sha256": "3d5954480c6fddebbcf1f973e9b2fa6c297f1975b29f48720f202dfd556e94e8",
+      "donor_sample_id": "videophy2-3ce5debbdedad3f7cd7b",
+      "recipient_action": "shaping bread dough",
+      "recipient_prompt_sha256": "ab2cb46e579358ae84eeef054c971e80dfe0199386953a4e2a9ca6f6273e5444",
+      "recipient_sample_id": "videophy2-f0b70984671930223900"
+    },
+    {
+      "donor_action": "playing squash or racquetball",
+      "donor_prompt_sha256": "2559ab47b909bc585b020813a2a2ad00529c0782edffdb55607503b49be7a3f5",
+      "donor_sample_id": "videophy2-822c4dcb2e81bc2864c9",
+      "recipient_action": "something colliding with something and both come to a halt",
+      "recipient_prompt_sha256": "eef5be6cabd2711210b4586962d85d283100788a0d8de37be2be5ebe32b9352e",
+      "recipient_sample_id": "videophy2-f0da163ee32c68914ef8"
+    },
+    {
+      "donor_action": "hurdling",
+      "donor_prompt_sha256": "5f68f5951b6b42dfe7145a61181f6f7d537e830eb9ca068d9346dc8d9c8cd64f",
+      "donor_sample_id": "videophy2-51799a2d1e76210952ca",
+      "recipient_action": "blowdrying hair",
+      "recipient_prompt_sha256": "72c0343061b9d6fffb7fe19ea68f5018417bd42668d2daab7b473d2cb1b73289",
+      "recipient_sample_id": "videophy2-f12ab764e0465fdac994"
+    },
+    {
+      "donor_action": "backflip (human)",
+      "donor_prompt_sha256": "de911df9251a50f8a5c3b46932bb56eed389c4b4c8a3525080254f3ee3fa3c6c",
+      "donor_sample_id": "videophy2-58f4f4b8563b5a8dfad5",
+      "recipient_action": "digging something out of something",
+      "recipient_prompt_sha256": "8c0bf4e067be143c693cfa9ee3da12a573239c0bd81c0c7f57d606fddfedb69c",
+      "recipient_sample_id": "videophy2-f1c08295cb221e402b58"
+    },
+    {
+      "donor_action": "spinning something that quickly stops spinning",
+      "donor_prompt_sha256": "9037f401f8d11587b4b3c394e66096eef93728760e354937e9b82d9c437aa971",
+      "donor_sample_id": "videophy2-9f3cca1d71c2b46251f9",
+      "recipient_action": "__missing_action__",
+      "recipient_prompt_sha256": "31ea1761515489513fdac928405950cec4b0a663d480a86e7b3752c3739500be",
+      "recipient_sample_id": "videophy2-f250cfa0e645986cf4b2"
+    },
+    {
+      "donor_action": "bungee jumping",
+      "donor_prompt_sha256": "89e595f0e682b65bccdbea141e85b0ff6383bab84197dfae0b67e7ff9fbd50f1",
+      "donor_sample_id": "videophy2-a1bb0dd51a60ee8aa9c3",
+      "recipient_action": "spinning poi",
+      "recipient_prompt_sha256": "a00038910c6c558e13e3fbc5cb5b86ce7430247d64913d5739506609a2c80983",
+      "recipient_sample_id": "videophy2-f2d01853b1a6680e5735"
+    },
+    {
+      "donor_action": "tearing something into two pieces",
+      "donor_prompt_sha256": "c64daa2ea828f3b17d35eebfa87a1d0b52fef5119be9a5d7adcce88a0ead1e72",
+      "donor_sample_id": "videophy2-a7fe4ff4e8ac2529b3e8",
+      "recipient_action": "tying necktie",
+      "recipient_prompt_sha256": "0263e5f790b1851b86880471aca10988dad1ee727c8dfc375f856b26702105f0",
+      "recipient_sample_id": "videophy2-f358dcd43e610ebc57f2"
+    },
+    {
+      "donor_action": "breaststroke",
+      "donor_prompt_sha256": "c55a90eba7c0c6099ed2e795f9694f10bece4ea3af043ae5ed9a8c1fb4f2ae61",
+      "donor_sample_id": "videophy2-ab9661cdb2499ed61dc4",
+      "recipient_action": "bulldozing",
+      "recipient_prompt_sha256": "e58ef12a469b3751e9d314ce7f30574fda76caff1d365a53452c50078f1fd960",
+      "recipient_sample_id": "videophy2-f3b432fc46392a743ba5"
+    },
+    {
+      "donor_action": "skateboarding",
+      "donor_prompt_sha256": "bf08fb738ee93d12a6e74d0d03f29ab2dc3f257099fa383e28181271cf83b676",
+      "donor_sample_id": "videophy2-898e21647bf356a53661",
+      "recipient_action": "folding something",
+      "recipient_prompt_sha256": "2881331a0da5c8795558581cbb308b08df8da9252651ded64b0b63f1b82f90d9",
+      "recipient_sample_id": "videophy2-f52ca8d3051a090da457"
+    },
+    {
+      "donor_action": "hitting baseball",
+      "donor_prompt_sha256": "cdfd6afaeaf28396b44c5aa872330084ca9286c65d0b05b30ca7b76acd0a2c83",
+      "donor_sample_id": "videophy2-ef92c9ce7f575d137c34",
+      "recipient_action": "rowing",
+      "recipient_prompt_sha256": "6e3732c60533855711819268f66e4d8c269d1ee464283914bc416cd97786038c",
+      "recipient_sample_id": "videophy2-f58bbca6c781b4e9a53d"
+    },
+    {
+      "donor_action": "carving ice",
+      "donor_prompt_sha256": "8a07bc65a444e8a6ce549b6e0cdf53346303f6751f3aa55593519a4fc3e6b6e3",
+      "donor_sample_id": "videophy2-d714bc2d1d568d03b2e3",
+      "recipient_action": "throwing water balloon",
+      "recipient_prompt_sha256": "8f8b14d04c412261a4423f9bd147df8627a11f4f7f42519378c646f3f0951416",
+      "recipient_sample_id": "videophy2-f5a9fcaee9a89496ef02"
+    },
+    {
+      "donor_action": "surfing",
+      "donor_prompt_sha256": "7326fe4ea273637057dcc00dce15c61caa485f805a6f8bb3fb108cc5fc32ab6b",
+      "donor_sample_id": "videophy2-0f812d40920cb4c0fef9",
+      "recipient_action": "twisting (wringing) something wet until water comes out",
+      "recipient_prompt_sha256": "a6a6e2de03f90f11d9e8f9e36318d1e0ae272676c7b1340c6b131e2f270f9b53",
+      "recipient_sample_id": "videophy2-f90306ca93dfdcbcd02b"
+    },
+    {
+      "donor_action": "parallelbars",
+      "donor_prompt_sha256": "fde60b4efce478cad7e55ab27b891e76db86cce9f11a09273b04a04bc3765b0a",
+      "donor_sample_id": "videophy2-9ddb44d6141967b323d6",
+      "recipient_action": "tearing something just a little bit",
+      "recipient_prompt_sha256": "770a92227537515514049f370ec2afbadc2796319613d7645fb9cc097114c336",
+      "recipient_sample_id": "videophy2-fa42d8640cfb13871a45"
+    },
+    {
+      "donor_action": "riding mechanical bull",
+      "donor_prompt_sha256": "038a4143f655d99a26c5e48613c6ea2a5433fa5730c9fae8b4ea0f76ebec4a00",
+      "donor_sample_id": "videophy2-fb872d72f8ab9ef8ef13",
+      "recipient_action": "throwing something",
+      "recipient_prompt_sha256": "4afd538ae8bc3155d1020bdb02371b475f850b2546fb7a4d914429667effeced",
+      "recipient_sample_id": "videophy2-fafa9bedacb6ff7b7a43"
+    },
+    {
+      "donor_action": "cutting",
+      "donor_prompt_sha256": "8d44a2958eb4e6947ed800c6893431a3d839066d6bd88593d3261a343519d768",
+      "donor_sample_id": "videophy2-94ae2d1b069aa8544eda",
+      "recipient_action": "hula hooping",
+      "recipient_prompt_sha256": "87c60189f43b9e8546c4cd0d2e5a9d43a4fe5a0888d4c4cf5299813b9102063e",
+      "recipient_sample_id": "videophy2-fb73affc6859d63ac03e"
+    },
+    {
+      "donor_action": "__missing_action__",
+      "donor_prompt_sha256": "31ea1761515489513fdac928405950cec4b0a663d480a86e7b3752c3739500be",
+      "donor_sample_id": "videophy2-f250cfa0e645986cf4b2",
+      "recipient_action": "putting something that can't roll onto a slanted surface so it stays where it is",
+      "recipient_prompt_sha256": "49d72b8d8e6b3a04370015e62434494e2dbb449635a3ca1a0c9066ec4c28122b",
+      "recipient_sample_id": "videophy2-fb80ea2db4f37244e3f6"
+    },
+    {
+      "donor_action": "billiards",
+      "donor_prompt_sha256": "d26711b83c8ff3ba09fc574bd14af2f553ed28fc66dfa19b4bb1eb6e9d39a2d4",
+      "donor_sample_id": "videophy2-ae4eed47a4b2c98ff973",
+      "recipient_action": "riding mechanical bull",
+      "recipient_prompt_sha256": "038a4143f655d99a26c5e48613c6ea2a5433fa5730c9fae8b4ea0f76ebec4a00",
+      "recipient_sample_id": "videophy2-fb872d72f8ab9ef8ef13"
+    },
+    {
+      "donor_action": "digging something out of something",
+      "donor_prompt_sha256": "8c0bf4e067be143c693cfa9ee3da12a573239c0bd81c0c7f57d606fddfedb69c",
+      "donor_sample_id": "videophy2-b6aa825a68bd0b968f78",
+      "recipient_action": "mopping floor",
+      "recipient_prompt_sha256": "f09be49cf38849b638b00679f5198fb19772b6c14d6a1fe6bbdd101d316d87fc",
+      "recipient_sample_id": "videophy2-fc80c57b8d24868943c8"
+    },
+    {
+      "donor_action": "attaching something onto something",
+      "donor_prompt_sha256": "815eee382182c66e7bb5150fc9e884d7c9892a5c9aa7ae97780c65e29813c0c5",
+      "donor_sample_id": "videophy2-846384fa86cb5caa3145",
+      "recipient_action": "tearing something into two pieces",
+      "recipient_prompt_sha256": "46cf61aca7e29aed411ba66f7634f1648cc77e047582719b0cc12e43f1429457",
+      "recipient_sample_id": "videophy2-fce2915d440d63f61693"
+    },
+    {
+      "donor_action": "jumprope",
+      "donor_prompt_sha256": "b98e4749fbec293622682a631494e9a65dad67a36c478a3d0171e204f12504a6",
+      "donor_sample_id": "videophy2-e325079739b3cf4be777",
+      "recipient_action": "tying bow tie",
+      "recipient_prompt_sha256": "027c343a569e393a1970c2dce712fd68186168e80883d49020b4d538a7e0c563",
+      "recipient_sample_id": "videophy2-fce5bf3717d734cc5bc8"
+    },
+    {
+      "donor_action": "blowing leaves",
+      "donor_prompt_sha256": "94948839582cc684a0273f74c97786254c6118d23d0dfd58877f991a70ba4aca",
+      "donor_sample_id": "videophy2-96b7ba543d900fc1541d",
+      "recipient_action": "rolling something on a flat surface",
+      "recipient_prompt_sha256": "d576234589edc5b8b32f9e7e7199a506545d61d4b7298246002c56d70c81a5ad",
+      "recipient_sample_id": "videophy2-fde052207b17400e0002"
+    },
+    {
+      "donor_action": "chiseling stone",
+      "donor_prompt_sha256": "7da48f5e784dd63bc4fe21c5e690ed56d0accc1751d0abba3f79b09c12b7a895",
+      "donor_sample_id": "videophy2-c07747772251ed35c1f0",
+      "recipient_action": "volleyballspiking",
+      "recipient_prompt_sha256": "77bbb14b61083dd88dc5b28e033a46843b358df5149c1fa2e10a2d4fba6416c3",
+      "recipient_sample_id": "videophy2-fee9a05cb683378bcf11"
+    },
+    {
+      "donor_action": "twisting something",
+      "donor_prompt_sha256": "6f80643016c77d5b9e1affc214e631095692ec5a6f7e323beb4dad4e95036c70",
+      "donor_sample_id": "videophy2-a6506e5a13f8e9920a01",
+      "recipient_action": "poking something so lightly that it doesn't or almost doesn't move",
+      "recipient_prompt_sha256": "23c1fc33ab51d026ee06fee72a452cd45e514cdc07fbf2166ba0c06404cfa4e9",
+      "recipient_sample_id": "videophy2-ff51b7bb63f70086363e"
+    }
+  ],
+  "schema_version": "1.0",
+  "seed": 20260717
+}

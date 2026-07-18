@@ -6,14 +6,21 @@ import json
 from dataclasses import replace
 from pathlib import Path
 from time import perf_counter
-from typing import Callable
+from typing import Callable, Mapping
 
 from pavg_critic.evaluation import build_ablation_config
 from pavg_critic.pipeline import PhysicsCritic
+from pavg_critic.planner import ModelPhysicsPlanner
 from pavg_critic.schemas import CriticRequest, FrameState
 from pavg_critic.vlm_verifier import CategoryGroupedVLMVerifier
 
 from .contracts import BenchmarkPrediction, BenchmarkSample
+from .model_cache import AuditedCachedModel, ModelCallEvent
+from .pavg_diagnostics import (
+    build_pavg_diagnostics,
+    build_pavg_failure_diagnostics,
+)
+from .prompt_diagnostics import OracleRulePhysicsPlanner
 
 
 ObservationProducer = Callable[[BenchmarkSample], tuple[FrameState, ...]]
@@ -167,8 +174,13 @@ class PAVGMethod:
         observations: CachedObservationProvider,
         *,
         model_id: str | None,
+        planner_model=None,
+        question_model=None,
         verifier_model=None,
-        verifier_detector_weight: float = 0.4,
+        verifier_detector_weight: float = 0.7,
+        model_stages: Mapping[str, AuditedCachedModel] | None = None,
+        output_method_id: str | None = None,
+        oracle_plan: bool = False,
     ):
         if mode not in {
             "B1_RULE",
@@ -176,34 +188,77 @@ class PAVGMethod:
             "M2_CHECKLIST",
             "M3_MECHANICS",
             "M4_VLM",
+            "M5_FULL",
         }:
             raise ValueError(f"Stage A PAVG mode is not supported: {mode}")
         if mode == "M4_VLM" and verifier_model is None:
             raise ValueError("M4_VLM requires an explicit verifier model")
+        if mode == "M5_FULL" and any(
+            model is None
+            for model in (planner_model, question_model, verifier_model)
+        ):
+            raise ValueError(
+                "M5_FULL requires planner, question, and verifier models"
+            )
         if not 0.0 <= verifier_detector_weight <= 1.0:
             raise ValueError("verifier_detector_weight must be in [0, 1]")
-        self.method_id = mode
+        if oracle_plan and mode != "M5_FULL":
+            raise ValueError("oracle_plan is valid only for M5_FULL")
+        self.mode = mode
+        self.method_id = output_method_id or mode
         self.observations = observations
         self.model_id = model_id
+        self.planner_model = planner_model
+        self.question_model = question_model
+        self.model_stages = dict(model_stages or {})
+        self.oracle_plan = oracle_plan
         self.verifier_detector_weight = verifier_detector_weight
         self.verifier = (
             CategoryGroupedVLMVerifier(
                 verifier_model,
                 model_name=model_id or "benchmark-verifier",
             )
-            if mode == "M4_VLM"
+            if mode in {"M4_VLM", "M5_FULL"}
             else None
         )
 
     def evaluate(self, sample: BenchmarkSample) -> BenchmarkPrediction:
+        return self.evaluate_audited(sample)[0]
+
+    def _stage_cursors(self) -> dict[str, int]:
+        return {
+            stage: model.event_count
+            for stage, model in sorted(self.model_stages.items())
+        }
+
+    def _stage_events(
+        self,
+        cursors: Mapping[str, int],
+    ) -> dict[str, tuple[ModelCallEvent, ...]]:
+        return {
+            stage: self.model_stages[stage].events_since(cursor)
+            for stage, cursor in sorted(cursors.items())
+        }
+
+    def evaluate_audited(
+        self,
+        sample: BenchmarkSample,
+    ) -> tuple[BenchmarkPrediction, dict[str, object]]:
+        for model in self.model_stages.values():
+            model.bind_sample(sample.sample_id)
         total_started = perf_counter()
         visible_frame_count = 0
+        analysis_started = total_started
+        analysis_latency = 0.0
+        artifacts = None
+        config = None
+        cursors = self._stage_cursors()
         try:
             states = self.observations.get(sample)
-            started = perf_counter()
+            analysis_started = perf_counter()
             visible_frame_count = len({state.frame for state in states})
-            config = build_ablation_config(self.method_id)
-            if self.method_id == "M4_VLM":
+            config = build_ablation_config(self.mode)
+            if self.mode == "M4_VLM":
                 config = replace(
                     config,
                     fusion=replace(
@@ -212,22 +267,32 @@ class PAVGMethod:
                         vlm_weight=1.0 - self.verifier_detector_weight,
                     ),
                 )
-            report = PhysicsCritic(
-                config,
-                vlm_verifier=self.verifier,
-            ).analyze(
+            critic_kwargs = {"vlm_verifier": self.verifier}
+            if self.mode == "M5_FULL":
+                critic_kwargs["question_model"] = self.question_model
+                if self.oracle_plan:
+                    critic_kwargs["physics_planner"] = OracleRulePhysicsPlanner(
+                        ModelPhysicsPlanner(self.planner_model),
+                        sample.physical_rules,
+                        model_id=self.model_id or "benchmark-planner",
+                    )
+                else:
+                    critic_kwargs["planner_model"] = self.planner_model
+            artifacts = PhysicsCritic(config, **critic_kwargs).analyze_detailed(
                 CriticRequest(
                     video_path=sample.video_path,
                     prompt=sample.prompt,
                 ),
                 observations=states,
             )
+            report = artifacts.report
+            analysis_latency = perf_counter() - analysis_started
             provider_failures = report.diagnostics.get("provider_failures", ())
-            if self.method_id == "M4_VLM" and any(
+            if self.mode in {"M4_VLM", "M5_FULL"} and any(
                 str(item.get("stage", "")).startswith("vlm_review")
                 for item in provider_failures
             ):
-                raise RuntimeError("M4 grouped VLM verification failed")
+                raise RuntimeError("grouped VLM verification failed")
             if report.decision not in {"physical", "violation", "unknown"}:
                 raise ValueError(f"invalid PAVG decision: {report.decision}")
             categories = tuple(
@@ -247,7 +312,7 @@ class PAVGMethod:
                 for item in report.violations
                 if item.repair_instruction
             ]
-            return BenchmarkPrediction(
+            prediction = BenchmarkPrediction(
                 sample_id=sample.sample_id,
                 method_id=self.method_id,
                 model_id=self.model_id,
@@ -257,14 +322,26 @@ class PAVGMethod:
                 physics_label=report.decision,
                 confidence=report.confidence,
                 coverage=report.coverage,
-                latency_sec=perf_counter() - started,
+                latency_sec=analysis_latency,
                 visible_frame_count=visible_frame_count,
                 violation_categories=categories,
                 evidence_frames=evidence,
                 repair_instruction="; ".join(repairs) or None,
             )
+            diagnostics = build_pavg_diagnostics(
+                sample=sample,
+                method_id=self.method_id,
+                artifacts=artifacts,
+                config=config,
+                stage_events=self._stage_events(cursors),
+                analysis_latency_sec=analysis_latency,
+                total_latency_sec=perf_counter() - total_started,
+                visible_frame_count=visible_frame_count,
+            )
+            return prediction, diagnostics
         except Exception as exc:
-            return BenchmarkPrediction(
+            total_latency = perf_counter() - total_started
+            prediction = BenchmarkPrediction(
                 sample_id=sample.sample_id,
                 method_id=self.method_id,
                 model_id=self.model_id,
@@ -274,13 +351,38 @@ class PAVGMethod:
                 physics_label="unknown",
                 confidence=0.0,
                 coverage=0.0,
-                latency_sec=perf_counter() - total_started,
+                latency_sec=total_latency,
                 visible_frame_count=visible_frame_count,
                 failure={
                     "type": type(exc).__name__,
-                    "message": str(exc)[:500],
                 },
             )
+            events = self._stage_events(cursors)
+            if artifacts is not None and config is not None:
+                diagnostics = build_pavg_diagnostics(
+                    sample=sample,
+                    method_id=self.method_id,
+                    artifacts=artifacts,
+                    config=config,
+                    stage_events=events,
+                    analysis_latency_sec=(
+                        analysis_latency
+                        or perf_counter() - analysis_started
+                    ),
+                    total_latency_sec=total_latency,
+                    visible_frame_count=visible_frame_count,
+                )
+                diagnostics["failure"] = {"error_type": type(exc).__name__}
+            else:
+                diagnostics = build_pavg_failure_diagnostics(
+                    sample=sample,
+                    method_id=self.method_id,
+                    stage_events=events,
+                    total_latency_sec=total_latency,
+                    visible_frame_count=visible_frame_count,
+                    error=exc,
+                )
+            return prediction, diagnostics
 
 
 def make_sam2_observation_producer(
@@ -300,6 +402,7 @@ def make_sam2_observation_producer(
             sample.video_path,
             model_cfg=model_config,
             model_ckpt=checkpoint,
+            prompt=sample.prompt,
         )
         states, _ = PhysicsCritic(
             CriticConfig(),

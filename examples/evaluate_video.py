@@ -3,13 +3,17 @@
 用法::
 
     # 无 prompt — VLM 通用检测 + 规则引擎 + VLM 复核
-    python examples/evaluate_video.py --video 1n.mp4
+    python examples/evaluate_video.py --video 2n.mp4
 
     # 有 prompt — VLM 检测 + Planner → Pipeline → VLM 复核
     python examples/evaluate_video.py --video 1n.mp4 --prompt "a red ball falls and bounces"
 
     # 指定 VLM 复核帧窗口 + 保存结果
     python examples/evaluate_video.py --video 1n.mp4 --pre-frames 5 --post-frames 5 -o result.json -v
+
+    # 展示并保存每个节点的输入/输出，再独立复算融合结果
+    python examples/evaluate_video.py --video 2n.mp4 --prompt "石头滚下坡" --trace --trace-output outputs/2n.trace.json
+    python examples/validate_pipeline_trace.py outputs/2n.trace.json --require-sam2 --require-model-planner
 
 配置（``.env`` 或环境变量）::
 
@@ -45,9 +49,11 @@ from pavg_critic import (
     OpenAIChatModel,
     PhysicsCritic,
     SAM2ObjectDetector,
+    TraceRecorder,
     VLMObjectDetector,
 )
 from pavg_critic.api_models import ModelAPIError
+from pavg_critic.execution_trace import write_trace_atomic
 from pavg_critic.schemas import SchemaError
 
 
@@ -88,6 +94,33 @@ def _print_kv(key: str, value: str) -> None:
     print(f"  {key}: {value}", file=sys.stderr)
 
 
+def _render_trace_node(record: dict[str, object]) -> None:
+    """Render one bounded live trace line without provider payloads."""
+
+    outputs = record.get("outputs")
+    outputs = outputs if isinstance(outputs, dict) else {}
+    summary_keys = (
+        "decision",
+        "physics_score",
+        "track_count",
+        "event_count",
+        "candidate_count",
+        "node_count",
+        "score",
+        "coverage",
+    )
+    summary = " ".join(
+        f"{key}={outputs[key]}" for key in summary_keys if key in outputs
+    )
+    suffix = f" {summary}" if summary else ""
+    print(
+        f"[TRACE {int(record['sequence']):02d}] "
+        f"{record['node_id']} {record['status']} "
+        f"{float(record['elapsed_ms']):.1f}ms{suffix}",
+        file=sys.stderr,
+    )
+
+
 # ── 视频探测 ────────────────────────────────────────────────
 def _probe_video_meta(video_path: str) -> tuple[int, int, int]:
     """探测视频元数据，返回 (总帧数, 宽度, 高度)。失败时返回默认值。"""
@@ -106,6 +139,70 @@ def _probe_video_meta(video_path: str) -> tuple[int, int, int]:
     return 240, 640, 480  # 默认 640×480 @ 8s
 
 
+def _resolve_sam2_checkpoint() -> Path:
+    """Resolve the explicit or repository-frozen SAM2.1 checkpoint."""
+
+    explicit = os.getenv("SAM2_CHECKPOINT", "").strip()
+    if explicit:
+        return Path(explicit).expanduser().resolve()
+    frozen = Path("evaluation/external/models/sam2.1_hiera_base_plus.pt")
+    if frozen.is_file():
+        return frozen.resolve()
+    legacy = Path("sam2.1_hiera_base_plus.pt")
+    return legacy.resolve() if legacy.is_file() else frozen.resolve()
+
+
+def _configure_sparse_vlm_fallback(
+    config: CriticConfig,
+    *,
+    total_frames: int,
+    width: int,
+    height: int,
+    num_keyframes: int,
+) -> CriticConfig:
+    """Make sparse keyframe observations explicit instead of faking continuity."""
+
+    diagonal = (width**2 + height**2) ** 0.5
+    keyframe_spacing = max(1, total_frames // max(num_keyframes - 1, 1))
+    return replace(
+        config,
+        tracker=replace(
+            config.tracker,
+            max_match_distance_px=max(
+                config.tracker.max_match_distance_px,
+                int(diagonal * 0.25),
+            ),
+            max_missed_frames=max(
+                config.tracker.max_missed_frames,
+                int(keyframe_spacing * 2),
+            ),
+        ),
+        events=replace(
+            config.events,
+            min_disappearance_frames=max(
+                config.events.min_disappearance_frames,
+                int(keyframe_spacing * 2),
+            ),
+            contact_tolerance_px=max(
+                config.events.contact_tolerance_px,
+                height * 0.05,
+            ),
+            penetration_tolerance_px=max(
+                config.events.penetration_tolerance_px,
+                height * 0.05,
+            ),
+        ),
+        rules=replace(
+            config.rules,
+            enabled=tuple(
+                rule
+                for rule in config.rules.enabled
+                if rule != "object_disappearance"
+            ),
+        ),
+    )
+
+
 # ── 核心 ────────────────────────────────────────────────────
 def evaluate_video(
     video_path: str,
@@ -117,6 +214,7 @@ def evaluate_video(
     post_frames: int | None = None,
     num_keyframes: int = 8,
     verbose: bool = False,
+    trace: TraceRecorder | None = None,
 ) -> dict[str, Any]:
     """运行完整 PhysicsCritic Pipeline，使用 VLM 通用物体检测。"""
 
@@ -132,6 +230,7 @@ def evaluate_video(
         api_key=api_cfg["api_key"],
         model=api_cfg["text_model"],
         base_url=api_cfg["base_url"],
+        strict_json_schema=True,
     )
 
     # ── 2. 配置 + VLM 通用检测器 ────────────────────────
@@ -161,12 +260,19 @@ def evaluate_video(
     total_frames, vw, vh = _probe_video_meta(video_path)
     detector = None
     sam2_used = False
+    sam2_fallback_error: Exception | None = None
     try:
-        detector = SAM2ObjectDetector(vlm, video_path)
+        detector = SAM2ObjectDetector(
+            vlm,
+            video_path,
+            model_ckpt=str(_resolve_sam2_checkpoint()),
+            prompt=prompt or "",
+        )
         sam2_used = True
         if verbose:
             print(f"SAM2 像素级跟踪 ({vw}×{vh})...", file=sys.stderr)
-    except Exception:
+    except Exception as exc:
+        sam2_fallback_error = exc
         # SAM2 不可用（未安装 / 无 GPU / 初始化失败）→ VLM 降级
         if verbose:
             print(f"SAM2 不可用，降级到 VLM 检测器...", file=sys.stderr)
@@ -174,7 +280,6 @@ def evaluate_video(
 
     # VLM 检测器百分比坐标精度低，需放宽阈值；SAM2 像素级精度用原生配置
     if not sam2_used:
-        diag = (vw**2 + vh**2) ** 0.5
         kf_spacing = max(1, total_frames // max(num_keyframes - 1, 1))
         if verbose:
             print(
@@ -183,34 +288,12 @@ def evaluate_video(
                 file=sys.stderr,
             )
             print(f"VLM 通用检测 ({num_keyframes} 帧)...", file=sys.stderr)
-        critic_config = replace(
+        critic_config = _configure_sparse_vlm_fallback(
             critic_config,
-            tracker=replace(
-                critic_config.tracker,
-                max_match_distance_px=max(
-                    critic_config.tracker.max_match_distance_px,
-                    int(diag * 0.25),
-                ),
-                max_missed_frames=max(
-                    critic_config.tracker.max_missed_frames,
-                    int(kf_spacing * 2),
-                ),
-            ),
-            events=replace(
-                critic_config.events,
-                min_disappearance_frames=max(
-                    critic_config.events.min_disappearance_frames,
-                    int(kf_spacing * 2),
-                ),
-                contact_tolerance_px=max(
-                    critic_config.events.contact_tolerance_px,
-                    vh * 0.05,
-                ),
-                penetration_tolerance_px=max(
-                    critic_config.events.penetration_tolerance_px,
-                    vh * 0.05,
-                ),
-            ),
+            total_frames=total_frames,
+            width=vw,
+            height=vh,
+            num_keyframes=num_keyframes,
         )
 
     # ── 3. 构建 Critic ──────────────────────────────────
@@ -226,6 +309,22 @@ def evaluate_video(
     # ── 4. 运行 Pipeline ────────────────────────────────
     request = CriticRequest(video_path=video_path, prompt=prompt or "")
 
+    if trace is not None:
+        trace.update_metadata(
+            detector={
+                "backend": "sam2" if sam2_used else "sparse_vlm_fallback",
+                "sam2_used": sam2_used,
+                "checkpoint": str(_resolve_sam2_checkpoint()) if sam2_used else None,
+            },
+            models={"vlm": vlm.model, "text": text_model.model},
+            video={
+                "path": str(Path(video_path).resolve()),
+                "frame_count": total_frames,
+                "width": vw,
+                "height": vh,
+            },
+        )
+
     if verbose:
         _print_header(f"PAVG Pipeline: {Path(video_path).name}")
         _print_kv("Prompt", prompt or "(无 — 规则检测)")
@@ -238,7 +337,7 @@ def evaluate_video(
         print("  [1/6] PhysicsPlan 解析...", file=sys.stderr)
 
     try:
-        artifacts = critic.analyze_detailed(request)
+        artifacts = critic.analyze_detailed(request, trace=trace)
     except ModelAPIError as exc:
         if verbose:
             print(f"  ⚠ 模型 API 失败 → 降级为纯规则基线", file=sys.stderr)
@@ -355,6 +454,19 @@ def evaluate_video(
         else None
     )
 
+    if trace is not None:
+        provider_failures = report.diagnostics.get("provider_failures", ())
+        trace.update_metadata(
+            planner={
+                "source": planner_meta.source if planner_meta else "unknown",
+                "fallback_used": bool(
+                    planner_meta.fallback_used if planner_meta else False
+                ),
+                "model": planner_meta.model if planner_meta else None,
+            },
+            provider_fallback_count=len(provider_failures),
+        )
+
     output: dict[str, Any] = {
         "video_path": str(Path(video_path).resolve()),
         "prompt": prompt or None,
@@ -372,6 +484,18 @@ def evaluate_video(
             "model": planner_meta.model if planner_meta else None,
         },
         "model_versions": {"vlm": vlm.model, "text": text_model.model},
+        "detector": {
+            "backend": "sam2" if sam2_used else "sparse_vlm_fallback",
+            "sam2_used": sam2_used,
+            "fallback_error": (
+                None
+                if sam2_fallback_error is None
+                else {
+                    "type": type(sam2_fallback_error).__name__,
+                    "message": str(sam2_fallback_error)[:300],
+                }
+            ),
+        },
         "evidence_families": [
             {
                 "family": b.family,
@@ -387,7 +511,16 @@ def evaluate_video(
     diagnostics = report.diagnostics
     if "provider_failures" in diagnostics:
         output["provider_failures"] = [
-            {"stage": f["stage"], "error": f["error_type"]}
+            {
+                "stage": f["stage"],
+                "error": f["error_type"],
+                **(
+                    {"detail": str(f.get("message", ""))[:300]}
+                    if f.get("error_type")
+                    in {"QuestionGraphError", "SchemaError"}
+                    else {}
+                ),
+            }
             for f in diagnostics["provider_failures"]
         ]
 
@@ -436,6 +569,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="输出进度信息到 stderr"
     )
+    parser.add_argument(
+        "--trace",
+        action="store_true",
+        help="逐节点输出结构化执行状态到 stderr",
+    )
+    parser.add_argument(
+        "--trace-output",
+        type=Path,
+        default=None,
+        help="保存完整节点输入/输出与融合算术的 JSON trace",
+    )
     return parser
 
 
@@ -444,14 +588,32 @@ def main() -> int:
     args = parser.parse_args()
 
     video_path = str(args.video.resolve())
+    trace = (
+        TraceRecorder(
+            metadata={"video_path": video_path},
+            on_record=_render_trace_node if args.trace else None,
+        )
+        if args.trace or args.trace_output is not None
+        else None
+    )
     if not args.video.is_file():
         print(f"错误: 视频文件不存在: {video_path}", file=sys.stderr)
+        if trace is not None:
+            trace.set_outcome(
+                {"status": "error", "error_type": "FileNotFoundError"}
+            )
+            if args.trace_output is not None:
+                write_trace_atomic(args.trace_output, trace.to_dict())
         return 1
 
     try:
         api_cfg = load_config()
     except ValueError as exc:
         print(f"配置错误: {exc}", file=sys.stderr)
+        if trace is not None:
+            trace.set_outcome({"status": "error", "error_type": "ValueError"})
+            if args.trace_output is not None:
+                write_trace_atomic(args.trace_output, trace.to_dict())
         return 1
 
     try:
@@ -464,13 +626,37 @@ def main() -> int:
             post_frames=args.post_frames,
             num_keyframes=args.keyframes,
             verbose=args.verbose,
+            trace=trace,
         )
     except (ModelAPIError, SchemaError, RuntimeError) as exc:
         print(f"Pipeline 错误: {exc}", file=sys.stderr)
+        if trace is not None:
+            trace.set_outcome(
+                {"status": "error", "error_type": type(exc).__name__}
+            )
+            if args.trace_output is not None:
+                write_trace_atomic(args.trace_output, trace.to_dict())
         return 2
     except Exception as exc:
         print(f"未预期错误: {type(exc).__name__}: {exc}", file=sys.stderr)
+        if trace is not None:
+            trace.set_outcome(
+                {"status": "error", "error_type": type(exc).__name__}
+            )
+            if args.trace_output is not None:
+                write_trace_atomic(args.trace_output, trace.to_dict())
         return 3
+
+    if trace is not None:
+        trace.set_outcome(
+            {
+                "status": "completed",
+                "decision": result.get("decision"),
+                "physics_score": result.get("physics_score"),
+            }
+        )
+        if args.trace_output is not None:
+            write_trace_atomic(args.trace_output, trace.to_dict())
 
     text = json.dumps(result, ensure_ascii=False, indent=2)
     if args.output:

@@ -8,8 +8,17 @@ from pathlib import Path
 import jsonschema
 
 from pavg_critic import CriticRequest, FrameState, PhysicsCritic
-from pavg_critic.config import CriticConfig, QuestionGraphConfig, TrajectoryConfig
-from pavg_critic.schemas import PhysicsPlan
+from pavg_critic.config import CriticConfig, FusionConfig, QuestionGraphConfig, TrajectoryConfig
+from pavg_critic.evidence_fusion import hard_violation_override_applied
+from pavg_critic.fusion import ResultFusion
+from pavg_critic.schemas import (
+    CriticReport,
+    EvidenceBundle,
+    PhysicsPlan,
+    Violation,
+    ViolationCandidate,
+    VLMReview,
+)
 
 
 def _state(frame, y, velocity, bottom=None):
@@ -98,3 +107,125 @@ def test_fused_report_still_validates_schema_2():
     )
 
     jsonschema.validate(report.to_dict(), schema)
+
+
+def test_fusion_records_vlm_claim_status_in_violation_evidence():
+    candidate = ViolationCandidate(
+        object="red_ball",
+        track_id="ball-1",
+        category="premature_rebound",
+        start_frame=1,
+        peak_frame=2,
+        end_frame=3,
+        reason="reversal before contact",
+        repair_instruction="continue falling",
+        detector_score=0.9,
+        rules=("velocity_reversal_before_contact",),
+    )
+    report = ResultFusion(FusionConfig(detector_weight=0.7, vlm_weight=0.3)).fuse(
+        (candidate,),
+        {0: (1, 2, 3)},
+        {0: VLMReview(score=0.8, claim_status="confirmed")},
+    )
+
+    assert report.violations[0].evidence["vlm_claim_status"] == "confirmed"
+    assert report.violations[0].evidence["candidate_index"] == 0
+
+
+def test_vlm_rejected_candidate_is_removed_even_when_rule_score_is_high():
+    candidate = ViolationCandidate(
+        object="boulder",
+        track_id="boulder-1",
+        category="object_disappearance",
+        start_frame=1,
+        peak_frame=8,
+        end_frame=16,
+        reason="Sparse tracking suggests disappearance.",
+        repair_instruction="Keep the object visible.",
+        detector_score=0.95,
+        rules=("object_persistence",),
+    )
+    review = VLMReview(
+        score=0.0,
+        reason="The boulder remains visible; the tracking claim is rejected.",
+        repair_instruction="Correct the tracker.",
+        claim_status="rejected",
+    )
+
+    report = ResultFusion(FusionConfig(detector_weight=0.7, vlm_weight=0.3)).fuse(
+        (candidate,), {0: (1, 8, 16)}, {0: review}
+    )
+
+    assert report.violations == ()
+    assert report.decision == "physical"
+
+
+def test_vlm_uncertain_candidate_is_not_published_as_hard_violation():
+    candidate = ViolationCandidate(
+        object="background_door",
+        track_id="door-1",
+        category="object_disappearance",
+        start_frame=10,
+        peak_frame=11,
+        end_frame=12,
+        reason="The tracker loses the door.",
+        repair_instruction="Inspect the track.",
+        detector_score=0.95,
+        rules=("object_persistence",),
+    )
+    review = VLMReview(
+        score=0.9,
+        reason="Occlusion prevents a visual decision.",
+        repair_instruction="Provide unobstructed frames.",
+        claim_status="uncertain",
+    )
+
+    report = ResultFusion(FusionConfig()).fuse(
+        (candidate,), {0: (10, 11, 12)}, {0: review}
+    )
+
+    assert report.violations == ()
+
+
+def _hard_violation_report(*, supporting_score: float) -> CriticReport:
+    violation = Violation(
+        object="ball",
+        category="object_disappearance",
+        start_frame=1,
+        peak_frame=2,
+        end_frame=3,
+        critical_frames=(1, 2, 3),
+        reason="The object disappears.",
+        repair_instruction="Keep the object visible.",
+        evidence={},
+    )
+    bundles = tuple(
+        EvidenceBundle(
+            family=family,
+            source=f"test_{family}",
+            status="available",
+            score=supporting_score,
+            confidence=1.0,
+            coverage=1.0,
+        )
+        for family in ("pqsg", "checklist", "mechanics")
+    )
+    return CriticReport(
+        is_physical=False,
+        physics_score=0.2,
+        confidence=0.9,
+        violations=(violation,),
+        decision="violation",
+        evidence_bundles=bundles,
+    )
+
+
+def test_hard_override_requires_counterfactual_physical_support():
+    config = FusionConfig()
+
+    assert hard_violation_override_applied(
+        _hard_violation_report(supporting_score=0.9), config
+    )
+    assert not hard_violation_override_applied(
+        _hard_violation_report(supporting_score=0.2), config
+    )

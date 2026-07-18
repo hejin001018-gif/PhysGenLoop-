@@ -7,6 +7,9 @@ from pathlib import Path
 
 import jsonschema
 from jsonschema import Draft202012Validator
+import pytest
+
+from pavg_critic.execution_trace import TraceRecorder
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas"
 
@@ -77,18 +80,49 @@ def test_critic_v2_example_validates():
     jsonschema.validate(payload, _load("critic_output.schema.json"))
 
 
-def test_generator_schema_is_valid():
-    Draft202012Validator.check_schema(_load("generator_request.schema.json"))
+def _trace_payload() -> dict[str, object]:
+    recorder = TraceRecorder(metadata={"detector": {"sam2_used": True}})
+    recorder.record_completed(
+        "request",
+        label="输入请求",
+        source_nodes=(),
+        inputs={"prompt": "石头滚下坡"},
+        outputs={"accepted": True},
+        elapsed_ms=0.1,
+    )
+    recorder.set_outcome({"status": "completed", "decision": "physical"})
+    return recorder.to_dict()
 
 
-def test_readme_generator_example_validates():
-    payload = {
-        "prompt": "A red ball falls from a table.",
-        "seed": 42,
-        "resolution": "480p",
-        "num_frames": 121,
-        "num_inference_steps": 50,
-        "image_path": None,
-        "output_path": "outputs/video.mp4",
-    }
-    jsonschema.validate(payload, _load("generator_request.schema.json"))
+def test_critic_trace_schema_is_valid_and_accepts_recorder_document():
+    schema = _load("critic_trace.schema.json")
+
+    Draft202012Validator.check_schema(schema)
+    jsonschema.validate(_trace_payload(), schema)
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_path"),
+    [
+        (
+            lambda payload: payload.update(schema_version="wrong"),
+            ["schema_version"],
+        ),
+        (
+            lambda payload: payload["nodes"][0].update(status="running"),
+            ["nodes", 0, "status"],
+        ),
+        (
+            lambda payload: payload["nodes"][0].update(sequence="one"),
+            ["nodes", 0, "sequence"],
+        ),
+    ],
+)
+def test_critic_trace_schema_rejects_contract_mutations(mutator, expected_path):
+    payload = _trace_payload()
+    mutator(payload)
+
+    with pytest.raises(jsonschema.ValidationError) as error:
+        jsonschema.validate(payload, _load("critic_trace.schema.json"))
+
+    assert list(error.value.absolute_path) == expected_path
