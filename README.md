@@ -56,12 +56,13 @@ PhysGenLoop-/
 ├── evaluation/          # 评测数据与 manifests
 ├── examples/            # 使用示例
 ├── data/                # 数据集根目录（不入库）
-├── data_pipeline/       # 数据处理管道
+├── data_pipeline/       # 数据处理管道（blender / sam2 数据生产）
 ├── models/              # 模型权重（不入库，只读）
 ├── checkpoints/         # 训练检查点（不入库，只读）
-├── generators/          # 视频生成探针
+├── generators/          # 视频生成探针（wanphysics）
 ├── experiments/         # 消融实验脚本
-├── outputs/             # 生成产物（不入库）
+├── outputs/             # 生成产物（不入库；benchmarks 运行产物 + repair_training 报告）
+├── envs/                # 虚拟环境（不入库：main / vllm / vllm-cu128）
 ├── tests/               # 测试
 └── worklog/             # 迭代日志（按日期分卷，见 §5）
 ```
@@ -72,6 +73,8 @@ PhysGenLoop-/
 - `data/samples/` 存放单样本目录，必须对齐 `schemas/sample.schema.json`。
 - `data_pipeline/` 只放数据加载与转换适配器，不放数据本体。
 - `outputs/` 根目录不再放其他实验结果或 legacy 入口；每次运行产物按 run 名归档。
+- `data_pipeline/` 现含 `blender/`、`sam2/` 两套数据生产管道脚本。
+- `envs/` 存放虚拟环境（`main` 主环境、`vllm` / `vllm-cu128` 推理环境），不入库，按 §7 重建。
 - 探索性讨论进 `worklog/`。
 
 ---
@@ -143,4 +146,4 @@ worklog/YYYY-MM-DD/
   rollout 与 Hunyuan calibration/test；Actual Repair Trial 当前为 0。
 
 Learning Repair 的最终架构、命令、指标边界和下一阶段见
-[团队交接文档](docs/learning-repair-milestones-1-5.md)。
+[团队交接文档](worklog/2026_07_17/docs/learning-repair-milestones-1-5.md)。
