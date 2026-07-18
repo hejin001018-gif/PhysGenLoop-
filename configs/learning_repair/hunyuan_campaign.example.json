@@ -1,0 +1,30 @@
+{
+  "schema_version": "repair-campaign-manifest/1.0",
+  "campaign_id": "hunyuan-calibration-v1",
+  "domain": "hunyuan",
+  "critic_model_id": "pavg-critic-0.3.0/configs-default",
+  "generator_model_id": "REPLACE_WITH_FROZEN_HUNYUAN_CHECKPOINT",
+  "executor_version": "learning-repair-executors/1.0",
+  "items": [
+    {
+      "sample_id": "hunyuan-cal-0001",
+      "group_id": "prompt-family-0001",
+      "prompt": "A ball falls onto a rigid floor and settles naturally.",
+      "source_video": "s3://REPLACE/hunyuan-cal-0001.mp4",
+      "seed": 1001,
+      "split": "calibration",
+      "source_sha256": null,
+      "metadata": {}
+    },
+    {
+      "sample_id": "hunyuan-test-0001",
+      "group_id": "prompt-family-test-0001",
+      "prompt": "Two blocks collide and conserve plausible momentum.",
+      "source_video": "s3://REPLACE/hunyuan-test-0001.mp4",
+      "seed": 2001,
+      "split": "test",
+      "source_sha256": null,
+      "metadata": {}
+    }
+  ]
+}

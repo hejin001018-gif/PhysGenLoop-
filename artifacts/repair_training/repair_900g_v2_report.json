@@ -1,0 +1,789 @@
+{
+  "status": "complete",
+  "campaign": "repair_900g_v2",
+  "data": {
+    "groups": 900,
+    "samples": 11700,
+    "completed_shards": 0,
+    "semantic_gate": "all admitted shards passed"
+  },
+  "model_selection": {
+    "metric": "validation.macro_f1",
+    "test_policy": "winner_only_once",
+    "split_seed": 20260716,
+    "runs": [
+      {
+        "seed": 17,
+        "checkpoint": "training/seeds/seed_17/best_policy.pt",
+        "best_epoch": 1,
+        "epochs_completed": 13,
+        "validation": {
+          "sample_count": 1170,
+          "accuracy": 1.0,
+          "macro_f1": 1.0,
+          "gain_mae": 0.074884,
+          "per_class": {
+            "prompt_repair": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 360
+            },
+            "global_regeneration": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 90
+            },
+            "local_editing": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 540
+            },
+            "reject": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 180
+            }
+          },
+          "confusion_matrix": [
+            [
+              360,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              90,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              540,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              180
+            ]
+          ],
+          "action_order": [
+            "prompt_repair",
+            "global_regeneration",
+            "local_editing",
+            "reject"
+          ]
+        }
+      },
+      {
+        "seed": 23,
+        "checkpoint": "training/seeds/seed_23/best_policy.pt",
+        "best_epoch": 1,
+        "epochs_completed": 13,
+        "validation": {
+          "sample_count": 1170,
+          "accuracy": 1.0,
+          "macro_f1": 1.0,
+          "gain_mae": 0.107358,
+          "per_class": {
+            "prompt_repair": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 360
+            },
+            "global_regeneration": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 90
+            },
+            "local_editing": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 540
+            },
+            "reject": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 180
+            }
+          },
+          "confusion_matrix": [
+            [
+              360,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              90,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              540,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              180
+            ]
+          ],
+          "action_order": [
+            "prompt_repair",
+            "global_regeneration",
+            "local_editing",
+            "reject"
+          ]
+        }
+      },
+      {
+        "seed": 42,
+        "checkpoint": "training/seeds/seed_42/best_policy.pt",
+        "best_epoch": 1,
+        "epochs_completed": 13,
+        "validation": {
+          "sample_count": 1170,
+          "accuracy": 1.0,
+          "macro_f1": 1.0,
+          "gain_mae": 0.075772,
+          "per_class": {
+            "prompt_repair": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 360
+            },
+            "global_regeneration": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 90
+            },
+            "local_editing": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 540
+            },
+            "reject": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 180
+            }
+          },
+          "confusion_matrix": [
+            [
+              360,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              90,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              540,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              180
+            ]
+          ],
+          "action_order": [
+            "prompt_repair",
+            "global_regeneration",
+            "local_editing",
+            "reject"
+          ]
+        }
+      },
+      {
+        "seed": 73,
+        "checkpoint": "training/seeds/seed_73/best_policy.pt",
+        "best_epoch": 1,
+        "epochs_completed": 13,
+        "validation": {
+          "sample_count": 1170,
+          "accuracy": 1.0,
+          "macro_f1": 1.0,
+          "gain_mae": 0.072693,
+          "per_class": {
+            "prompt_repair": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 360
+            },
+            "global_regeneration": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 90
+            },
+            "local_editing": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 540
+            },
+            "reject": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 180
+            }
+          },
+          "confusion_matrix": [
+            [
+              360,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              90,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              540,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              180
+            ]
+          ],
+          "action_order": [
+            "prompt_repair",
+            "global_regeneration",
+            "local_editing",
+            "reject"
+          ]
+        }
+      },
+      {
+        "seed": 101,
+        "checkpoint": "training/seeds/seed_101/best_policy.pt",
+        "best_epoch": 1,
+        "epochs_completed": 13,
+        "validation": {
+          "sample_count": 1170,
+          "accuracy": 1.0,
+          "macro_f1": 1.0,
+          "gain_mae": 0.057859,
+          "per_class": {
+            "prompt_repair": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 360
+            },
+            "global_regeneration": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 90
+            },
+            "local_editing": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 540
+            },
+            "reject": {
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 180
+            }
+          },
+          "confusion_matrix": [
+            [
+              360,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              90,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              540,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              180
+            ]
+          ],
+          "action_order": [
+            "prompt_repair",
+            "global_regeneration",
+            "local_editing",
+            "reject"
+          ]
+        }
+      }
+    ],
+    "winner": {
+      "seed": 101,
+      "checkpoint": "training/seeds/seed_101/best_policy.pt",
+      "best_epoch": 1,
+      "epochs_completed": 13,
+      "validation": {
+        "sample_count": 1170,
+        "accuracy": 1.0,
+        "macro_f1": 1.0,
+        "gain_mae": 0.057859,
+        "per_class": {
+          "prompt_repair": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 360
+          },
+          "global_regeneration": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 90
+          },
+          "local_editing": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 540
+          },
+          "reject": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 180
+          }
+        },
+        "confusion_matrix": [
+          [
+            360,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            90,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            540,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            180
+          ]
+        ],
+        "action_order": [
+          "prompt_repair",
+          "global_regeneration",
+          "local_editing",
+          "reject"
+        ]
+      }
+    }
+  },
+  "dataset_audit": {
+    "valid": true,
+    "sample_count": 11700,
+    "group_count": 900,
+    "action_counts": {
+      "reject": 1800,
+      "local_editing": 5400,
+      "prompt_repair": 3600,
+      "global_regeneration": 900
+    },
+    "split_counts": {
+      "train": 9360,
+      "validation": 1170,
+      "test": 1170
+    },
+    "successful_count": 11700,
+    "group_leakage": {},
+    "missing_artifacts": []
+  },
+  "reproducibility": {
+    "campaign_config": {
+      "total_groups": 900,
+      "groups_per_shard": 10,
+      "variants_per_group": 13,
+      "continuation": true,
+      "source_campaigns": [
+        "/workspace/pavg/campaigns/repair_600g_v1",
+        "/workspace/pavg/campaigns/repair_300g_v2_data"
+      ]
+    },
+    "assigned_manifest_sha256": "08301442e861d6139314a202b2cba91c65b4257bd5fd45201d02ef4171da73c9",
+    "split_seed": 20260716,
+    "critic_snapshot": {
+      "source_revision": "unknown",
+      "critic_model_id": "pavg-critic-0.3.0/configs-default",
+      "config_file": "critic_config.yaml",
+      "config_sha256": "f8945bbb675f34215a8440793d25fd3f0df907a44aee5252e994fb666e91d4f4"
+    }
+  },
+  "architecture": {
+    "policy": "structured CriticReport feature encoder + PyTorch MLP action/gain heads",
+    "feature_dimension": 53,
+    "feature_schema": {
+      "feature_config": {
+        "version": "1.0",
+        "categories": [
+          "gravity_violation",
+          "collision_violation",
+          "friction_violation",
+          "trajectory_violation",
+          "continuity_violation",
+          "contact_violation",
+          "appearance_violation",
+          "unknown_violation"
+        ],
+        "evidence_families": [
+          "rules",
+          "pqsg",
+          "checklist",
+          "mechanics",
+          "vlm"
+        ],
+        "object_hash_buckets": 8,
+        "frame_span_scale": 120.0
+      },
+      "feature_names": [
+        "decision.physical",
+        "decision.violation",
+        "decision.unknown",
+        "physics_score",
+        "confidence",
+        "coverage",
+        "risk_score",
+        "violation_count",
+        "max_temporal_span",
+        "mean_temporal_span",
+        "repair_instruction_coverage",
+        "context.attempt_fraction",
+        "context.remaining_budget",
+        "context.semantic_score",
+        "context.quality_score",
+        "context.prompt_repair_available",
+        "context.global_regeneration_available",
+        "context.local_editor_available",
+        "category.gravity_violation",
+        "category.collision_violation",
+        "category.friction_violation",
+        "category.trajectory_violation",
+        "category.continuity_violation",
+        "category.contact_violation",
+        "category.appearance_violation",
+        "category.unknown_violation",
+        "evidence.rules.available",
+        "evidence.rules.score",
+        "evidence.rules.coverage",
+        "evidence.pqsg.available",
+        "evidence.pqsg.score",
+        "evidence.pqsg.coverage",
+        "evidence.checklist.available",
+        "evidence.checklist.score",
+        "evidence.checklist.coverage",
+        "evidence.mechanics.available",
+        "evidence.mechanics.score",
+        "evidence.mechanics.coverage",
+        "evidence.vlm.available",
+        "evidence.vlm.score",
+        "evidence.vlm.coverage",
+        "object_hash.0",
+        "object_hash.1",
+        "object_hash.2",
+        "object_hash.3",
+        "object_hash.4",
+        "object_hash.5",
+        "object_hash.6",
+        "object_hash.7",
+        "previous_action.prompt_repair",
+        "previous_action.global_regeneration",
+        "previous_action.local_editing",
+        "previous_action.reject"
+      ],
+      "action_order": [
+        "prompt_repair",
+        "global_regeneration",
+        "local_editing",
+        "reject"
+      ],
+      "model_id": "repair-mlp-08301442e861"
+    },
+    "training_config": {
+      "seed": 101,
+      "epochs": 80,
+      "batch_size": 64,
+      "learning_rate": 0.0003,
+      "weight_decay": 0.0001,
+      "hidden_dims": [
+        128,
+        64
+      ],
+      "dropout": 0.15,
+      "gain_loss_weight": 0.2,
+      "patience": 12,
+      "minimum_delta": 0.0001,
+      "validation_fraction": 0.1,
+      "test_fraction": 0.1,
+      "device": "auto",
+      "num_workers": 0,
+      "successful_only": true,
+      "evaluate_test": false
+    },
+    "agent_config": {
+      "memory_weight": 0.25,
+      "memory_k": 5,
+      "minimum_policy_confidence": 0.4,
+      "minimum_memory_similarity": 0.2
+    },
+    "memory": "cosine retrieval over the same structured feature space",
+    "executor_included": false
+  },
+  "held_out_test": {
+    "sample_count": 1170,
+    "accuracy": 1.0,
+    "macro_f1": 1.0,
+    "gain_mae": 0.05852,
+    "per_class": {
+      "prompt_repair": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 360
+      },
+      "global_regeneration": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 90
+      },
+      "local_editing": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 540
+      },
+      "reject": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 180
+      }
+    },
+    "confusion_matrix": [
+      [
+        360,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        90,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        540,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        180
+      ]
+    ],
+    "action_order": [
+      "prompt_repair",
+      "global_regeneration",
+      "local_editing",
+      "reject"
+    ]
+  },
+  "memory": {
+    "sample_count": 768,
+    "source_split": "train",
+    "audit": {
+      "valid": true,
+      "sample_count": 768,
+      "group_count": 115,
+      "action_counts": {
+        "reject": 108,
+        "local_editing": 389,
+        "prompt_repair": 216,
+        "global_regeneration": 55
+      },
+      "split_counts": {
+        "train": 768
+      },
+      "successful_count": 768,
+      "group_leakage": {},
+      "missing_artifacts": []
+    }
+  },
+  "release": {
+    "model_id": "repair-mlp-08301442e861",
+    "file_count": 9,
+    "manifest_sha256": "5ec90d7d7313d6cb4e057de2eee74740edf09d1187c637dc17adea7282b4b6d9",
+    "smoke": {
+      "valid": true,
+      "checked_actions": 4,
+      "results": [
+        {
+          "sample_id": "group_000023--unknown_occluded",
+          "expected_action": "global_regeneration",
+          "predicted_action": "global_regeneration",
+          "returncode": 0,
+          "valid": true,
+          "matches_expected": true,
+          "stderr": ""
+        },
+        {
+          "sample_id": "group_000023--object_disappearance_mild",
+          "expected_action": "local_editing",
+          "predicted_action": "local_editing",
+          "returncode": 0,
+          "valid": true,
+          "matches_expected": true,
+          "stderr": ""
+        },
+        {
+          "sample_id": "group_000023--premature_rebound_mild",
+          "expected_action": "prompt_repair",
+          "predicted_action": "prompt_repair",
+          "returncode": 0,
+          "valid": true,
+          "matches_expected": true,
+          "stderr": ""
+        },
+        {
+          "sample_id": "group_000023--multi_corrupt",
+          "expected_action": "reject",
+          "predicted_action": "reject",
+          "returncode": 0,
+          "valid": true,
+          "matches_expected": true,
+          "stderr": ""
+        }
+      ]
+    },
+    "archive": "/workspace/pavg/artifacts/repair_agent_repair_900g_v2.tar.gz",
+    "archive_bytes": 599379,
+    "archive_sha256": "589bebfdb9e9820252c23328101734462e195d11cc1e3e1d3bdca42b5820a8ea",
+    "files": {
+      "README.md": {
+        "sha256": "ba5b87d763415fd9ba8d67e43137ddd5f7474b5ea7f249b32b1a4d781a5172cd",
+        "bytes": 748
+      },
+      "config.yaml": {
+        "sha256": "bc7ddc68f8019e29c2c51b7dc69e16adf4770d1cc87b11d3f484d061575a2c74",
+        "bytes": 444
+      },
+      "critic_config.yaml": {
+        "sha256": "f8945bbb675f34215a8440793d25fd3f0df907a44aee5252e994fb666e91d4f4",
+        "bytes": 1528
+      },
+      "critic_snapshot.json": {
+        "sha256": "72f22af0e188e23eafec1c5b2af3a5627f27503216659507f2d87abe27fb3772",
+        "bytes": 219
+      },
+      "feature_schema.json": {
+        "sha256": "b6e4a8cd71077b59d749dfba359e163cd4f7afd4623e401c13458d65386f5596",
+        "bytes": 2223
+      },
+      "inference.py": {
+        "sha256": "89f14a981b74b014cc6620d2d69a4730142116f04f6bb4082d867b309b9e5365",
+        "bytes": 1988
+      },
+      "model.pt": {
+        "sha256": "5294eaf478624df5bed5770b8d12e965303b3ea3ea9bc76c3832b9d972e899ae",
+        "bytes": 70791
+      },
+      "repair_memory.jsonl": {
+        "sha256": "70180170ed69bcc0204288eea186ee475044264d255cddf53b9e1b9d1f2fb3e9",
+        "bytes": 8037475
+      },
+      "requirements.txt": {
+        "sha256": "2fd375a635e303760d41ba0efe8ea30792b8ee8434dc2d3787f2a0ac25971136",
+        "bytes": 45
+      }
+    }
+  },
+  "cleanup": {
+    "status": "cleaned",
+    "deleted_path": "/workspace/pavg/campaigns/repair_300g_v2_data/shards",
+    "deleted_bytes": 457205086,
+    "combined_release_manifest_sha256": "5ec90d7d7313d6cb4e057de2eee74740edf09d1187c637dc17adea7282b4b6d9",
+    "cleaned_at_unix": 1784247644.9735405
+  },
+  "known_limitations": [
+    "当前监督标签来自 Blender 配对正常轨迹与策略代理映射，并非部署环境中 Executor 的真实修复试验回报。",
+    "当前 Release 提供 Selector/Policy 与 Repair Memory；Prompt、全局重生成、局部编辑和 Reject 的执行后端需由部署侧适配器实现。",
+    "训练输入绑定冻结的 Physics Critic 配置；CriticReport schema 或类别语义变化时必须重新做兼容性评估。",
+    "Blender 场景覆盖受控刚体下落/接触族，迁移到 HunyuanVideo 后仍需采集真实生成分布上的闭环反馈。"
+  ],
+  "team_next_tasks": [
+    "实现统一 RepairExecutor 接口及 prompt_generator、video_generator、local_video_editor、candidate_selector 四个适配器。",
+    "把部署端每次尝试写成 RepairTrial，记录 before/after physics、semantic、quality 和 cost，替换代理标签。",
+    "在 HunyuanVideo 小规模验证集上做 Critic→Selector→Executor→Critic 的端到端闭环回归。",
+    "保持 critic_snapshot.json 与 feature_schema.json 的版本门禁，防止特征漂移和静默不兼容。",
+    "依据 held-out test 的最低动作 F1 与混淆方向构建下一轮难例/类别重采样续训集。"
+  ],
+  "completed_at_asia_shanghai": "2026-07-17T08:58:29.504392+08:00"
+}

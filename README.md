@@ -4,7 +4,9 @@
 
 构建面向视频生成物理一致性的评估与反馈闭环：Blender 合成带精确物理真值的视频数据 → 训练/组合 Physics Critic → 接入视频生成模型形成「规划 → 生成 → 检测 → 修复 → 再生成」闭环。
 
-**核心成果**：可独立运行的 Physics Planner + Physics Critic，可插拔的 Best-of-K 闭环编排层，可审计的 benchmark 评测流水线。
+**核心成果**：可独立运行的 Physics Planner + Physics Critic，可插拔的 Best-of-K
+闭环编排层，可审计的 benchmark 评测流水线，以及 canonical Learning Repair Agent
+（Policy、Selector、Executor、Memory、Actual-Trial Runner）。
 
 ---
 
@@ -135,4 +137,10 @@ worklog/YYYY-MM-DD/
 - Physics Planner / Critic 基线可独立运行。
 - Benchmark 评测流水线（含可恢复运行器与分组指标）已实现。
 - 闭环编排契约已冻结，Fake Generator 打通 Best-of-K 控制器。
-- **尚未接入**：真实 HunyuanVideo 生成服务、Blender/Kubric 数据大规模生产、学习型 Repair Agent。
+- Learning Repair Agent 已统一到 `src/physgenloop/learning_repair/`；v3 使用 1,200 个
+  Blender group、22,200 条 proxy 样本完成训练，当前模型仍是研究基线。
+- **尚未接入**：真实 HunyuanVideo 生成服务、真实 Prompt/Global/Local Executor
+  rollout 与 Hunyuan calibration/test；Actual Repair Trial 当前为 0。
+
+Learning Repair 的最终架构、命令、指标边界和下一阶段见
+[团队交接文档](docs/learning-repair-milestones-1-5.md)。

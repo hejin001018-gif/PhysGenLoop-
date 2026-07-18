@@ -1,0 +1,235 @@
+{
+  "created_utc": "2026-07-15T12:10:21.834124+00:00",
+  "strict_audit_passed": true,
+  "reports": [
+    {
+      "sequence_id": "soccerball",
+      "anomaly": "midair_hover",
+      "metrics": {
+        "mean_sam2_iou_vs_davis_gt": 0.9248621171768546,
+        "minimum_sam2_iou_vs_davis_gt": 0.6616352201257861,
+        "mean_sam2_iou_vs_davis_gt_non_prompt": 0.9228828743894988,
+        "mean_sham_psnr_db": 45.42135713992163,
+        "minimum_sham_psnr_db": 43.288562535728715,
+        "mean_sham_ssim": 0.9977053638919301,
+        "minimum_sham_ssim": 0.9966570802290114,
+        "pre_onset_sham_anomaly_max_pixel_error": 0,
+        "mean_post_onset_sham_anomaly_abs_difference": 2.44827312497156,
+        "maximum_active_displacement_pixels": 234.24101241530425,
+        "maximum_active_displacement_fraction_of_diagonal": 0.2391066026554583,
+        "outside_declared_edit_support_max_pixel_error": 0,
+        "outside_declared_edit_support_mean_abs_error": 0.0
+      },
+      "checks": {
+        "all_intermediate_frame_counts_match": true,
+        "individual_video_specs_match": true,
+        "encoded_frame_count_matches_intermediate": true,
+        "pre_onset_pixel_identity": true,
+        "sam2_non_prompt_mean_iou_at_least_0_75": true,
+        "sham_mean_ssim_at_least_0_95": true,
+        "sham_minimum_ssim_at_least_0_95": true,
+        "sham_mean_psnr_at_least_30_db": true,
+        "post_onset_visual_change_nonzero": true,
+        "anomaly_displacement_at_least_3_percent_diagonal": true,
+        "pixels_outside_declared_edit_support_unchanged": true
+      },
+      "passed": true,
+      "video_probes": {
+        "original": {
+          "path": "outputs\\soccerball\\original.mp4",
+          "sha256": "68ca58f3a450432583a7fcb5694b358424d17b4f16da0d15706946255d893c07",
+          "bytes": 1207640,
+          "frame_count": 48,
+          "fps": 24.0,
+          "width": 854,
+          "height": 480,
+          "fourcc": "h264"
+        },
+        "sham": {
+          "path": "outputs\\soccerball\\sham.mp4",
+          "sha256": "7e5b550575eb55ccc8bda9f38f37e1c942ac5615b1eaa486b4cb1b0a82adbdaa",
+          "bytes": 1210746,
+          "frame_count": 48,
+          "fps": 24.0,
+          "width": 854,
+          "height": 480,
+          "fourcc": "h264"
+        },
+        "anomaly": {
+          "path": "outputs\\soccerball\\anomaly.mp4",
+          "sha256": "aa6f534ba4f28ef90efba2fd3955547ebbb3e00d8f2d2719962ed3c797a1454e",
+          "bytes": 1212171,
+          "frame_count": 48,
+          "fps": 24.0,
+          "width": 854,
+          "height": 480,
+          "fourcc": "h264"
+        },
+        "comparison": {
+          "path": "outputs\\soccerball\\comparison.mp4",
+          "sha256": "73a5bf9d4ef25b25b4c81bbb1c7b669037b94fbe7a0fc7e1b26e954cc259f98a",
+          "bytes": 3587099,
+          "frame_count": 48,
+          "fps": 24.0,
+          "width": 2562,
+          "height": 524,
+          "fourcc": "h264"
+        }
+      },
+      "contact_sheet": "reports\\soccerball\\contact_sheet.png"
+    },
+    {
+      "sequence_id": "drift-straight",
+      "anomaly": "instant_teleport",
+      "metrics": {
+        "mean_sam2_iou_vs_davis_gt": 0.9648634164431706,
+        "minimum_sam2_iou_vs_davis_gt": 0.924831712789828,
+        "mean_sam2_iou_vs_davis_gt_non_prompt": 0.9652745449752088,
+        "mean_sham_psnr_db": 34.733117972661084,
+        "minimum_sham_psnr_db": 23.80582555567368,
+        "mean_sham_ssim": 0.9866804812669285,
+        "minimum_sham_ssim": 0.9576007373010613,
+        "pre_onset_sham_anomaly_max_pixel_error": 0,
+        "mean_post_onset_sham_anomaly_abs_difference": 13.174706514065083,
+        "maximum_active_displacement_pixels": 137.98235249480277,
+        "maximum_active_displacement_fraction_of_diagonal": 0.14084848417981227,
+        "outside_declared_edit_support_max_pixel_error": 1,
+        "outside_declared_edit_support_mean_abs_error": 0.02172217491905676
+      },
+      "checks": {
+        "all_intermediate_frame_counts_match": true,
+        "individual_video_specs_match": true,
+        "encoded_frame_count_matches_intermediate": true,
+        "pre_onset_pixel_identity": true,
+        "sam2_non_prompt_mean_iou_at_least_0_75": true,
+        "sham_mean_ssim_at_least_0_95": true,
+        "sham_minimum_ssim_at_least_0_95": true,
+        "sham_mean_psnr_at_least_30_db": true,
+        "post_onset_visual_change_nonzero": true,
+        "anomaly_displacement_at_least_3_percent_diagonal": true,
+        "pixels_outside_declared_edit_support_unchanged": true
+      },
+      "passed": true,
+      "video_probes": {
+        "original": {
+          "path": "outputs\\drift-straight\\original.mp4",
+          "sha256": "e6f967b97f23535e524addac35acf6e873c3ec346924364ef9db9590f01da095",
+          "bytes": 1238036,
+          "frame_count": 50,
+          "fps": 24.0,
+          "width": 854,
+          "height": 480,
+          "fourcc": "h264"
+        },
+        "sham": {
+          "path": "outputs\\drift-straight\\sham.mp4",
+          "sha256": "e145adb8c6bad20b387b7281b1870f964c7eca83ea2c165bbf1a42a5164944a1",
+          "bytes": 1240049,
+          "frame_count": 50,
+          "fps": 24.0,
+          "width": 854,
+          "height": 480,
+          "fourcc": "h264"
+        },
+        "anomaly": {
+          "path": "outputs\\drift-straight\\anomaly.mp4",
+          "sha256": "6da47271a36fbecc2deaeb1b62a410234e35e1ad4398d5337c07487e67990195",
+          "bytes": 1240398,
+          "frame_count": 50,
+          "fps": 24.0,
+          "width": 854,
+          "height": 480,
+          "fourcc": "h264"
+        },
+        "comparison": {
+          "path": "outputs\\drift-straight\\comparison.mp4",
+          "sha256": "a09007ef3a3952af8d4f9f4f3cf03ec2a0700998d326749afeb9d474a208356d",
+          "bytes": 3673668,
+          "frame_count": 50,
+          "fps": 24.0,
+          "width": 2562,
+          "height": 524,
+          "fourcc": "h264"
+        }
+      },
+      "contact_sheet": "reports\\drift-straight\\contact_sheet.png"
+    },
+    {
+      "sequence_id": "car-turn",
+      "anomaly": "gravity_reversal",
+      "metrics": {
+        "mean_sam2_iou_vs_davis_gt": 0.9750172082161805,
+        "minimum_sam2_iou_vs_davis_gt": 0.9368919930157147,
+        "mean_sam2_iou_vs_davis_gt_non_prompt": 0.9753048572472787,
+        "mean_sham_psnr_db": 31.658033299543114,
+        "minimum_sham_psnr_db": 27.639695020809,
+        "mean_sham_ssim": 0.9883574154811365,
+        "minimum_sham_ssim": 0.9797088317980726,
+        "pre_onset_sham_anomaly_max_pixel_error": 0,
+        "mean_post_onset_sham_anomaly_abs_difference": 13.530045833438635,
+        "maximum_active_displacement_pixels": 134.4,
+        "maximum_active_displacement_fraction_of_diagonal": 0.1371917200388346,
+        "outside_declared_edit_support_max_pixel_error": 1,
+        "outside_declared_edit_support_mean_abs_error": 0.013399623051494119
+      },
+      "checks": {
+        "all_intermediate_frame_counts_match": true,
+        "individual_video_specs_match": true,
+        "encoded_frame_count_matches_intermediate": true,
+        "pre_onset_pixel_identity": true,
+        "sam2_non_prompt_mean_iou_at_least_0_75": true,
+        "sham_mean_ssim_at_least_0_95": true,
+        "sham_minimum_ssim_at_least_0_95": true,
+        "sham_mean_psnr_at_least_30_db": true,
+        "post_onset_visual_change_nonzero": true,
+        "anomaly_displacement_at_least_3_percent_diagonal": true,
+        "pixels_outside_declared_edit_support_unchanged": true
+      },
+      "passed": true,
+      "video_probes": {
+        "original": {
+          "path": "outputs\\car-turn\\original.mp4",
+          "sha256": "baa945a8150441dfaf75fe5fe2dd02cea9e0f782c534256ae15b18dfd011b543",
+          "bytes": 2297119,
+          "frame_count": 80,
+          "fps": 24.0,
+          "width": 854,
+          "height": 480,
+          "fourcc": "h264"
+        },
+        "sham": {
+          "path": "outputs\\car-turn\\sham.mp4",
+          "sha256": "7d1424d26eefd152d2f8ce464b1d0a06abb2386e114059d9e34b433e35f9c0d8",
+          "bytes": 2303309,
+          "frame_count": 80,
+          "fps": 24.0,
+          "width": 854,
+          "height": 480,
+          "fourcc": "h264"
+        },
+        "anomaly": {
+          "path": "outputs\\car-turn\\anomaly.mp4",
+          "sha256": "f1b05dadf970fb7238924aa5156cf1464e52a5184960ea89bca7e51280945254",
+          "bytes": 2261360,
+          "frame_count": 80,
+          "fps": 24.0,
+          "width": 854,
+          "height": 480,
+          "fourcc": "h264"
+        },
+        "comparison": {
+          "path": "outputs\\car-turn\\comparison.mp4",
+          "sha256": "36fa8a82e4a55aeab85160bc0cc6d9f5a62e844fdf11a2906c2027a200677c6d",
+          "bytes": 6438034,
+          "frame_count": 80,
+          "fps": 24.0,
+          "width": 2562,
+          "height": 524,
+          "fourcc": "h264"
+        }
+      },
+      "contact_sheet": "reports\\car-turn\\contact_sheet.png"
+    }
+  ],
+  "methodological_note": "A passing synthetic audit does not replace evaluation on an independently collected real-anomaly test set. Source-video grouping is mandatory for splits."
+}
