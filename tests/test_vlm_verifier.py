@@ -170,6 +170,48 @@ def test_grouped_verifier_bounds_context_images_and_preserves_temporal_endpoints
     assert images[-1].endswith(",19")
 
 
+def test_grouped_verifier_serializes_shared_track_evidence_once():
+    class FlexibleLoader:
+        def load(self, video_path, frame_indices):
+            return tuple(
+                f"data:image/jpeg;base64,{frame}" for frame in frame_indices
+            )
+
+    first = ViolationCandidate(
+        **{
+            **_candidate().__dict__,
+            "evidence": {
+                "sam2_track": {"track_id": "ball-1", "states": [{"frame": 4}]}
+            },
+        }
+    )
+    second = ViolationCandidate(
+        **{
+            **_candidate().__dict__,
+            "detector_score": 0.8,
+            "evidence": {
+                "sam2_track": {"track_id": "ball-2", "states": [{"frame": 5}]}
+            },
+        }
+    )
+    model = FakeMultimodalModel()
+    verifier = CategoryGroupedVLMVerifier(
+        model,
+        frame_loader=FlexibleLoader(),
+        model_name="grouped-test",
+    )
+
+    verifier.verify_many(
+        CriticRequest(video_path="video.mp4", prompt="A ball moves."),
+        (first, second),
+        {0: (4, 5, 6), 1: (4, 5, 6)},
+    )
+
+    payload = json.loads(model.calls[0][0])
+    assert payload["representative_evidence"]["sam2_track"]["track_id"] == "ball-1"
+    assert all("evidence" not in candidate for candidate in payload["candidates"])
+
+
 def test_verifier_payload_contains_sam2_track_evidence_and_expected_event_policy():
     model = FakeMultimodalModel()
     verifier = EvidenceGroundedVLMVerifier(

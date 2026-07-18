@@ -221,6 +221,9 @@ class CategoryGroupedVLMVerifier(EvidenceGroundedVLMVerifier):
                             "end_frame": end_frame,
                         },
                         "representative_critical_frames": frames,
+                        "representative_evidence": candidates[
+                            representative
+                        ].evidence,
                         "candidates": [
                             {
                                 "object": candidates[index].object,
@@ -229,7 +232,6 @@ class CategoryGroupedVLMVerifier(EvidenceGroundedVLMVerifier):
                                 "detector_score": candidates[index].detector_score,
                                 "start_frame": candidates[index].start_frame,
                                 "end_frame": candidates[index].end_frame,
-                                "evidence": candidates[index].evidence,
                             }
                             for index in sorted(
                                 indices,
