@@ -24,7 +24,7 @@ from physgenloop.learning_repair import (
     write_repair_manifest,
 )
 from physgenloop.learning_repair.cli import main as repair_cli
-from Blender_video.scripts.finalize_repair_shard import (
+from data_pipeline.blender.scripts.finalize_repair_shard import (
     ACTION_BY_CATEGORY,
     context_cases,
 )
