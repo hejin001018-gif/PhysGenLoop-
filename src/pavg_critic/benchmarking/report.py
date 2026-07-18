@@ -105,7 +105,12 @@ def write_smoke_report(
     lines.extend(
         [
             f"- `{method_id}` / `{failure['sample_id']}`: "
-            f"{failure['type']} — {failure['message']}"
+            f"{failure['type']}"
+            + (
+                f" — {failure['message']}"
+                if failure.get("message")
+                else ""
+            )
             for method_id, failure in failures
         ]
         or ["- None"]

@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from pavg_critic.benchmarking.report import build_smoke_report, write_smoke_report
 
 
@@ -31,3 +33,18 @@ def test_report_output_is_stable_and_warning_precedes_table(
     assert first == second
     text = first.decode("utf-8")
     assert text.index("Warning") < text.index("| Method")
+
+
+def test_report_renders_sanitized_failure_without_message(
+    tmp_path, sample_factory, prediction_factory
+):
+    samples = (sample_factory(index=1, physical=False, generator="g"),)
+    prediction = replace(
+        prediction_factory("1", "unknown", None, method_id="M1_GRAPH"),
+        failure={"type": "ValueError"},
+    )
+
+    write_smoke_report(samples, (prediction,), tmp_path)
+
+    text = (tmp_path / "summary.md").read_text(encoding="utf-8")
+    assert "`M1_GRAPH` / `1`: ValueError" in text
