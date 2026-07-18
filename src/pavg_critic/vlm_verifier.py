@@ -17,6 +17,9 @@ from .interfaces import MultimodalStructuredModel
 from .schemas import CriticRequest, TrackSequence, ViolationCandidate, VLMReview
 
 
+_MAX_VERIFIER_FRAMES = 8
+
+
 class CriticalFrameLoader(Protocol):
     """从视频读取关键帧并编码为图像 data URL。"""
 
@@ -115,7 +118,7 @@ class EvidenceGroundedVLMVerifier:
         candidate: ViolationCandidate,
         critical_frames: Sequence[int],
     ) -> VLMReview | None:
-        frames = tuple(dict.fromkeys(int(frame) for frame in critical_frames))
+        frames = _bounded_frames(critical_frames)
         if not frames:
             return None
         images = self.frame_loader.load(request.video_path, frames)
@@ -184,9 +187,7 @@ class CategoryGroupedVLMVerifier(EvidenceGroundedVLMVerifier):
                 indices,
                 key=lambda index: (candidates[index].detector_score, -index),
             )
-            frames = tuple(
-                dict.fromkeys(int(frame) for frame in keyframes.get(representative, ()))
-            )
+            frames = _bounded_frames(keyframes.get(representative, ()))
             if not frames:
                 for index in indices:
                     reviews[index] = None
@@ -292,3 +293,14 @@ class OpenCVFrameDataUrlLoader:
         finally:
             capture.release()
         return tuple(encoded)
+
+
+def _bounded_frames(frames: Sequence[int]) -> tuple[int, ...]:
+    unique = tuple(dict.fromkeys(int(frame) for frame in frames))
+    if len(unique) <= _MAX_VERIFIER_FRAMES:
+        return unique
+    indices = {
+        round(index * (len(unique) - 1) / (_MAX_VERIFIER_FRAMES - 1))
+        for index in range(_MAX_VERIFIER_FRAMES)
+    }
+    return tuple(unique[index] for index in sorted(indices))

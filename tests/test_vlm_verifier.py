@@ -144,6 +144,32 @@ def test_grouped_verifier_separates_object_category_and_time_segments():
     assert reviews[2].model == "grouped-test"
 
 
+def test_grouped_verifier_bounds_context_images_and_preserves_temporal_endpoints():
+    class FlexibleLoader:
+        def load(self, video_path, frame_indices):
+            return tuple(
+                f"data:image/jpeg;base64,{frame}" for frame in frame_indices
+            )
+
+    model = FakeMultimodalModel()
+    verifier = CategoryGroupedVLMVerifier(
+        model,
+        frame_loader=FlexibleLoader(),
+        model_name="grouped-test",
+    )
+
+    verifier.verify_many(
+        CriticRequest(video_path="video.mp4", prompt="A ball moves."),
+        (_candidate(),),
+        {0: tuple(range(20))},
+    )
+
+    images = model.calls[0][1]
+    assert len(images) == 8
+    assert images[0].endswith(",0")
+    assert images[-1].endswith(",19")
+
+
 def test_verifier_payload_contains_sam2_track_evidence_and_expected_event_policy():
     model = FakeMultimodalModel()
     verifier = EvidenceGroundedVLMVerifier(
