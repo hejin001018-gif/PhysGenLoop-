@@ -4,12 +4,16 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+envs/
 .env
 .env.*
 *.log
 
 # 大文件（README §推荐工程结构：Git 仅跟踪元数据）
 outputs/
+data/
+models/
+checkpoints/
 data/samples/
 data/raw/
 data/cache/
@@ -26,9 +30,11 @@ videos/
 *.bin
 *.zip
 
-# 保留少量示例
+# 保留少量示例与轻量证据
 !data/samples/example_*/
 !outputs/.gitkeep
+!outputs/repair_training/
+!outputs/repair_training/**
 
 # IDE
 .idea/

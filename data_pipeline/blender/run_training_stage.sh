@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PYTHON="${PYTHON:-/workspace/pavg/.venv/bin/python}"
 CAMPAIGN_ROOT="${CAMPAIGN_ROOT:-/workspace/pavg/campaigns/repair_600g_v1}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-/workspace/pavg/artifacts}"
@@ -12,7 +12,7 @@ SEEDS="${SEEDS:-17,23,42,73,101}"
 
 cd "$ROOT"
 
-"$PYTHON" Blender_video/scripts/run_repair_campaign.py \
+"$PYTHON" data_pipeline/blender/scripts/run_repair_campaign.py \
   --campaign-root "$CAMPAIGN_ROOT" \
   --total-groups "$TOTAL_GROUPS" \
   --groups-per-shard "$GROUPS_PER_SHARD" \
@@ -22,14 +22,14 @@ cd "$ROOT"
   --height 360 \
   --samples 8
 
-"$PYTHON" Blender_video/scripts/train_repair_campaign.py \
+"$PYTHON" data_pipeline/blender/scripts/train_repair_campaign.py \
   --campaign-root "$CAMPAIGN_ROOT" \
   --config configs/repair_agent.yaml \
   --critic-config configs/default.yaml \
   --seeds "$SEEDS" \
   --memory-size 512
 
-"$PYTHON" Blender_video/scripts/cleanup_repair_campaign.py \
+"$PYTHON" data_pipeline/blender/scripts/cleanup_repair_campaign.py \
   --campaign-root "$CAMPAIGN_ROOT" \
   --confirm delete-verified-blender-shards
 

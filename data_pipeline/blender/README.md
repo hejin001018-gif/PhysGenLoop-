@@ -1,6 +1,6 @@
 # Blender 物理异常视频数据集
 
-本目录包含根据三段真实参考视频重新搭建的三套完整 Blender 3D 场景、逐帧渲染、异常视频和真值数据。所有新生成的数据都位于 `Blender_video` 内；`references/` 中保存了原视频副本及 SHA-256，以保证来源可追溯。
+本目录包含根据三段真实参考视频重新搭建的三套完整 Blender 3D 场景、逐帧渲染、异常视频和真值数据。所有新生成的数据都位于 `data_pipeline/blender` 内；`references/` 中保存了原视频副本及 SHA-256，以保证来源可追溯。
 
 ## 最终视频
 
@@ -15,7 +15,7 @@
 ## 目录结构
 
 ```text
-Blender_video/
+data_pipeline/blender/
 ├─ references/          原视频副本
 ├─ scenes/              可编辑的 .blend 场景
 ├─ renders/<scene>/     逐帧无损 PNG（frame_0001.png 起）
@@ -42,7 +42,7 @@ Blender_video/
 在 PowerShell 中执行：
 
 ```powershell
-cd E:\PAVG\Blender_video
+cd <repository>/data_pipeline/blender
 .\run_all.ps1 -Rebuild -Samples 32
 python .\scripts\verify_outputs.py
 ```

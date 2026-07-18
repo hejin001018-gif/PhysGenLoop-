@@ -3,7 +3,7 @@
 Run with Blender, for example:
   blender --background --factory-startup --python generate_scenes.py -- --scene car-turn
 
-All generated paths are rooted in Blender_video.  Source footage is used only
+All generated paths are rooted in data_pipeline/blender.  Source footage is used only
 as a visual reference; every rendered pixel in the anomaly videos is 3D.
 """
 

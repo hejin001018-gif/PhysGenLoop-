@@ -154,7 +154,7 @@ $PY -m physgenloop.learning_repair evaluate \
   --device cpu --output "$OUT/evaluation_test.json"
 
 RELEASE="$OUT/repair_agent"
-$PY Blender_video/scripts/build_action_value_release.py \
+$PY data_pipeline/blender/scripts/build_action_value_release.py \
   --training-dir "$TRAINING" --targets "$TARGETS" --memory-targets "$MEMORY" \
   --compatibility configs/learning_repair/critic_compatibility_v1.json \
   --critic-config configs/default.yaml \

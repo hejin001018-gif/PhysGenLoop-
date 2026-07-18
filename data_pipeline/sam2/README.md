@@ -53,7 +53,7 @@ collected real-anomaly test set.
 Run from PowerShell:
 
 ```powershell
-Set-Location <repository>\SAM2_video
+Set-Location <repository>/data_pipeline/sam2
 .\run_pipeline.ps1
 ```
 

@@ -22,7 +22,7 @@ SPECS = {
 def find_tool(name):
     matches = sorted((ROOT / "tools" / "ffmpeg").rglob(name))
     if not matches:
-        raise FileNotFoundError(f"Could not find {name} below Blender_video/tools/ffmpeg")
+        raise FileNotFoundError(f"Could not find {name} below data_pipeline/blender/tools/ffmpeg")
     return matches[0]
 
 

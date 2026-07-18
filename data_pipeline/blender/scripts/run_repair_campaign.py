@@ -69,9 +69,9 @@ def load_json(path: Path) -> Any:
 
 def source_fingerprint(repo: Path) -> dict[str, str]:
     relative_paths = (
-        "Blender_video/scripts/generate_repair_shard.py",
-        "Blender_video/scripts/finalize_repair_shard.py",
-        "Blender_video/run_cloud_shard.sh",
+        "data_pipeline/blender/scripts/generate_repair_shard.py",
+        "data_pipeline/blender/scripts/finalize_repair_shard.py",
+        "data_pipeline/blender/run_cloud_shard.sh",
         "configs/default.yaml",
     )
     return {relative: sha256(repo / relative) for relative in relative_paths}
@@ -141,7 +141,7 @@ def merge_snapshots(manifest_dir: Path, output: Path, expected_records: int) -> 
 def main() -> int:
     args = parse_args()
     repo = Path(__file__).resolve().parents[2]
-    runner = (args.runner or repo / "Blender_video/run_cloud_shard.sh").resolve()
+    runner = (args.runner or repo / "data_pipeline/blender/run_cloud_shard.sh").resolve()
     if not runner.is_file():
         raise FileNotFoundError(f"cloud shard runner not found: {runner}")
     campaign = args.campaign_root.resolve()

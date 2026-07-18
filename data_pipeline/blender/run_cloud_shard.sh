@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BLENDER="${BLENDER:-/workspace/pavg/tools/blender/blender}"
 PYTHON="${PYTHON:-/workspace/pavg/.venv/bin/python}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-/workspace/pavg/scratch/shards/shard_0000}"
@@ -18,7 +18,7 @@ DIFFICULTY_PROFILE="${DIFFICULTY_PROFILE:-standard}"
 mkdir -p "$OUTPUT_ROOT"
 
 "$BLENDER" --background --factory-startup \
-  --python "$ROOT/Blender_video/scripts/generate_repair_shard.py" -- \
+  --python "$ROOT/data_pipeline/blender/scripts/generate_repair_shard.py" -- \
   --output-root "$OUTPUT_ROOT" \
   --shard-id "$SHARD_ID" \
   --start-group "$START_GROUP" \
@@ -31,7 +31,7 @@ mkdir -p "$OUTPUT_ROOT"
   --difficulty-profile "$DIFFICULTY_PROFILE"
 
 cd "$ROOT"
-"$PYTHON" Blender_video/scripts/finalize_repair_shard.py \
+"$PYTHON" data_pipeline/blender/scripts/finalize_repair_shard.py \
   --shard-root "$OUTPUT_ROOT" \
   --config configs/default.yaml
 
