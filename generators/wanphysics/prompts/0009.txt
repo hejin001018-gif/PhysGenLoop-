@@ -1,0 +1,14 @@
+A realistic physics simulation of billiard balls collision.
+
+A cue strikes a white ball on a pool table.
+
+The ball accelerates and rolls across the surface.
+
+It collides with another ball.
+
+Momentum and kinetic energy transfer between objects.
+
+The balls rotate due to friction and spin.
+
+The camera is fixed above the table.
+Realistic rigid body collision physics.

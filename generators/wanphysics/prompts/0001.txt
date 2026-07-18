@@ -1,0 +1,11 @@
+A realistic physics simulation of a basketball bouncing.
+
+A basketball is thrown inside an indoor basketball court.
+The ball follows projectile motion under gravity.
+It rotates due to angular momentum.
+The ball hits the wooden floor and bounces several times.
+Energy is gradually lost due to collision damping.
+
+The camera is fixed.
+Realistic materials and lighting.
+The motion follows Newtonian mechanics.

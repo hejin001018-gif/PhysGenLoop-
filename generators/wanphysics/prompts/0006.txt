@@ -1,0 +1,15 @@
+A realistic physics simulation of a double pendulum.
+
+Two metal pendulum arms are connected by a joint and attached to a fixed ceiling point.
+
+The first pendulum is released from an initial angle.
+Gravity creates torque and causes rotational motion.
+The second pendulum follows nonlinear chaotic dynamics.
+
+Energy continuously transfers between gravitational potential energy and kinetic energy.
+
+The motion is highly sensitive to initial conditions.
+
+The camera is fixed showing the entire system.
+Realistic metal materials and lighting.
+The simulation follows Newtonian mechanics.

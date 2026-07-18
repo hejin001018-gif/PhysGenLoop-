@@ -1,0 +1,15 @@
+A realistic physics simulation of an elevator.
+
+An elevator cabin starts moving upward from rest.
+
+The motor generates pulling force through the cable.
+
+The elevator accelerates upward and then reaches constant velocity.
+
+Passengers experience changing apparent weight.
+
+The elevator slows down smoothly before stopping.
+
+The camera shows the entire elevator mechanism.
+
+The simulation follows Newton's laws and cable tension dynamics.
