@@ -1096,3 +1096,8 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - Timestamp: `2026-07-19T10:11:10+08:00`; cloud2 M4/M5 were `169/168` and cloud1 odd M4/M5 were `87/87`. The cloud2 SAM2 recovery process was intentionally paused (`SIGSTOP`) after a controlled comparison: over the same short interval, M4/M5 grew substantially faster without SAM2 contention, while vLLM stayed healthy and the model GPU remained busy.
 - A remote resume watcher was installed under the existing cloud2 run directory. It only reads the M4/M5 journal counts and sends `CONT` to the already-running recovery PID once both methods reach `1,000`; this scheduling threshold does not alter prompts, model, frames, weights, thresholds, sample membership or predictions. The watcher was restarted with the updated threshold and logged its current counts.
 - Based on the measured rates rather than the smoke estimate, the remaining primary full run is currently projected at approximately `14–18 h`, with final merge/audit/prompt diagnostics adding `1–3 h`. This is recorded as an operational ETA, not a change to the frozen evaluation contract.
+
+### E13 — Runtime ETA refinement
+
+- Timestamp: `2026-07-19T10:16:30+08:00`; cloud2 method heartbeat reported M4/M5 at `172/171` with about `14.5 h` remaining at the current solo-model rate. cloud1 odd M4/M5 were `87/87` with about `3.8 h` remaining. Both endpoints were HTTP `200`; GPUs were `94%` and `93%` utilized.
+- To align the deferred SAM2 recovery with cloud1 odd completion, the existing resume watcher threshold was changed from `1,000` to `650` method records. It still only sends `CONT` to the pre-existing recovery PID and does not alter any evaluation setting or output.
