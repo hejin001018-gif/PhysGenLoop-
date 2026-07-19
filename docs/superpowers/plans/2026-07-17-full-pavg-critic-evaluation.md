@@ -1112,3 +1112,11 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 
 - Timestamp: `2026-07-19T14:46:21+08:00`; cloud2 owner M4/M5 were `646/645` and the even recovery remained at `594/833`. cloud1 odd was being retained for local export before shutdown.
 - For the user-requested fallback in which cloud1 is stopped after its odd result, the cloud2 resume watcher threshold was changed from `650` to the owner terminal count `1,731`. This defers SAM2 recovery until cloud2's current owner M4/M5 finish, preventing same-GPU contention before the even shard is transferred and evaluated. No method, prompt, model or sample membership changed.
+
+### E16 — cloud1 odd export and local synchronization
+
+- Timestamp: `2026-07-19T15:04:00+08:00`; cloud1 (`px-cloud1.matpool.com:27985`, server2) completed its fixed odd shard with `833/833` rows for each of `M1_GRAPH`, `M2_CHECKLIST`, `M3_MECHANICS`, `D1_STRUCTURED_VLM`, `M4_VLM` and `M5_FULL`.
+- Terminal artifacts contain `2,499` CPU-method predictions/diagnostics and `2,499` model-method predictions. The model sidecar contains `1,666` diagnostics because the matched D1 baseline intentionally has no diagnostics; M4/M5 diagnostics match their prediction keys exactly. Explicit terminal failures remain recorded (`15` CPU-side no-observation failures and `10` model-side failures); no rows were dropped or retuned.
+- The first export assertion incorrectly required diagnostics for D1; after reading the failed assertion and confirming the frozen baseline contract, the export was regenerated with the narrow D1 exemption. No evaluation code, prompt, threshold, weight, model or sample membership changed.
+- Remote archive SHA-256: `ec73432a717fe25bb7d62a9b5eeb3d06e983aaeb1ecf600733601f8e2ff34f93`. It contains the 833-row recovery manifest, 833 observation metadata files, compact predictions/diagnostics/config/summary/heartbeat/source commit and audit only; no videos, weights, raw provider payloads or credentials.
+- Local synchronization path: `outputs/benchmarks/videophy2-full-pavg-qwen3vl8b/cloud1-odd/`. Local SHA-256, audit counts, key alignment, archive path-safety and secret scan all passed. The user may now shut down cloud1/server2; cloud2/server1 (`px-cloud2.matpool.com:29183`) remains active for its owner M4/M5 and later even-shard recovery.
