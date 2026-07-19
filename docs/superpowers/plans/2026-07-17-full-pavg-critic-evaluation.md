@@ -1101,3 +1101,9 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 
 - Timestamp: `2026-07-19T10:16:30+08:00`; cloud2 method heartbeat reported M4/M5 at `172/171` with about `14.5 h` remaining at the current solo-model rate. cloud1 odd M4/M5 were `87/87` with about `3.8 h` remaining. Both endpoints were HTTP `200`; GPUs were `94%` and `93%` utilized.
 - To align the deferred SAM2 recovery with cloud1 odd completion, the existing resume watcher threshold was changed from `1,000` to `650` method records. It still only sends `CONT` to the pre-existing recovery PID and does not alter any evaluation setting or output.
+
+### E14 — Afternoon supervision and bounded model resume
+
+- Timestamp: `2026-07-19T14:31:21+08:00`; cloud2 was M4/M5 `604/603` of 1,731 with two model-method failures, and cloud1 odd was M4/M5 `750/750` of 833 with eight model-method failures. Both endpoints returned HTTP `200`; GPU utilization was `85%` and `94%`; neither active evaluator was stalled.
+- cloud2 SAM2 recovery remained intentionally stopped at `594/833` until the model-method threshold `650`. cloud1 odd was projected to finish in about 40 minutes by its heartbeat.
+- A cloud1 watcher was installed under the existing run directory. It waits for the current model evaluator to exit and relaunches the byte-identical command only when the terminal log explicitly contains `new failure budget reached` and exact D1/M4/M5 counts remain incomplete; all other exits fail closed. This prevents an expected multi-method no-observation budget from idling the GPU without weakening the failure policy.
