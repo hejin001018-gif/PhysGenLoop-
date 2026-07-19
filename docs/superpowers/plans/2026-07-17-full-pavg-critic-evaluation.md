@@ -1084,3 +1084,9 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - Timestamp: `2026-07-19T08:39:59+08:00`; cloud1 recovery manifest reached its exact terminal count `833/833` with `5` explicit no-seed failures. The watcher launched the fixed odd-owner runs without changing the manifest: CPU M1/M2/M3 were at `557/833` each and open-model D1 was at `44/833` at the checkpoint.
 - cloud2 D1 reached its exact owner count `1,731/1,731`; M4/M5 had started at `24/24` records each while the independent fixed B-even SAM2 recovery reached `550/833` with `4` explicit no-seed failures.
 - Both endpoints remained HTTP `200`; GPU utilization was `93%` on each host and no OOM, duplicate key or process restart occurred. The next synchronization gate is cloud2 recovery terminal count, after which only successful immutable observation pairs will be relayed to cloud1 for the remaining fixed owner shard.
+
+### E11 — Exact resume after method-level failure budget
+
+- Timestamp: `2026-07-19T08:40:00+08:00`; the cloud1 odd CPU run stopped at M1/M2/M3 counts `557/556/556`. The terminal log showed `RuntimeError: new failure budget reached`; its 10 new failures were the expected missing-observation records repeated across methods, not a code, model or endpoint failure.
+- The identical command was relaunched with the unchanged `--max-new-failures 10`. Because the runner budgets only failures newly appended by the current invocation, the restart completed the remaining immutable keys without changing any threshold or method setting.
+- Terminal integrity: M1/M2/M3 each `833/833`; `2,499` predictions and `2,499` diagnostics; `2,499` unique keys on each side; exact key equality; 15 explicit failures (`5` no-seed samples × `3` methods); zero duplicate or asymmetric keys.
