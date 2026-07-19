@@ -1107,3 +1107,8 @@ Append one immutable checkpoint sequentially named `E1` through `E14` after ever
 - Timestamp: `2026-07-19T14:31:21+08:00`; cloud2 was M4/M5 `604/603` of 1,731 with two model-method failures, and cloud1 odd was M4/M5 `750/750` of 833 with eight model-method failures. Both endpoints returned HTTP `200`; GPU utilization was `85%` and `94%`; neither active evaluator was stalled.
 - cloud2 SAM2 recovery remained intentionally stopped at `594/833` until the model-method threshold `650`. cloud1 odd was projected to finish in about 40 minutes by its heartbeat.
 - A cloud1 watcher was installed under the existing run directory. It waits for the current model evaluator to exit and relaunches the byte-identical command only when the terminal log explicitly contains `new failure budget reached` and exact D1/M4/M5 counts remain incomplete; all other exits fail closed. This prevents an expected multi-method no-observation budget from idling the GPU without weakening the failure policy.
+
+### E15 — Single-server fallback scheduling
+
+- Timestamp: `2026-07-19T14:46:21+08:00`; cloud2 owner M4/M5 were `646/645` and the even recovery remained at `594/833`. cloud1 odd was being retained for local export before shutdown.
+- For the user-requested fallback in which cloud1 is stopped after its odd result, the cloud2 resume watcher threshold was changed from `650` to the owner terminal count `1,731`. This defers SAM2 recovery until cloud2's current owner M4/M5 finish, preventing same-GPU contention before the even shard is transferred and evaluated. No method, prompt, model or sample membership changed.
