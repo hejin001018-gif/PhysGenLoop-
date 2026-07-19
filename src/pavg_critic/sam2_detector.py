@@ -42,6 +42,7 @@ _VLM_IDENTIFY_SCHEMA = {
     "properties": {
         "objects": {
             "type": "array",
+            "minItems": 1,
             "items": {
                 "type": "object",
                 "additionalProperties": False,

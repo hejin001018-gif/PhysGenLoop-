@@ -93,6 +93,7 @@ def test_sam2_uses_jpeg_folder_and_squeezes_mask_channel(tmp_path, monkeypatch):
     assert seed_model.schema["properties"]["objects"]["items"]["properties"][
         "x_pct"
     ] == {"type": "number", "minimum": 0, "maximum": 100}
+    assert seed_model.schema["properties"]["objects"]["minItems"] == 1
     assert "A ball falls onto the floor." in seed_model.user_prompt
     assert "prompt-relevant" in seed_model.system_prompt
     assert "background" in seed_model.system_prompt
