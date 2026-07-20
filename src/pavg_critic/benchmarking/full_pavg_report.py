@@ -49,6 +49,13 @@ PHYSICAL_SCORE_THRESHOLD = 0.6
 
 
 def _expected_hard_override(record: Mapping[str, Any]) -> bool:
+    if (
+        record.get("failure") is not None
+        or record.get("fusion") is None
+        or record.get("rules") is None
+        or record.get("evidence_families") is None
+    ):
+        return False
     fusion = record["fusion"]
     rules = record["rules"]
     if (
@@ -177,7 +184,11 @@ def _sequential_attribution(
             baseline_failures += before.failure is not None
             candidate_failures += after.failure is not None
             record = diagnostics[(sample.sample_id, candidate)]
-            evidence = record["evidence_families"]
+            if record.get("failure") is not None:
+                continue
+            evidence = record.get("evidence_families")
+            if not isinstance(evidence, Mapping):
+                continue
             if candidate == "M1_GRAPH":
                 available = evidence["pqsg"]["status"] == "available"
             elif candidate == "M2_CHECKLIST":
@@ -187,9 +198,13 @@ def _sequential_attribution(
             elif candidate == "M4_VLM":
                 available = evidence["vlm"]["status"] == "available"
             else:
+                planner = record.get("planner")
+                question_graph = record.get("question_graph")
                 available = (
-                    record["planner"]["source"] == "model"
-                    and bool(record["question_graph"]["source"])
+                    isinstance(planner, Mapping)
+                    and planner.get("source") == "model"
+                    and isinstance(question_graph, Mapping)
+                    and bool(question_graph.get("source"))
                 )
             module_available += available
         result[f"{candidate}-{baseline}"] = {

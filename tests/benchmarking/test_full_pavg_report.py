@@ -285,3 +285,43 @@ def test_complete_report_rejects_contaminated_diagnostic_fields(
             bootstrap_resamples=20,
             bootstrap_seed=20260717,
         )
+
+
+def test_complete_report_accepts_terminal_failure_diagnostic(
+    sample_factory, prediction_factory
+):
+    samples = tuple(
+        sample_factory(index=index, physical=index < 2, generator="g")
+        for index in range(4)
+    )
+    predictions = _predictions(samples, prediction_factory)
+    diagnostics = list(_diagnostics(samples))
+    failure = dict(diagnostics[0])
+    for field in (
+        "planner",
+        "question_graph",
+        "video_science",
+        "mechanics",
+        "rules",
+        "vlm_reviews",
+        "evidence_families",
+        "fusion",
+    ):
+        failure[field] = None
+    failure["hard_violation_override"] = False
+    failure["failure"] = {"error_type": "SchemaError"}
+    diagnostics[0] = failure
+
+    report = build_full_pavg_report(
+        samples=samples,
+        predictions=predictions,
+        diagnostics=tuple(diagnostics),
+        pilot_samples=samples,
+        prompt_predictions=_prompt_predictions(
+            samples, predictions, prediction_factory
+        ),
+        bootstrap_resamples=20,
+        bootstrap_seed=20260717,
+    )
+
+    assert report["population"]["diagnostic_count"] == len(diagnostics)
