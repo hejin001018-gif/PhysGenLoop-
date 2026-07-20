@@ -16,6 +16,8 @@ class LoopConfig:
     candidates_per_round: int = 2
     acceptance_score: float = 0.8
     base_seed: int = 42
+    error_scope_threshold: float = 0.4
+    default_total_frames: int | None = None
 
     def __post_init__(self) -> None:
         if self.max_rounds < 1:
@@ -24,6 +26,10 @@ class LoopConfig:
             raise ValueError("candidates_per_round must be at least 1")
         if not 0.0 <= self.acceptance_score <= 1.0:
             raise ValueError("acceptance_score must be within [0, 1]")
+        if not 0.0 <= self.error_scope_threshold <= 1.0:
+            raise ValueError("error_scope_threshold must be within [0, 1]")
+        if self.default_total_frames is not None and self.default_total_frames < 1:
+            raise ValueError("default_total_frames must be positive when provided")
 
 
 @dataclass(frozen=True)

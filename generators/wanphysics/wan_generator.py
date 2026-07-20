@@ -21,29 +21,51 @@ class WanGenerator:
         self.device = device
         self.pipe = WanPipeline.from_pretrained(
             model_path,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
         ).to(device)
         print("✅ Wan2.2-TI2V-5B 模型加载完成")
 
-    def generate_video(self, prompt, output_path="./outputs/wan_output.mp4", num_frames=16):
+    def generate_video(
+        self,
+        prompt,
+        output_path="./outputs/wan_output.mp4",
+        num_frames=81,
+        height=704,
+        width=1280,
+        fps=24,
+        seed=None,
+        negative_prompt=None,
+    ):
         """
         根据文本生成视频
         :param prompt: 提示词
         :param output_path: 输出视频路径
-        :param num_frames: 视频帧数
+        :param num_frames: 视频帧数，需满足官方推荐的 4n+1 格式（默认 81）
+        :param height: 输出高度，官方 720P 推荐值为 704
+        :param width: 输出宽度，官方 720P 推荐值为 1280
+        :param fps: 导出视频的帧率，官方推荐 24fps
+        :param seed: 可选随机种子，用于复现或制造候选之间的差异
+        :param negative_prompt: 可选负向提示词
         """
         print(f"📝 生成提示词: {prompt}")
+        generator = (
+            torch.Generator(device=self.device).manual_seed(seed)
+            if seed is not None
+            else None
+        )
         with torch.no_grad():
             video_frames = self.pipe(
                 prompt=prompt,
+                negative_prompt=negative_prompt,
                 num_frames=num_frames,
-                height=480,
-                width=720,
+                height=height,
+                width=width,
+                generator=generator,
             ).frames[0]  # 返回 PIL Image 列表
 
         # 保存为视频（依赖 imageio 库）
         import imageio
-        writer = imageio.get_writer(output_path, fps=8)
+        writer = imageio.get_writer(output_path, fps=fps)
         for frame in video_frames:
             writer.append_data(np.array(frame))
         writer.close()

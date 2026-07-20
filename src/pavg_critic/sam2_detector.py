@@ -79,6 +79,7 @@ class SAM2ObjectDetector:
         model_ckpt: str = "sam2.1_hiera_base_plus.pt",
         jpeg_quality: int = 85,
         prompt: str = "",
+        mask_output_dir: str | None = None,
     ) -> None:
         self._vlm = vlm
         self._cache: dict[int, list[Detection]] = {}
@@ -86,6 +87,8 @@ class SAM2ObjectDetector:
         self._width: int | None = None
         self._height: int | None = None
         self._prompt = str(prompt or "").strip()
+        self._mask_output_dir = None if mask_output_dir is None else Path(mask_output_dir)
+        self._mask_cache: dict[tuple[str, int], Any] = {}
         self._precompute(video_path, model_cfg, model_ckpt, jpeg_quality)
 
     # ── ObjectDetector protocol ──────────────────────────
@@ -258,6 +261,8 @@ class SAM2ObjectDetector:
                         confidence=0.85,
                         track_id=f"sam2:{obj_id_int}",
                     )
+                    if self._mask_output_dir is not None:
+                        self._mask_cache[(name, out_frame_idx)] = (mask.astype("uint8") * 255)
                     frame_dets.append(detection)
                 if frame_dets:
                     self._cache[out_frame_idx] = frame_dets
@@ -266,6 +271,33 @@ class SAM2ObjectDetector:
             raise ValueError(
                 f"SAM2 produced no detections across {frame_count} video frames"
             )
+
+    def materialize_masks(self, violations: Sequence[Any]) -> dict[tuple[str, int], str]:
+        """仅为最终违规帧落盘 mask，供局部修复消费。"""
+        if self._mask_output_dir is None:
+            return {}
+        self._mask_output_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            import cv2
+        except ImportError as exc:
+            raise RuntimeError("OpenCV is required to write SAM2 masks") from exc
+
+        paths: dict[tuple[str, int], str] = {}
+        for violation in violations:
+            object_name = str(getattr(violation, "object", "")).strip()
+            for frame in getattr(violation, "critical_frames", ()) or ():
+                key = (object_name, int(frame))
+                mask = self._mask_cache.get(key)
+                if mask is None:
+                    continue
+                filename = f"{object_name or 'object'}_{int(frame):05d}.png"
+                path = self._mask_output_dir / filename
+                if not path.exists():
+                    ok = cv2.imwrite(str(path), mask)
+                    if not ok:
+                        raise ValueError(f"cannot encode SAM2 mask for {filename}")
+                paths[key] = str(path)
+        return paths
 
     @staticmethod
     def _extract_video_frames(

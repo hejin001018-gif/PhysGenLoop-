@@ -1,0 +1,34 @@
+# PhysGenLoop 闭环运行配置
+paths:
+  root: /root/PhysGenLoop-
+  models:
+    wan: /root/PhysGenLoop-/models/wan2.2_ti2v_5b
+    vllm: /root/PhysGenLoop-/models/Qwen3-VL-8B-Instruct
+    sam2: /root/PhysGenLoop-/models/sam2.1_hiera_base_plus.pt
+  checkpoints:
+    repair_agent: /root/PhysGenLoop-/checkpoints/repair_agent/repair-agent-v3.1-proxy-20260717
+  outputs: /root/PhysGenLoop-/outputs
+  videophy2_manifest: /root/PhysGenLoop-/evaluation/manifests/videophy2_pilot300.json
+  envs:
+    main: /root/PhysGenLoop-/envs/main/bin/python
+    vllm: /root/PhysGenLoop-/envs/vllm-cu128/bin/python
+
+loop:
+  prompt: "a red ball rolling on a flat table"
+  max_rounds: 2
+  candidates_per_round: 1
+  acceptance_score: 0.8
+  base_seed: 42
+  error_scope_threshold: 0.4
+
+generator:
+  num_frames: 81
+  height: 704
+  width: 1280
+  fps: 24
+  negative_prompt: null
+
+vllm:
+  gpu_util: 0.85
+  max_model_len: 16384
+  served_name: qwen3-vl-8b-instruct
