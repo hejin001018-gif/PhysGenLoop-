@@ -35,10 +35,11 @@ def _load_cfg(path: Path) -> dict:
 
 
 class _VllmHandoffCritic:
-    def __init__(self, inner: Sam2VlmSubprocessCritic, max_rounds: int) -> None:
+    def __init__(self, inner: Sam2VlmSubprocessCritic, max_rounds: int, dual_gpu: bool = False) -> None:
         self._inner = inner
         self._max_rounds = max_rounds
         self._round_count = 0
+        self._dual_gpu = dual_gpu
 
     def prepare_for_generation(self) -> None:
         self._inner.prepare_for_generation()
@@ -46,7 +47,8 @@ class _VllmHandoffCritic:
     def evaluate(self, candidate, *, prompt, physics_plan):
         report = self._inner.evaluate(candidate, prompt=prompt, physics_plan=physics_plan)
         self._round_count += 1
-        if self._round_count < self._max_rounds:
+        # 双卡模式：vLLM 常驻 GPU1，不在轮间停 vLLM。
+        if not self._dual_gpu and self._round_count < self._max_rounds:
             self._inner.stop_vllm()
         return report
 
@@ -136,6 +138,13 @@ def main() -> int:
     max_rounds = args.max_rounds if args.max_rounds is not None else loop["max_rounds"]
     ckpt_root = args.ckpt_root or paths["checkpoints"]["repair_agent"]
 
+    # 双卡角色分工配置：Wan@wan_gpu(默认0)，vLLM@vllm_gpu(默认1)。
+    # gpu 段缺省或 dual_gpu=false 时回退单卡串行（旧行为），保持向后兼容。
+    gpu_cfg = cfg.get("gpu", {}) or {}
+    dual_gpu = bool(gpu_cfg.get("dual_gpu", False))
+    wan_gpu = gpu_cfg.get("wan_gpu", 0) if dual_gpu else None
+    vllm_gpu = gpu_cfg.get("vllm_gpu", 1) if dual_gpu else None
+
     run_id = datetime.now().strftime("videophy2_run_%Y%m%d_%H%M%S")
     run_dir = Path(paths["outputs"]) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -159,6 +168,7 @@ def main() -> int:
             width=gen["width"],
             fps=gen["fps"],
             negative_prompt=gen.get("negative_prompt"),
+            gpu_id=wan_gpu,
         )
         raw_critic = Sam2VlmSubprocessCritic(
             python=paths["envs"]["main"],
@@ -168,8 +178,10 @@ def main() -> int:
             vllm_log=str(run_dir / "vllm.log"),
             vllm_gpu_util=vllm["gpu_util"],
             vllm_max_model_len=vllm["max_model_len"],
+            vllm_gpu_id=vllm_gpu,
+            dual_gpu=dual_gpu,
         )
-        critic = _VllmHandoffCritic(raw_critic, max_rounds=max_rounds * loop["candidates_per_round"])
+        critic = _VllmHandoffCritic(raw_critic, max_rounds=max_rounds * loop["candidates_per_round"], dual_gpu=dual_gpu)
         repairer = load_action_value_repairer(
             ckpt_root,
             max_attempts=max_rounds,

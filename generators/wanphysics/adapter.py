@@ -34,8 +34,8 @@ class WanPhysicsGenerator:
         device: str = "cuda",
         output_root: str = "./outputs",
         num_frames: int = 81,
-        height: int = 704,
-        width: int = 1280,
+        height: int = 480,
+        width: int = 832,
         fps: int = 24,
         negative_prompt: str | None = None,
     ) -> None:
@@ -108,10 +108,11 @@ class WanSubprocessGenerator:
         model_path: str = "/root/PhysGenLoop-/models/wan2.2_ti2v_5b",
         output_root: str = "/root/PhysGenLoop-/outputs",
         num_frames: int = 81,
-        height: int = 704,
-        width: int = 1280,
+        height: int = 480,
+        width: int = 832,
         fps: int = 24,
         negative_prompt: str | None = None,
+        gpu_id: str | int | None = None,
     ) -> None:
         self._python = python
         self._model_path = model_path
@@ -121,6 +122,8 @@ class WanSubprocessGenerator:
         self._width = width
         self._fps = fps
         self._negative_prompt = negative_prompt
+        # 双卡角色分工：把 Wan2.2 子进程固定到某张卡（默认由调用方指定 GPU0）。
+        self._gpu_id = gpu_id
 
     def generate(
         self, *, prompt: str, physics_plan: PhysicsPlan, seed: int
@@ -142,8 +145,18 @@ class WanSubprocessGenerator:
         ]
         if self._negative_prompt:
             cmd += ["--negative-prompt", self._negative_prompt]
+        if self._gpu_id is not None and str(self._gpu_id) != "":
+            cmd += ["--gpu-id", str(self._gpu_id)]
 
-        subprocess.run(cmd, check=True)
+        # 通过环境变量传 GPU（gen_step 在 import torch 前读取 WAN_GPU_ID），双保险。
+        env = None
+        if self._gpu_id is not None and str(self._gpu_id) != "":
+            import os as _os
+
+            env = dict(_os.environ)
+            env["WAN_GPU_ID"] = str(self._gpu_id)
+
+        subprocess.run(cmd, check=True, env=env)
 
         with open(out_json, "r", encoding="utf-8") as f:
             raw = json.load(f)

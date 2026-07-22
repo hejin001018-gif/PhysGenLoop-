@@ -32,7 +32,7 @@ class ProPainterLocalEditor:
 
     def __init__(
         self,
-        propainter_repo: str = "/root/ProPainter",
+        propainter_repo: str = "/root/PhysGenLoop-/models/ProPainter",
         python: str = "/root/PhysGenLoop-/envs/main/bin/python",
         output_root: str = "/root/PhysGenLoop-/outputs",
         fps: int = 24,

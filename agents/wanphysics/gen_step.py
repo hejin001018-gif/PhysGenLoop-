@@ -9,11 +9,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, "/root/PhysGenLoop-")
 sys.path.insert(0, "/root/PhysGenLoop-/src")
+
+# 双卡角色分工：允许把 Wan2.2 生成固定到某张卡（默认 GPU0），与 vLLM(GPU1) 分离。
+# 必须在 import torch / WanGenerator 之前设置 CUDA_VISIBLE_DEVICES 才生效。
+_GPU_ID_ENV = os.environ.get("WAN_GPU_ID")
+if _GPU_ID_ENV is not None and _GPU_ID_ENV != "":
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(_GPU_ID_ENV)
 
 from generators.wanphysics.wan_generator import WanGenerator  # noqa: E402
 
@@ -30,12 +37,17 @@ def main() -> int:
     parser.add_argument("--output-root", default="/root/PhysGenLoop-/outputs")
     parser.add_argument("--model-path", default="/root/PhysGenLoop-/models/wan2.2_ti2v_5b")
     parser.add_argument("--num-frames", type=int, default=81)
-    parser.add_argument("--height", type=int, default=704)
-    parser.add_argument("--width", type=int, default=1280)
+    parser.add_argument("--height", type=int, default=480)
+    parser.add_argument("--width", type=int, default=832)
     parser.add_argument("--fps", type=int, default=24)
     parser.add_argument("--negative-prompt", default=None)
+    parser.add_argument("--gpu-id", default=None, help="固定生成使用的 GPU（如 0）；也可用 WAN_GPU_ID 环境变量")
     parser.add_argument("--out-json", required=True)
     args = parser.parse_args()
+
+    # --gpu-id 优先于已在模块顶层读取的 WAN_GPU_ID；若给出且尚未设置则应用。
+    if args.gpu_id is not None and os.environ.get("CUDA_VISIBLE_DEVICES") != str(args.gpu_id):
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
 
     candidate_id = _candidate_id(args.prompt, args.seed)
     candidate_dir = Path(args.output_root) / candidate_id

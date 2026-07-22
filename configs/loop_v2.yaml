@@ -1,0 +1,94 @@
+# PhysGenLoop WanPhysics V2 Sidecar 运行配置（独立于 configs/loop.yaml，不覆盖旧配置）
+#
+# 说明：本文件是 V2 隔离闭环的唯一运行配置。默认全部保守关闭（enabled=false /
+# shadow / local_editing 禁用 / trial 禁用 / memory 禁用）。任何 GPU 运行必须显式
+# 开启并单独获得授权。字段含义对齐 worklog/2026_07_21 修复方案 §6。
+
+runtime:
+  pipeline_version: v2
+  enabled: false              # V2 总开关；false 时入口直接退出，不触碰任何后端
+  gpu_mode: dual_gpu          # dual_gpu | single_handoff；不足两卡自动回退单卡
+  generator_gpu: 0
+  critic_gpu: 1
+  strict_report_roundtrip: true   # CriticReport 解析失败即停当前 repair，保 raw payload
+  persist_full_critic_report: true
+  write_repair_trace: true
+  resume: true
+  fail_on_degraded_critic: true   # enforce 下 SAM2 降级视为不达标
+
+# generator:
+#   height: 600  #分辨率
+#   width: 900
+#   num_frames: 81
+
+critic:
+  profile: sam2_seeded_rules      # 真实能力画像；不再用模糊的 sam2+vlm
+  formal_profile_required: false
+  allow_rules_fallback: false
+  persist_raw_payload_on_error: true
+
+acceptance:
+  mode: shadow                # shadow 只记录 semantic/quality；enforce 才纳入判定
+  physics_score: 0.80
+  confidence: 0.60            # 预注册候选值，需独立 calibration，shadow 阶段不作已验证阈值
+  coverage: 0.50
+  semantic_score: 0.85
+  quality_score: 0.75
+
+local_editing:
+  enabled: true               # ProPainter 已补齐；V2 strict manifest editor 通过测试后开放 local action
+  require_mask: true
+  allow_full_frame_fallback: false
+  strict_manifest: true       # target.mask_uri 必须指向 mask_manifest.json，禁止单张 mask 复制/全帧 fallback
+  propainter_repo: /root/PhysGenLoop-/models/ProPainter
+  propainter_script: /root/PhysGenLoop-/models/ProPainter/inference_propainter.py
+  propainter_weights: /root/PhysGenLoop-/models/ProPainter/weights
+  python: /root/PhysGenLoop-/envs/main/bin/python
+
+memory:
+  mode: disabled              # proxy memory 只提供 action 分布，需独立开关才启用
+  strict_schema: true
+  allow_disabled: true
+  enable_proxy: false         # 显式开关：true 才混合 proxy memory
+
+policy:
+  mode: proxy_research
+  allow_non_deployable_checkpoint: false
+  require_explicit_proxy_override: true
+
+trial:
+  enabled: false
+  canonical_format: repair-trial-v1
+  min_per_action: 50
+
+scorers:
+  quality_enabled: true       # CpuQualityScorer（无 GPU，shadow 记录）
+  semantic_enabled: false     # VlmSemanticScorer（需 vLLM，shadow 记录）
+
+vllm:
+  ownership_mode: pidfile     # 只管理本 run 自己的 PID，禁止宽泛 pkill
+  stop_foreign_process: false
+  host: 127.0.0.1
+  port: 8000                  # 对齐 .env BASE_URL 与 sam2_vlm_critic 实际端口
+  gpu_memory_utilization: 0.65   # 预注册候选值，需实测校准
+
+artifacts:
+  persist_full_critic: true
+  persist_raw_payload_on_error: true
+  persist_mask_manifest: true
+
+paths:
+  # 与 configs/loop.yaml 对齐；V2 只读引用，不改旧文件
+  eval_step: /root/PhysGenLoop-/agents/wanphysics/eval_step.py
+  outputs: /root/PhysGenLoop-/outputs
+  videophy2_manifest: /root/PhysGenLoop-/evaluation/manifests/videophy2_pilot300.json
+  envs:
+    main: /root/PhysGenLoop-/envs/main/bin/python
+    vllm: /root/PhysGenLoop-/envs/vllm-cu128/bin/python
+
+loop:
+  max_rounds: 2
+  candidates_per_round: 1
+  base_seed: 42
+  error_scope_threshold: 0.4
+  default_total_frames: 81

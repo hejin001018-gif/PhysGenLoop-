@@ -61,6 +61,8 @@ class Sam2VlmSubprocessCritic:
         vllm_log: str = "/root/PhysGenLoop-/outputs/vllm_qwen3vl_serve.log",
         vllm_gpu_util: float = 0.85,
         vllm_max_model_len: int = 16384,
+        vllm_gpu_id: str | int | None = None,
+        dual_gpu: bool = False,
     ) -> None:
         self._python = python
         self._vllm_python = vllm_python
@@ -69,6 +71,11 @@ class Sam2VlmSubprocessCritic:
         self._vllm_log = vllm_log
         self._vllm_gpu_util = vllm_gpu_util
         self._vllm_max_model_len = vllm_max_model_len
+        # 双卡角色分工：把 vLLM(Qwen3-VL) 固定到某张卡（如 GPU1），与 Wan(GPU0) 分离。
+        self._vllm_gpu_id = vllm_gpu_id
+        # dual_gpu=True 时，Wan 与 vLLM 各占一卡，无需在生成前杀掉/重启 vLLM，
+        # 省掉每轮 vLLM 冷启动（历史 ~836s）。
+        self._dual_gpu = dual_gpu
 
     def _vllm_healthy(self) -> bool:
         try:
@@ -115,6 +122,13 @@ class Sam2VlmSubprocessCritic:
         if self._vllm_healthy():
             return
         print("[Sam2VlmCritic] 启动 vLLM ...", file=sys.stderr)
+        vllm_env = None
+        if self._vllm_gpu_id is not None and str(self._vllm_gpu_id) != "":
+            import os as _os
+
+            vllm_env = dict(_os.environ)
+            vllm_env["CUDA_VISIBLE_DEVICES"] = str(self._vllm_gpu_id)
+            print(f"[Sam2VlmCritic] vLLM 绑定 GPU {self._vllm_gpu_id}", file=sys.stderr)
         with open(self._vllm_log, "a", encoding="utf-8") as log_file:
             subprocess.Popen(
                 [
@@ -138,6 +152,7 @@ class Sam2VlmSubprocessCritic:
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
                 start_new_session=True,
+                env=vllm_env,
             )
         for _ in range(180):
             if self._vllm_healthy():
@@ -161,6 +176,9 @@ class Sam2VlmSubprocessCritic:
         print("[Sam2VlmCritic] vLLM 已停止且显存已释放", file=sys.stderr)
 
     def prepare_for_generation(self) -> None:
+        # 双卡模式：Wan 在 GPU0，vLLM 常驻 GPU1，生成前无需清理 vLLM/显存。
+        if self._dual_gpu:
+            return
         if self._vllm_healthy() or (self._gpu_memory_used_mb() or 0) > 1024:
             print("[Sam2VlmCritic] 生成前清理 vLLM/GPU 显存", file=sys.stderr)
             self.stop_vllm()
