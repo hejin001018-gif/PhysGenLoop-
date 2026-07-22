@@ -1,9 +1,0 @@
-{
-  "schema_version": "2.0",
-  "observations": [
-    {"frame": 0, "timestamp_sec": 0.0, "object": "red_ball", "track_id": "ball-1", "center": [50, 85], "bbox": [45, 80, 55, 90], "velocity": [0, 100]},
-    {"frame": 1, "timestamp_sec": 0.1, "object": "red_ball", "track_id": "ball-1", "center": [50, 95], "bbox": [45, 90, 55, 100], "velocity": [0, 100]},
-    {"frame": 2, "timestamp_sec": 0.2, "object": "red_ball", "track_id": "ball-1", "center": [50, 92], "bbox": [45, 90, 55, 100], "velocity": [0, -100]},
-    {"frame": 3, "timestamp_sec": 0.3, "object": "red_ball", "track_id": "ball-1", "center": [50, 80], "bbox": [45, 75, 55, 85], "velocity": [0, -100]}
-  ]
-}

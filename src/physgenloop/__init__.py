@@ -1,53 +1,15 @@
-"""PhysGenLoop 跨组件编排层的稳定公开 API。"""
+"""Public API for the V2 WanPhysics loop.
 
-from .contracts import (
-    CandidateEvaluation,
-    GeneratedCandidate,
-    LoopConfig,
-    LoopResult,
-    LoopRound,
-)
-from .controller import LoopController
-from .critic_adapter import PhysicsCriticAdapter
-from .generator import DeterministicFakeGenerator
-from .repairer import InstructionPromptRepairer
+The project now exposes only the contracts and selector required by the V2
+full-chain runner. Legacy LoopController and fake-generator APIs were removed
+from the public surface to keep one operational path.
+"""
+
+from .contracts import CandidateEvaluation, GeneratedCandidate
 from .selector import EvidenceAwareSelector
-from .learning_repair import (
-    ActionValueDecisionPolicy,
-    ExecutorRegistry,
-    HeuristicRepairPolicy,
-    LearningRepairAgent,
-    LearningRepairLoopRunner,
-    LearningRepairPromptAdapter,
-    RepairAction,
-    RepairContext,
-    RepairDecision,
-    RepairMemory,
-    TorchActionValuePolicy,
-    TorchMLPRepairPolicy,
-)
 
 __all__ = [
     "CandidateEvaluation",
-    "ActionValueDecisionPolicy",
-    "DeterministicFakeGenerator",
     "EvidenceAwareSelector",
-    "ExecutorRegistry",
     "GeneratedCandidate",
-    "HeuristicRepairPolicy",
-    "InstructionPromptRepairer",
-    "LearningRepairAgent",
-    "LearningRepairLoopRunner",
-    "LearningRepairPromptAdapter",
-    "LoopConfig",
-    "LoopController",
-    "LoopResult",
-    "LoopRound",
-    "PhysicsCriticAdapter",
-    "RepairAction",
-    "RepairContext",
-    "RepairDecision",
-    "RepairMemory",
-    "TorchActionValuePolicy",
-    "TorchMLPRepairPolicy",
 ]

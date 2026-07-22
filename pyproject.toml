@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pavg-critic"
+name = "physgenloop-v2"
 version = "0.3.0"
-description = "Evidence-grounded physics critic for generated videos"
+description = "WanPhysics V2 single-chain closed loop for generated video physics repair"
 requires-python = ">=3.10"
 dependencies = [
   "jsonschema>=4.20,<5",
@@ -24,10 +24,6 @@ env = ["python-dotenv>=1.0"]
 sam2 = ["torch>=2.5.1", "torchvision>=0.20.1", "numpy>=1.24"]
 train = ["torch>=2.7.1"]
 test = ["pytest>=8,<9"]
-
-[project.scripts]
-pavg-critic = "pavg_critic.cli:main"
-pavg-repair = "physgenloop.learning_repair.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

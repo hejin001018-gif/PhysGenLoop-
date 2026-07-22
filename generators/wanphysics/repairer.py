@@ -1,18 +1,25 @@
-"""ActionValueDecisionPolicy 的 PromptRepairer 协议适配器。"""
+"""V2 action-value repair policy adapter.
+
+This module is intentionally small: it only loads the proxy research
+checkpoint and exposes ``repair_with_decision`` for the V2 runner. Historical
+training, memory, campaign, and release code are not part of the runtime path.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Mapping
 
+from pavg_critic.schemas import CriticReport
+from physgenloop.contracts import GeneratedCandidate
 from physgenloop.learning_repair import (
     ActionValueDecisionPolicy,
     CompatibilityManifest,
     RepairAction,
     RepairContext,
-    RepairMemory,
     TorchActionValuePolicy,
 )
-from physgenloop.contracts import GeneratedCandidate
-from pavg_critic.schemas import CriticReport
+from physgenloop.learning_repair.contracts import LocalEditTarget, RepairDecision
 
 _ACTION_PREFIX = {
     RepairAction.PROMPT_REPAIR: "Physics correction",
@@ -22,27 +29,63 @@ _ACTION_PREFIX = {
 }
 
 
+def _report_dict(report: Any) -> Mapping[str, Any]:
+    if hasattr(report, "to_dict"):
+        report = report.to_dict()
+    return report if isinstance(report, Mapping) else {}
+
+
+def _target(report: Any, candidate: GeneratedCandidate) -> LocalEditTarget:
+    raw = _report_dict(report)
+    violations = [item for item in raw.get("violations", ()) if isinstance(item, Mapping)]
+    objects: list[str] = []
+    critical: list[int] = []
+    starts: list[int] = []
+    ends: list[int] = []
+    mask_uri = None
+    for violation in violations:
+        obj = str(violation.get("object", "")).strip()
+        if obj and obj not in objects:
+            objects.append(obj)
+        for frame in violation.get("critical_frames", ()) or ():
+            try:
+                idx = int(frame)
+            except (TypeError, ValueError):
+                continue
+            if idx >= 0:
+                critical.append(idx)
+        for name, destination in (("start_frame", starts), ("end_frame", ends)):
+            if violation.get(name) is not None:
+                destination.append(int(violation[name]))
+        evidence = violation.get("evidence", {})
+        if mask_uri is None and isinstance(evidence, Mapping):
+            raw_mask = evidence.get("mask_uri") or evidence.get("mask_path")
+            if raw_mask:
+                mask_uri = str(raw_mask)
+    return LocalEditTarget(
+        parent_candidate_id=str(candidate.candidate_id),
+        objects=tuple(objects),
+        start_frame=min(starts) if starts and ends else None,
+        end_frame=max(ends) if starts and ends else None,
+        critical_frames=tuple(sorted(set(critical))),
+        mask_uri=mask_uri,
+    )
+
+
 class ActionValueRepairer:
     def __init__(
         self,
         decision_policy: ActionValueDecisionPolicy,
         max_attempts: int = 2,
-        proxy_memory: RepairMemory | None = None,
-        memory_weight: float = 0.25,
         local_editor_available: bool = False,
     ) -> None:
         self._policy = decision_policy
         self._max_attempts = max_attempts
         self._attempt_index = 0
         self._previous_actions: list[RepairAction] = []
-        self._proxy_memory = proxy_memory
-        self._memory_weight = memory_weight
         self._local_editor_available = local_editor_available
 
     def repair_with_decision(self, *, prompt: str, report: CriticReport):
-        from physgenloop.learning_repair.baselines import _target
-        from physgenloop.learning_repair.contracts import RepairDecision
-
         context = RepairContext(
             attempt_index=self._attempt_index,
             max_attempts=self._max_attempts,
@@ -61,30 +104,6 @@ class ActionValueRepairer:
             prompt=prompt,
             context=context,
         )
-
-        if self._proxy_memory is not None:
-            matches = self._proxy_memory.retrieve(report, context=context)
-            if matches:
-                mem_dist = self._proxy_memory.action_distribution(matches)
-                w = self._memory_weight
-                blended_values = {
-                    action: (1.0 - w) * decision.per_action_values.get(action, 0.0)
-                    + w * mem_dist.get(action, 0.0)
-                    for action in RepairAction
-                }
-                best_action = max(blended_values, key=lambda a: blended_values[a])
-                if best_action != decision.action:
-                    decision = RepairDecision(
-                        action=best_action,
-                        confidence=decision.confidence,
-                        instruction=decision.instruction,
-                        action_probabilities=decision.action_probabilities,
-                        per_action_values=blended_values,
-                        parameters=decision.parameters,
-                        local_target=decision.local_target,
-                        source=f"{decision.source}+proxy-memory",
-                        compatibility_id=decision.compatibility_id,
-                    )
 
         if decision.local_target is None:
             candidate_target = _target(report, placeholder)
@@ -129,26 +148,9 @@ def load_action_value_repairer(
 
     if not compatibility.deployment_ready:
         print(
-            "[repairer] WARNING: checkpoint compatibility manifest has deployment_ready=False "
-            "(source_revision='unknown'). This is a proxy-trained checkpoint; "
-            "actual_trial_count=0. Proceeding as proxy mode.",
+            "[repairer] WARNING: checkpoint compatibility manifest has deployment_ready=False; "
+            "using proxy research policy.",
         )
-
-    _ROOT = Path("/root/PhysGenLoop-")
-    _LOCAL_COMPAT = _ROOT / "configs/learning_repair/critic_compatibility_v1.json"
-    if _LOCAL_COMPAT.exists():
-        try:
-            local_compat = CompatibilityManifest.load(str(_LOCAL_COMPAT))
-            local_compat.verify_files(
-                critic_config=_ROOT / "configs/default.yaml",
-                critic_schema=_ROOT / "schemas/critic_output.schema.json",
-                feature_schema=_ROOT / "configs/learning_repair/feature_schema.json",
-            )
-        except Exception as exc:
-            print(
-                f"[repairer] WARNING: Critic file hash mismatch ({exc}). "
-                "Policy was trained on a different Critic revision.",
-            )
 
     learned_policy = TorchActionValuePolicy.load(
         str(ckpt_path / "model/best_action_value_policy.pt"),
@@ -156,22 +158,8 @@ def load_action_value_repairer(
         compatibility_manifest=compatibility,
     )
     decision_policy = ActionValueDecisionPolicy(learned_policy, minimum_confidence=0.35)
-
-    proxy_memory: RepairMemory | None = None
-    memory_jsonl = ckpt_path / "memory/proxy_memory_train.jsonl"
-    if memory_jsonl.exists():
-        try:
-            proxy_memory = RepairMemory.from_manifest(memory_jsonl)
-            print(
-                f"[repairer] loaded proxy memory: {len(proxy_memory)} examples from {memory_jsonl}",
-            )
-        except Exception as exc:
-            print(f"[repairer] WARNING: failed to load proxy memory ({exc}), proceeding without memory")
-
     return ActionValueRepairer(
         decision_policy,
         max_attempts=max_attempts,
-        proxy_memory=proxy_memory,
-        memory_weight=0.25,
         local_editor_available=local_editor_available,
     )

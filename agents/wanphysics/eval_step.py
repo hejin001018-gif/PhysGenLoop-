@@ -7,12 +7,13 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/root/PhysGenLoop-")
-sys.path.insert(0, "/root/PhysGenLoop-/src")
+_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_ROOT))
+sys.path.insert(0, str(_ROOT / "src"))
 
 from dotenv import load_dotenv
 
-load_dotenv("/root/PhysGenLoop-/.env")
+load_dotenv(_ROOT / ".env")
 
 from pavg_critic import OpenAIChatModel, PhysicsCritic, SAM2ObjectDetector, CriticRequest
 from pavg_critic.schemas import CriticReport, PhysicsPlan, Violation
@@ -26,7 +27,7 @@ def _build_critic(vlm, video_path: str, prompt: str, physics_plan: PhysicsPlan):
             vlm,
             video_path,
             model_ckpt=os.environ.get(
-                "SAM2_CHECKPOINT", "/root/PhysGenLoop-/models/sam2.1_hiera_base_plus.pt"
+                "SAM2_CHECKPOINT", str(_ROOT / "models" / "sam2.1_hiera_base_plus.pt")
             ),
             prompt=prompt,
             mask_output_dir=mask_output_dir,

@@ -19,14 +19,12 @@ from pavg_critic.schemas import PhysicsPlan
 
 from physgenloop.contracts import GeneratedCandidate
 
-from .wan_generator import WanGenerator
-
-# gen_step.py 的绝对路径，WanSubprocessGenerator 通过它发起子进程推理
-_GEN_STEP = Path(__file__).parent.parent.parent / "agents" / "wanphysics" / "gen_step.py"
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_GEN_STEP = _PROJECT_ROOT / "agents" / "wanphysics" / "gen_step.py"
 
 
 class WanPhysicsGenerator:
-    """常驻加载一次 Wan2.2-TI2V-5B 模型，供 LoopController 重复调用生成候选。"""
+    """常驻加载一次 Wan2.2-TI2V-5B 模型，供 ActionAwareRunnerV2 重复调用生成候选。"""
 
     def __init__(
         self,
@@ -34,11 +32,13 @@ class WanPhysicsGenerator:
         device: str = "cuda",
         output_root: str = "./outputs",
         num_frames: int = 81,
-        height: int = 704,
-        width: int = 1280,
+        height: int = 480,
+        width: int = 832,
         fps: int = 24,
         negative_prompt: str | None = None,
     ) -> None:
+        from .wan_generator import WanGenerator
+
         self._wan = WanGenerator(model_path=model_path, device=device)
         self._output_root = Path(output_root)
         self._num_frames = num_frames
@@ -97,30 +97,33 @@ class WanPhysicsGenerator:
 class WanSubprocessGenerator:
     """子进程式 VideoGenerator，每次 generate() 在独立子进程中运行 Wan2.2 推理。
 
-    子进程退出后 CUDA 上下文完全释放，主进程（LoopController）无任何显存占用，
+    子进程退出后 CUDA 上下文完全释放，主进程（ActionAwareRunnerV2）无任何显存占用，
     vLLM 等后续步骤可立即使用全部 GPU 显存。接口与 WanPhysicsGenerator 完全相同，
-    可直接替换传入 LoopController。
+    可直接替换传入 ActionAwareRunnerV2。
     """
 
     def __init__(
         self,
         python: str,
-        model_path: str = "/root/PhysGenLoop-/models/wan2.2_ti2v_5b",
-        output_root: str = "/root/PhysGenLoop-/outputs",
+        model_path: str | None = None,
+        output_root: str | None = None,
         num_frames: int = 81,
-        height: int = 704,
-        width: int = 1280,
+        height: int = 480,
+        width: int = 832,
         fps: int = 24,
         negative_prompt: str | None = None,
+        gpu_id: str | int | None = None,
     ) -> None:
         self._python = python
-        self._model_path = model_path
-        self._output_root = output_root
+        self._model_path = model_path or str(_PROJECT_ROOT / "models" / "wan2.2_ti2v_5b")
+        self._output_root = output_root or str(_PROJECT_ROOT / "outputs")
         self._num_frames = num_frames
         self._height = height
         self._width = width
         self._fps = fps
         self._negative_prompt = negative_prompt
+        # 双卡角色分工：把 Wan2.2 子进程固定到某张卡（默认由调用方指定 GPU0）。
+        self._gpu_id = gpu_id
 
     def generate(
         self, *, prompt: str, physics_plan: PhysicsPlan, seed: int
@@ -142,8 +145,18 @@ class WanSubprocessGenerator:
         ]
         if self._negative_prompt:
             cmd += ["--negative-prompt", self._negative_prompt]
+        if self._gpu_id is not None and str(self._gpu_id) != "":
+            cmd += ["--gpu-id", str(self._gpu_id)]
 
-        subprocess.run(cmd, check=True)
+        # 通过环境变量传 GPU（gen_step 在 import torch 前读取 WAN_GPU_ID），双保险。
+        env = None
+        if self._gpu_id is not None and str(self._gpu_id) != "":
+            import os as _os
+
+            env = dict(_os.environ)
+            env["WAN_GPU_ID"] = str(self._gpu_id)
+
+        subprocess.run(cmd, check=True, env=env)
 
         with open(out_json, "r", encoding="utf-8") as f:
             raw = json.load(f)

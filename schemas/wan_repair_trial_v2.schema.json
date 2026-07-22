@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WanRepairTrialV2",
+  "description": "Wan2.2 域真实 before/action/after Trial，显式标注来源与 research_only。",
+  "type": "object",
+  "required": ["schema_version", "trial_id", "group_id", "source_candidate", "decision", "execution", "before_scores"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "trial_id": {"type": "string"},
+    "group_id": {"type": "string"},
+    "created_at": {"type": "string"},
+    "generator": {
+      "type": "object",
+      "properties": {
+        "family": {"type": "string"},
+        "model": {"type": "string"},
+        "revision": {"type": "string"}
+      }
+    },
+    "critic": {
+      "type": "object",
+      "properties": {
+        "profile": {"type": "string"},
+        "revision": {"type": "string"}
+      }
+    },
+    "policy_mode": {"type": "string"},
+    "research_only": {"type": "boolean"},
+    "source_candidate": {"type": "object"},
+    "prompt": {"type": "string"},
+    "critic_before": {"type": "object"},
+    "decision": {"type": "object"},
+    "execution": {"type": "object"},
+    "before_scores": {"type": "object"},
+    "critic_after": {"type": ["object", "null"]},
+    "after_scores": {"type": ["object", "null"]},
+    "physics_gain": {"type": ["number", "null"]},
+    "successful": {"type": "boolean"},
+    "failure_reason": {"type": ["string", "null"]},
+    "compatibility": {"type": "object"},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": true
+}

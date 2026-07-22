@@ -23,6 +23,8 @@ import numpy as np
 from physgenloop.contracts import GeneratedCandidate
 from physgenloop.learning_repair.contracts import LocalEditTarget
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 
 class ProPainterLocalEditor:
     """editor 对象，供 LocalEditingExecutor 注入使用。
@@ -32,14 +34,14 @@ class ProPainterLocalEditor:
 
     def __init__(
         self,
-        propainter_repo: str = "/root/ProPainter",
-        python: str = "/root/PhysGenLoop-/envs/main/bin/python",
-        output_root: str = "/root/PhysGenLoop-/outputs",
+        propainter_repo: str | None = None,
+        python: str | None = None,
+        output_root: str | None = None,
         fps: int = 24,
     ) -> None:
-        self._repo = Path(propainter_repo)
-        self._python = python
-        self._output_root = Path(output_root)
+        self._repo = Path(propainter_repo or (_PROJECT_ROOT / "models" / "ProPainter"))
+        self._python = python or str(_PROJECT_ROOT / "envs" / "main" / "bin" / "python")
+        self._output_root = Path(output_root or (_PROJECT_ROOT / "outputs"))
         self._fps = fps
 
     def edit(

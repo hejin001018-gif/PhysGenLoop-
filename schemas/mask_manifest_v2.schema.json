@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WanPhysics V2 Mask Manifest",
+  "description": "critical_frames 对应 SAM2 mask 的可校验清单。",
+  "type": "object",
+  "required": ["schema_version", "candidate_id", "video", "objects"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "candidate_id": {"type": "string"},
+    "video": {"type": "string"},
+    "video_width": {"type": ["integer", "null"]},
+    "video_height": {"type": ["integer", "null"]},
+    "video_frames": {"type": ["integer", "null"]},
+    "source": {"type": "string"},
+    "postprocess_enabled": {"type": "boolean"},
+    "status": {"type": "string", "enum": ["ok", "empty", "invalid"]},
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "normalized_name", "frames"],
+        "properties": {
+          "name": {"type": "string"},
+          "normalized_name": {"type": "string"},
+          "frames": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["frame_index", "path", "valid"],
+              "properties": {
+                "frame_index": {"type": "integer", "minimum": 0},
+                "path": {"type": "string"},
+                "sha256": {"type": ["string", "null"]},
+                "nonzero_ratio": {"type": ["number", "null"]},
+                "width": {"type": ["integer", "null"]},
+                "height": {"type": ["integer", "null"]},
+                "valid": {"type": "boolean"},
+                "reason": {"type": ["string", "null"]}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

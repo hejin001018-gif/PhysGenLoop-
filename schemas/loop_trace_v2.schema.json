@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WanPhysics V2 Loop Trace",
+  "description": "V2 action-aware runner 的逐轮审计轨迹（repair_trace.jsonl 单行）。",
+  "type": "object",
+  "required": ["round_index", "candidate_id", "state"],
+  "properties": {
+    "round_index": {"type": "integer", "minimum": 0},
+    "candidate_id": {"type": "string"},
+    "state": {"type": "string"},
+    "scope": {"type": ["string", "null"], "enum": ["global", "local", "unknown", null]},
+    "policy_action": {"type": ["string", "null"]},
+    "final_action": {"type": ["string", "null"]},
+    "gate": {"type": ["object", "null"]},
+    "execution": {"type": ["object", "null"]}
+  },
+  "additionalProperties": true
+}
