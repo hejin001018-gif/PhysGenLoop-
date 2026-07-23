@@ -23,6 +23,12 @@ _GPU_ID_ENV = os.environ.get("WAN_GPU_ID")
 if _GPU_ID_ENV is not None and _GPU_ID_ENV != "":
     os.environ["CUDA_VISIBLE_DEVICES"] = str(_GPU_ID_ENV)
 
+# 双卡角色分工：允许把 Wan2.2 生成固定到某张卡（默认 GPU0），与 vLLM(GPU1) 分离。
+# 必须在 import torch / WanGenerator 之前设置 CUDA_VISIBLE_DEVICES 才生效。
+_GPU_ID_ENV = os.environ.get("WAN_GPU_ID")
+if _GPU_ID_ENV is not None and _GPU_ID_ENV != "":
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(_GPU_ID_ENV)
+
 from generators.wanphysics.wan_generator import WanGenerator  # noqa: E402
 
 
