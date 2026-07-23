@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WanRepairTrialV3",
+  "type": "object",
+  "required": [
+    "schema_version", "trial_id", "group_id", "source_candidate",
+    "original_prompt", "prompt", "critic_before", "decision", "guard",
+    "execution", "before_scores", "repair_improved", "successful",
+    "failure_reason", "metadata"
+  ],
+  "properties": {
+    "schema_version": {"const": "wan-repair-trial/3.0"},
+    "trial_id": {"type": "string", "minLength": 1},
+    "group_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string"},
+    "generator": {"type": "object"},
+    "critic": {"type": "object"},
+    "policy_mode": {"enum": ["three_action_heuristic", "learned_checkpoint"]},
+    "decision_source": {"const": "three_action_policy"},
+    "source_candidate": {
+      "type": "object",
+      "required": ["candidate_id", "video_path", "prompt", "seed"]
+    },
+    "original_prompt": {"type": "string"},
+    "prompt": {"type": "string"},
+    "critic_before": {"type": "object"},
+    "decision": {
+      "type": "object",
+      "required": ["schema_version", "action", "action_probabilities"],
+      "properties": {
+        "schema_version": {"const": "learning-repair-decision/2.0"},
+        "action": {"enum": ["prompt_repair", "local_editing", "reject"]},
+        "action_probabilities": {
+          "type": "object",
+          "required": ["prompt_repair", "local_editing", "reject"],
+          "properties": {
+            "prompt_repair": {"type": "number", "minimum": 0, "maximum": 1},
+            "local_editing": {"type": "number", "minimum": 0, "maximum": 1},
+            "reject": {"type": "number", "minimum": 0, "maximum": 1}
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "guard": {"type": "object"},
+    "execution": {"type": "object", "required": ["status", "backend_id"]},
+    "before_scores": {"$ref": "#/definitions/scoreBundle"},
+    "critic_after": {"type": ["object", "null"]},
+    "after_scores": {"anyOf": [{"$ref": "#/definitions/scoreBundle"}, {"type": "null"}]},
+    "physics_gain": {"type": ["number", "null"]},
+    "repair_improved": {"type": "boolean"},
+    "successful": {"type": "boolean"},
+    "failure_reason": {"type": ["string", "null"]},
+    "compatibility": {"type": "object"},
+    "metadata": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"successful": {"const": true}}},
+      "then": {
+        "properties": {
+          "repair_improved": {"const": true},
+          "failure_reason": {"type": "null"},
+          "critic_after": {"type": "object"},
+          "after_scores": {"$ref": "#/definitions/scoreBundle"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"successful": {"const": false}}},
+      "then": {"properties": {"failure_reason": {"type": "string", "minLength": 1}}}
+    },
+    {
+      "if": {"properties": {"decision": {"properties": {"action": {"const": "local_editing"}}}}},
+      "then": {
+        "properties": {
+          "decision": {
+            "required": ["local_target"],
+            "properties": {
+              "local_target": {
+                "type": "object",
+                "required": ["parent_candidate_id", "objects", "critical_frames", "mask_uri"],
+                "properties": {
+                  "mask_uri": {"type": "string", "pattern": "mask_manifest\\.json$"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "scoreBundle": {
+      "type": "object",
+      "required": ["physics", "semantic", "original_prompt_semantic", "quality"],
+      "properties": {
+        "physics": {"type": "number", "minimum": 0, "maximum": 1},
+        "semantic": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "original_prompt_semantic": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "quality": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    }
+  }
+}

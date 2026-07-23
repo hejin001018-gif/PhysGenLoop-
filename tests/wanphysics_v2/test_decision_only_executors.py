@@ -1,70 +1,102 @@
-"""decision-only executors：不二次调用 Policy + 四动作 + 失败。"""
+from pathlib import Path
+
 from physgenloop.contracts import GeneratedCandidate
 from physgenloop.learning_repair.base_contracts import RepairAction
-from physgenloop.learning_repair.contracts import ExecutionRequest, RepairDecision, LocalEditTarget
-from generators.wanphysics.v2.executors import (
-    DecisionPromptRepairExecutor, OriginalPromptGlobalRegenerationExecutor,
-    MaskSequenceLocalEditingExecutor, AuditedRejectExecutor,
-)
+from physgenloop.learning_repair.contracts import ExecutionRequest, LocalEditTarget, RepairDecision
+from physgenloop.learning_repair.executors import PromptRepairExecutor
+
+from generators.wanphysics.v2.executors import AuditedRejectExecutor, MaskSequenceLocalEditingExecutor
 
 
-class _Gen:
-    def __init__(self):
-        self.calls = 0
-    def generate(self, *, prompt, physics_plan, seed):
-        self.calls += 1
-        return GeneratedCandidate(candidate_id=f"g-{seed}", video_path=f"/tmp/g-{seed}.mp4", prompt=prompt, seed=seed)
+class _Generator:
+    def generate(self, *, prompt, seed):
+        return GeneratedCandidate("new", "/tmp/new.mp4", prompt, seed)
 
 
-class _V:
-    object = "ball"; category = "gravity"; start_frame = 1; end_frame = 3; critical_frames = (1, 2)
-    reason = ""; repair_instruction = ""; evidence = {}
+class _Rewriter:
+    def repair(self, *, prompt, report):
+        return prompt + "\nphysics correction"
 
 
 class _Report:
-    violations = (_V(),)
+    violations = ()
 
 
-def _decision(action, lt=None):
-    return RepairDecision(action=RepairAction(action), confidence=0.5, instruction="do it",
-                          action_probabilities={a.value: 0.25 for a in RepairAction},
-                          per_action_values={a.value: 0.0 for a in RepairAction}, local_target=lt)
+def _decision(action, target=None):
+    probabilities = {item: (0.8 if item is action else 0.1) for item in RepairAction}
+    return RepairDecision(
+        action,
+        0.8,
+        "fix",
+        probabilities,
+        probabilities,
+        local_target=target,
+        source="test_policy",
+    )
 
 
-def _req(decision, **kw):
-    return ExecutionRequest(decision=decision, candidate=GeneratedCandidate(candidate_id="src", video_path="/tmp/s.mp4", prompt="orig", seed=0),
-                            critic_report=_Report(), prompt="current", physics_plan=None, seed=7, **kw)
+def _request(decision, **metadata):
+    candidate = GeneratedCandidate("src", "/tmp/src.mp4", "current", 1)
+    return ExecutionRequest(
+        decision=decision,
+        candidate=candidate,
+        critic_report=_Report(),
+        prompt="current",
+        seed=7,
+        history=(type("Eval", (), {"candidate": candidate, "report": type("R", (), {"decision": "violation", "physics_score": 0.2, "confidence": 0.8})()})(),),
+        metadata=metadata,
+    )
 
 
-def test_prompt_executor_no_second_policy_call():
-    ex = DecisionPromptRepairExecutor(generator=_Gen())
-    res = ex.execute(_req(_decision("prompt_repair")))
-    assert res.status == "succeeded"
-    assert ex.policy_call_count == 0
-    assert res.metadata["policy_call_count"] == 0
+def test_original_prompt_executor_rewrites_then_generates():
+    executor = PromptRepairExecutor(prompt_rewriter=_Rewriter(), generator=_Generator())
+    result = executor.execute(_request(_decision(RepairAction.PROMPT_REPAIR)))
+    assert result.next_prompt != "current"
+    assert result.metadata["prompt_rewriter"] == "_Rewriter"
 
 
-def test_global_uses_original_prompt():
-    ex = OriginalPromptGlobalRegenerationExecutor(generator=_Gen())
-    res = ex.execute(_req(_decision("global_regeneration"), metadata={"original_prompt": "ORIG"}))
-    assert res.next_prompt == "ORIG"
-
-
-def test_local_requires_mask():
-    ex = MaskSequenceLocalEditingExecutor(editor=lambda r: None)
+def test_prompt_executor_rejects_no_change():
+    executor = PromptRepairExecutor(
+        prompt_rewriter=lambda **kwargs: kwargs["prompt"],
+        generator=_Generator(),
+    )
     try:
-        ex.execute(_req(_decision("local_editing", LocalEditTarget(parent_candidate_id="src", critical_frames=()))))
-        assert False
-    except ValueError:
-        pass
+        executor.execute(_request(_decision(RepairAction.PROMPT_REPAIR)))
+    except ValueError as exc:
+        assert str(exc) == "no_safe_prompt_change"
+    else:
+        raise AssertionError("no-change prompt must fail")
 
 
-def test_reject_terminal():
-    class _Sel:
-        def select(self, evals):
-            return evals[-1]
-    class _Eval:
-        candidate = GeneratedCandidate(candidate_id="h1", video_path="/tmp/h.mp4", prompt="p", seed=1)
-    ex = AuditedRejectExecutor(selector=_Sel())
-    res = ex.execute(_req(_decision("reject"), history=(_Eval(),)))
-    assert res.terminal and res.status == "rejected"
+def test_local_executor_passes_manifest_without_physics_plan(tmp_path):
+    manifest = tmp_path / "mask_manifest.json"
+    manifest.write_text("{}")
+    target = LocalEditTarget("src", ("ball",), 1, 2, (1, 2), str(manifest))
+
+    class _Editor:
+        def edit(self, **kwargs):
+            assert "physics_plan" not in kwargs
+            return GeneratedCandidate(
+                "propainter-x",
+                "/tmp/propainter-x.mp4",
+                kwargs["candidate"].prompt,
+                kwargs["seed"],
+                {"propainter": {}, "output_validation": {"decode_ok": True}},
+            )
+
+    result = MaskSequenceLocalEditingExecutor(editor=_Editor()).execute(
+        _request(_decision(RepairAction.LOCAL_EDITING, target))
+    )
+    assert result.artifacts["mask_manifest"] == str(manifest)
+    assert result.metadata["editor_backend"] == "ProPainter"
+
+
+def test_reject_is_terminal():
+    class _Selector:
+        def select(self, history):
+            return history[-1]
+
+    result = AuditedRejectExecutor(selector=_Selector()).execute(
+        _request(_decision(RepairAction.REJECT))
+    )
+    assert result.status == "rejected" and result.terminal

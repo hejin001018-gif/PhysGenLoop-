@@ -8,9 +8,11 @@
     "round_index": {"type": "integer", "minimum": 0},
     "candidate_id": {"type": "string"},
     "state": {"type": "string"},
-    "scope": {"type": ["string", "null"], "enum": ["global", "local", "unknown", null]},
+    "scope": {"type": ["string", "null"], "enum": ["broad", "local", "unknown", null]},
     "policy_action": {"type": ["string", "null"]},
-    "final_action": {"type": ["string", "null"]},
+    "executed_action": {"type": ["string", "null"]},
+    "decision_source": {"type": ["string", "null"]},
+    "guard_status": {"type": ["string", "null"]},
     "gate": {"type": ["object", "null"]},
     "execution": {"type": ["object", "null"]}
   },

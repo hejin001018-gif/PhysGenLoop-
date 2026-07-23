@@ -38,7 +38,7 @@ class HeuristicRepairPolicy:
         coverage = float(_report_value(critic_report, "coverage", 0.0))
         probabilities = {action: 0.05 for action in ACTION_ORDER}
         if decision == "unknown" or coverage < 0.25:
-            probabilities[RepairAction.GLOBAL_REGENERATION] = 0.8
+            probabilities[RepairAction.REJECT] = 0.8
         elif category in {
             "collision_violation",
             "trajectory_violation",
@@ -46,7 +46,7 @@ class HeuristicRepairPolicy:
             "appearance_violation",
         }:
             probabilities[RepairAction.LOCAL_EDITING] = 0.7
-            probabilities[RepairAction.GLOBAL_REGENERATION] = 0.15
+            probabilities[RepairAction.PROMPT_REPAIR] = 0.15
         elif category in {
             "gravity_violation",
             "friction_violation",
@@ -57,8 +57,8 @@ class HeuristicRepairPolicy:
         elif decision == "physical":
             probabilities[RepairAction.REJECT] = 0.8
         else:
-            probabilities[RepairAction.GLOBAL_REGENERATION] = 0.55
-            probabilities[RepairAction.PROMPT_REPAIR] = 0.3
+            probabilities[RepairAction.PROMPT_REPAIR] = 0.55
+            probabilities[RepairAction.REJECT] = 0.3
         return PolicyPrediction(
             probabilities,
             expected_gain=max(0.0, min(1.0, 1.0 - score)) * 0.5,

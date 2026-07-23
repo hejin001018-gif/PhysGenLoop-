@@ -23,7 +23,6 @@ from physgenloop.learning_repair.contracts import LocalEditTarget, RepairDecisio
 
 _ACTION_PREFIX = {
     RepairAction.PROMPT_REPAIR: "Physics correction",
-    RepairAction.GLOBAL_REGENERATION: "Regeneration constraint",
     RepairAction.LOCAL_EDITING: "Local-edit fallback constraint",
     RepairAction.REJECT: "Replacement constraint",
 }

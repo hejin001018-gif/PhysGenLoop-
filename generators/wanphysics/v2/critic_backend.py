@@ -41,7 +41,7 @@ class DecodedEvaluation:
     def report(self) -> Any:
         return self.decode.report
 
-    def critic_report_document(self, *, candidate_id: str, video_path: str, prompt: str, physics_plan: dict[str, Any]) -> dict[str, Any]:
+    def critic_report_document(self, *, candidate_id: str, video_path: str, prompt: str) -> dict[str, Any]:
         """组织成修复方案 §12 的完整 critic_report.json 文档。"""
 
         report_dict = self.decode.raw_payload if not self.ok else self.report.to_dict()
@@ -54,7 +54,6 @@ class DecodedEvaluation:
             "candidate_id": candidate_id,
             "video_path": Path(video_path).name,
             "prompt": prompt,
-            "physics_plan": physics_plan,
             "report": report_dict,
             "codec": self.decode.to_status_dict(),
         }
@@ -101,15 +100,11 @@ class V2SubprocessCritic:
         self._prepare_hook = prepare_hook
         self._release_hook = release_hook
 
-    def evaluate_to_payload(self, candidate: Any, *, prompt: str, physics_plan: Any) -> dict[str, Any]:
+    def evaluate_to_payload(self, candidate: Any, *, prompt: str) -> dict[str, Any]:
         """起子进程评分，返回原始 payload（含 report dict + detector_backend）。"""
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as cf:
             candidate_json = cf.name
-            try:
-                plan_dict = physics_plan.to_dict() if hasattr(physics_plan, "to_dict") else {}
-            except Exception:  # noqa: BLE001
-                plan_dict = {}
             json.dump(
                 {
                     "candidate_id": candidate.candidate_id,
@@ -117,7 +112,6 @@ class V2SubprocessCritic:
                     "prompt": candidate.prompt,
                     "seed": candidate.seed,
                     "metadata": candidate.metadata,
-                    "physics_plan": plan_dict,
                 },
                 cf,
                 ensure_ascii=False,
@@ -135,10 +129,10 @@ class V2SubprocessCritic:
         Path(out_json).unlink(missing_ok=True)
         return payload
 
-    def evaluate(self, candidate: Any, *, prompt: str, physics_plan: Any) -> DecodedEvaluation:
+    def evaluate(self, candidate: Any, *, prompt: str) -> DecodedEvaluation:
         if self._prepare_hook is not None:
             self._prepare_hook()
-        payload = self.evaluate_to_payload(candidate, prompt=prompt, physics_plan=physics_plan)
+        payload = self.evaluate_to_payload(candidate, prompt=prompt)
         if self._release_hook is not None:
             self._release_hook()
         return decode_eval_payload(payload, requested_profile=self._requested_profile)

@@ -35,7 +35,7 @@ acceptance:
   require_non_degraded_critic: true
   physics_score: 0.80
   confidence: 0.60            # 预注册候选值，需独立 calibration，shadow 阶段不作已验证阈值
-  coverage: 0.50
+  coverage: 0.00
   semantic_score: 0.85
   original_prompt_semantic_score: 0.85
   quality_score: 0.75

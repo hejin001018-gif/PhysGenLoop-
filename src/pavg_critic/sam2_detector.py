@@ -89,6 +89,12 @@ class SAM2ObjectDetector:
         self._prompt = str(prompt or "").strip()
         self._mask_output_dir = None if mask_output_dir is None else Path(mask_output_dir)
         self._mask_cache: dict[tuple[str, int], Any] = {}
+        self.diagnostics: dict[str, Any] = {
+            "sam2_cuda_extension": "unknown",
+            "sam2_postprocess": "unknown",
+            "degraded": False,
+            "degraded_reasons": [],
+        }
         self._precompute(video_path, model_cfg, model_ckpt, jpeg_quality)
 
     # ── ObjectDetector protocol ──────────────────────────
@@ -174,6 +180,27 @@ class SAM2ObjectDetector:
         predictor = build_sam2_video_predictor(
             model_cfg, model_ckpt, device=device
         )
+        try:
+            from sam2 import _C as _sam2_cuda_extension  # type: ignore[attr-defined]  # noqa: F401
+
+            self.diagnostics.update(
+                {
+                    "sam2_cuda_extension": "available",
+                    "sam2_postprocess": "enabled",
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            if hasattr(predictor, "fill_hole_area"):
+                predictor.fill_hole_area = 0
+            self.diagnostics.update(
+                {
+                    "sam2_cuda_extension": "unavailable",
+                    "sam2_postprocess": "hole_filling_disabled",
+                    "degraded": True,
+                    "degraded_reasons": ["sam2_cuda_extension_unavailable"],
+                    "sam2_cuda_extension_error": f"{type(exc).__name__}: {exc}",
+                }
+            )
         with TemporaryDirectory(prefix="pavg_sam2_") as temporary:
             frame_dir = Path(temporary)
             frame_count = self._extract_video_frames(

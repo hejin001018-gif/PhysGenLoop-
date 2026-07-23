@@ -183,13 +183,13 @@ def run_preflight(
     sam2_ckpt: str | None = None,
     env_file: str | None = None,
     vllm_host: str = "127.0.0.1",
-    vllm_port: int = 18000,
+    vllm_port: int = 8000,
     require_local_editing: bool = False,
 ) -> PreflightReport:
     """汇总资产/后端就绪检查，产出 capability mask。
 
     capability mask 里 local_editing 仅在 ProPainter+ffmpeg+cv2 全部就绪时为 True，
-    否则强制 False（无论配置是否想开）。prompt_repair/global_regeneration/reject
+    否则强制 False（无论配置是否想开）。prompt_repair/reject
     只要生成器可达即视为可用（生成器就绪属 W4/GPU 授权范围，这里默认 True）。
     """
 
@@ -216,7 +216,6 @@ def run_preflight(
     local_ok = pp.ok and ff.ok and cv.ok
     capability_mask = {
         "prompt_repair": True,
-        "global_regeneration": True,
         "local_editing": bool(local_ok),
         "reject": True,
     }

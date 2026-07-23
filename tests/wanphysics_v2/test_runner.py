@@ -1,166 +1,174 @@
-"""V2 runner 状态机四动作 + critic 失败 + edited→current。"""
 from physgenloop.contracts import GeneratedCandidate
 from physgenloop.learning_repair.base_contracts import RepairAction
-from physgenloop.learning_repair.contracts import ExecutionResult, RepairDecision, LocalEditTarget
+from physgenloop.learning_repair.contracts import ExecutionResult, LocalEditTarget, RepairDecision
+
 from generators.wanphysics.v2.runner import ActionAwareRunnerV2, RunnerConfig
-from generators.wanphysics.v2.guardrails import GateThresholds
-
-
-class _Gen:
-    def generate(self, *, prompt, physics_plan, seed):
-        return GeneratedCandidate(candidate_id=f"g-{seed}", video_path=f"/tmp/g-{seed}.mp4", prompt=prompt, seed=seed, metadata={"num_frames": 8})
-
-
-class _Rep:
-    def __init__(self, physical):
-        self.decision = "physical" if physical else "violation"
-        self.is_physical = physical; self.physics_score = 0.9 if physical else 0.2
-        self.confidence = 0.7; self.coverage = 0.8; self.diagnostics = {}; self.violations = ()
 
 
 class _Violation:
     object = "ball"
-    start_frame = 1
-    end_frame = 1
-    critical_frames = (1,)
-    evidence = {}
+    category = "gravity_violation"
+    critical_frames = (1, 2)
+    repair_instruction = "fix gravity"
 
 
-class _LocalRep(_Rep):
-    def __init__(self, physical=False):
-        super().__init__(physical)
-        self.violations = (_Violation(),)
+class _Report:
+    def __init__(self, physical=False, available=True):
+        self.decision = "physical" if physical else "violation" if available else "unknown"
+        self.physics_score = 0.9 if physical else 0.2
+        self.confidence = 0.8
+        self.coverage = 0.8
+        self.diagnostics = {}
+        self.evidence_bundles = ()
+        self.violations = () if physical else (_Violation(),)
+
+    def to_dict(self):
+        return {
+            "decision": self.decision,
+            "physics_score": self.physics_score,
+            "confidence": self.confidence,
+            "coverage": self.coverage,
+            "diagnostics": self.diagnostics,
+            "violations": [],
+        }
+
+
+class _Generator:
+    def generate(self, *, prompt, seed):
+        return GeneratedCandidate(f"c{seed}", f"/tmp/c{seed}.mp4", prompt, seed, {"num_frames": 10})
 
 
 class _Critic:
-    def __init__(self, accept_at=99, fail=False):
-        self.accept_at = accept_at; self.fail = fail; self.n = 0
-    def evaluate(self, candidate, *, prompt, physics_plan):
-        self.n += 1
-        if self.fail:
-            return None
-        return _Rep(self.n >= self.accept_at)
+    def __init__(self, reports):
+        self.reports = list(reports)
+        self.calls = 0
+
+    def evaluate(self, candidate, *, prompt):
+        report = self.reports[min(self.calls, len(self.reports) - 1)]
+        self.calls += 1
+        return report
 
 
-class _Sel:
-    def select(self, evals):
-        return max(evals, key=lambda e: e.report.physics_score)
+class _Selector:
+    def select(self, evaluations):
+        return max(evaluations, key=lambda item: item.report.physics_score)
 
 
-def _dec(action):
-    lt = LocalEditTarget(parent_candidate_id="m", critical_frames=(1,), mask_uri="x.png") if action == "local_editing" else None
-    return RepairDecision(action=RepairAction(action), confidence=0.5, instruction="i",
-                          action_probabilities={a.value: 0.25 for a in RepairAction},
-                          per_action_values={a.value: 0.0 for a in RepairAction}, local_target=lt)
+class _Registry:
+    def __init__(self, fail=False):
+        self.fail = fail
 
-
-class _Reg:
-    def __init__(self, action): self.action = action
-    def supports(self, a): return True
     def execute(self, request):
-        if request.decision.action == RepairAction.REJECT:
-            cand = request.history[-1].candidate if request.history else request.candidate
-            return ExecutionResult(action=RepairAction.REJECT, status="rejected", backend_id="m", candidate=cand, terminal=True)
-        new = GeneratedCandidate(candidate_id=f"e-{request.seed}", video_path=f"/tmp/e-{request.seed}.mp4", prompt=request.prompt, seed=request.seed, metadata={"num_frames": 8})
-        return ExecutionResult(action=request.decision.action, status="succeeded", backend_id="m", candidate=new, next_prompt=request.prompt)
+        if request.decision.action is RepairAction.REJECT:
+            return ExecutionResult(
+                RepairAction.REJECT,
+                "rejected",
+                "reject",
+                candidate=request.candidate,
+                terminal=True,
+            )
+        if self.fail:
+            return ExecutionResult(
+                request.decision.action,
+                "failed",
+                "executor",
+                failure_reason="boom",
+            )
+        candidate = _Generator().generate(prompt=request.prompt + " fixed", seed=request.seed)
+        return ExecutionResult(
+            request.decision.action,
+            "succeeded",
+            "executor",
+            candidate=candidate,
+            next_prompt=candidate.prompt,
+        )
 
 
-def _run(force, accept_at=99, caps=None):
-    r = ActionAwareRunnerV2(
-        generator=_Gen(), critic=_Critic(accept_at=accept_at), decider=lambda rep, ev: _dec(force),
-        executor_registry=_Reg(force), selector=_Sel(),
-        config=RunnerConfig(max_rounds=3, thresholds=GateThresholds(), default_total_frames=8),
-        capability_fn=lambda: caps or {"prompt_repair": True, "global_regeneration": True, "local_editing": True, "reject": True},
-        mask_valid_fn=lambda rep, c: force == "local_editing",
+def _decision(action=RepairAction.PROMPT_REPAIR):
+    probabilities = {item: 0.1 for item in RepairAction}
+    probabilities[action] = 0.8
+    total = sum(probabilities.values())
+    probabilities = {item: value / total for item, value in probabilities.items()}
+    target = None
+    if action is RepairAction.LOCAL_EDITING:
+        target = LocalEditTarget("c", ("ball",), 1, 2, (1, 2), "manifest.json")
+    return RepairDecision(
+        action,
+        probabilities[action],
+        "fix",
+        probabilities,
+        probabilities,
+        local_target=target,
+        source="test_policy",
     )
-    return r.run(sample_id="s1", prompt="a red ball rolls", physics_plan=None)
 
 
-def test_accept_first_round():
-    res = _run("prompt_repair", accept_at=1)
-    assert res.stop_reason == "accepted"
-
-
-def test_reject_terminates():
-    res = _run("reject")
-    assert res.stop_reason == "rejected"
-
-
-def test_prompt_repair_runs_rounds():
-    res = _run("prompt_repair")
-    assert res.stop_reason == "max_rounds"
-    assert len(res.rounds) >= 1
-
-
-def test_local_editing_edited_becomes_current():
-    res = _run("local_editing")
-    # P0-01：after candidate 经 Re-Critic/Re-Gate（RE_EVALUATED），并写 before/after 配对
-    re_rounds = [r for r in res.rounds if r.state == "RE_EVALUATED"]
-    assert re_rounds, "应有 RE_EVALUATED 轮次"
-    r0 = re_rounds[0]
-    assert r0.before_candidate_id and r0.after_candidate_id
-    assert r0.before_candidate_id != r0.after_candidate_id
-    assert r0.execution_id is not None
-
-
-def test_guard_local_override_injects_manifest_target():
-    class _LocalCritic:
-        def evaluate(self, candidate, *, prompt, physics_plan):
-            return _LocalRep(False)
-
-    class _CaptureReg:
-        def __init__(self):
-            self.seen = None
-        def supports(self, a): return True
-        def execute(self, request):
-            self.seen = request.decision
-            assert request.decision.action == RepairAction.LOCAL_EDITING
-            assert request.decision.local_target is not None
-            assert request.decision.local_target.mask_uri.endswith("mask_manifest.json")
-            new = GeneratedCandidate(candidate_id=f"local-{request.seed}", video_path=f"/tmp/local-{request.seed}.mp4", prompt=request.prompt, seed=request.seed, metadata={"num_frames": 8})
-            return ExecutionResult(action=request.decision.action, status="succeeded", backend_id="m", candidate=new, next_prompt=request.prompt)
-
-    registry = _CaptureReg()
-    target = LocalEditTarget(parent_candidate_id="g-42", objects=("ball",), critical_frames=(1,), mask_uri="/tmp/c1/mask_manifest.json")
-    runner = ActionAwareRunnerV2(
-        generator=_Gen(), critic=_LocalCritic(), decider=lambda rep, ev: _dec("prompt_repair"),
-        executor_registry=registry, selector=_Sel(),
-        config=RunnerConfig(max_rounds=2, thresholds=GateThresholds(), default_total_frames=8),
-        capability_fn=lambda: {"prompt_repair": True, "global_regeneration": True, "local_editing": True, "reject": True},
-        mask_valid_fn=lambda rep, c: True,
-        local_target_fn=lambda rep, c: target,
+def _runner(critic, decider, *, caps=None, registry=None, max_rounds=2):
+    return ActionAwareRunnerV2(
+        generator=_Generator(),
+        critic=critic,
+        decider=decider,
+        executor_registry=registry or _Registry(),
+        selector=_Selector(),
+        config=RunnerConfig(max_rounds=max_rounds),
+        capability_fn=lambda: caps
+        or {"prompt_repair": True, "local_editing": False, "reject": True},
+        side_score_fn=lambda candidate: {
+            "semantic_score": 0.9,
+            "original_prompt_semantic_score": 0.9,
+            "quality_score": 0.9,
+        },
     )
-    runner.run(sample_id="s1", prompt="a red ball rolls", physics_plan=None)
-    assert registry.seen is not None
 
 
-def test_local_override_without_target_fails_closed():
-    class _LocalCritic:
-        def evaluate(self, candidate, *, prompt, physics_plan):
-            return _LocalRep(False)
+def test_rejected_candidate_repairs_and_accepts_without_duplicate_critic():
+    critic = _Critic([_Report(False), _Report(True)])
+    calls = []
+    runner = _runner(critic, lambda report, evaluation, context: calls.append(context) or _decision())
+    result = runner.run(sample_id="s1", prompt="p")
+    assert result.final_state == "ACCEPTED"
+    assert critic.calls == 2
+    assert len(calls) == 1
+    assert result.rounds[0].critic_before is not None
+    assert result.rounds[0].critic_after is not None
 
-    class _NeverReg:
-        def supports(self, a): return True
-        def execute(self, request):  # pragma: no cover
-            raise AssertionError("executor should not run without local target")
 
-    runner = ActionAwareRunnerV2(
-        generator=_Gen(), critic=_LocalCritic(), decider=lambda rep, ev: _dec("prompt_repair"),
-        executor_registry=_NeverReg(), selector=_Sel(),
-        config=RunnerConfig(max_rounds=2, thresholds=GateThresholds(), default_total_frames=8),
-        capability_fn=lambda: {"prompt_repair": True, "global_regeneration": True, "local_editing": True, "reject": True},
-        mask_valid_fn=lambda rep, c: True,
+def test_unavailable_never_calls_policy():
+    calls = []
+    runner = _runner(
+        _Critic([_Report(available=False)]),
+        lambda *args: calls.append(1) or _decision(),
     )
-    res = runner.run(sample_id="s1", prompt="a red ball rolls", physics_plan=None)
-    assert res.stop_reason == "executor_failed"
-    assert res.rounds[0].terminal_reason == "local_target_missing_or_invalid"
+    result = runner.run(sample_id="s1", prompt="p")
+    assert result.final_state == "EVALUATION_FAILED"
+    assert calls == []
 
 
-def test_critic_failure_stops():
-    r = ActionAwareRunnerV2(
-        generator=_Gen(), critic=_Critic(fail=True), decider=lambda rep, ev: _dec("prompt_repair"),
-        executor_registry=_Reg("prompt_repair"), selector=_Sel(),
-        config=RunnerConfig(max_rounds=2, default_total_frames=8),
+def test_guard_blocked_action_uses_audited_reject():
+    runner = _runner(
+        _Critic([_Report(False)]),
+        lambda *args: _decision(RepairAction.LOCAL_EDITING),
+        caps={"prompt_repair": True, "local_editing": False, "reject": True},
     )
-    res = r.run(sample_id="s1", prompt="p", physics_plan=None)
-    assert res.stop_reason == "critic_failed"
+    result = runner.run(sample_id="s1", prompt="p")
+    assert result.final_state == "REJECTED"
+    assert result.rounds[0].policy_action == "local_editing"
+    assert result.rounds[0].executed_action == "reject"
+
+
+def test_execution_failure_is_not_completed():
+    runner = _runner(
+        _Critic([_Report(False)]),
+        lambda *args: _decision(),
+        registry=_Registry(fail=True),
+    )
+    assert runner.run(sample_id="s1", prompt="p").final_state == "EXECUTION_FAILED"
+
+
+def test_max_rounds_uses_cached_after_evaluation():
+    critic = _Critic([_Report(False)])
+    runner = _runner(critic, lambda *args: _decision(), max_rounds=2)
+    result = runner.run(sample_id="s1", prompt="p")
+    assert result.final_state == "MAX_ROUNDS"
+    assert result.final_candidate_disposition == "best_effort"
+    assert critic.calls == 3

@@ -1,4 +1,4 @@
-"""Decision-only 四动作 Executor（V2）。
+"""V2 local-edit and reject executors.
 
 修复 P0-4 / P0-5：
 
@@ -60,7 +60,6 @@ class DecisionPromptRepairExecutor:
         )
         candidate = self.generator.generate(
             prompt=rendered.prompt,
-            physics_plan=request.physics_plan,
             seed=request.seed,
         )
         return ExecutionResult(
@@ -84,7 +83,7 @@ class DecisionPromptRepairExecutor:
 class OriginalPromptGlobalRegenerationExecutor:
     """回到 immutable 原始 prompt 重新生成整段视频。"""
 
-    action = RepairAction.GLOBAL_REGENERATION
+    action = "global_regeneration"
 
     def __init__(
         self,
@@ -103,7 +102,6 @@ class OriginalPromptGlobalRegenerationExecutor:
         original_prompt = str(request.metadata.get("original_prompt", request.prompt))
         candidate = self.generator.generate(
             prompt=original_prompt,
-            physics_plan=request.physics_plan,
             seed=request.seed,
         )
         return ExecutionResult(
@@ -151,7 +149,6 @@ class MaskSequenceLocalEditingExecutor:
                 target=target,
                 instruction=request.decision.instruction,
                 critic_report=request.critic_report,
-                physics_plan=request.physics_plan,
                 seed=request.seed,
             )
         elif callable(self.editor):
@@ -168,11 +165,20 @@ class MaskSequenceLocalEditingExecutor:
             latency_seconds=time.perf_counter() - started,
             artifacts={
                 "repaired_video": str(candidate.video_path),
-                "mask": str(target.mask_uri),
+                "source_video": str(request.candidate.video_path),
+                "mask_manifest": str(target.mask_uri),
             },
             metadata={
+                "executor": "MaskSequenceLocalEditingExecutor",
+                "editor": "StrictProPainterLocalEditor",
+                "editor_backend": "ProPainter",
+                "repair_mode": "strict-mask-video-inpainting",
                 "local_target": target.to_dict(),
                 "critical_frames": list(target.critical_frames),
+                "propainter": dict(candidate.metadata.get("propainter", {})),
+                "output_validation": dict(
+                    candidate.metadata.get("output_validation", {})
+                ),
             },
         )
 

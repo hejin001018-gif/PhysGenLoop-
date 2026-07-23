@@ -29,7 +29,7 @@ _CATEGORY_ACTION = {
     "trajectory_violation": RepairAction.LOCAL_EDITING,
     "continuity_violation": RepairAction.LOCAL_EDITING,
     "appearance_violation": RepairAction.LOCAL_EDITING,
-    "unknown_violation": RepairAction.GLOBAL_REGENERATION,
+    "unknown_violation": RepairAction.REJECT,
 }
 
 
@@ -51,7 +51,6 @@ def _masked_choice(
     if available[preferred]:
         return preferred, False, None
     for fallback in (
-        RepairAction.GLOBAL_REGENERATION,
         RepairAction.PROMPT_REPAIR,
         RepairAction.LOCAL_EDITING,
         RepairAction.REJECT,
@@ -169,9 +168,7 @@ class HeuristicDecisionPolicy(CategoryOnlyPolicy):
             for item in raw.get("evidence_bundles", ())
         )
         if decision == "unknown" or coverage < self.minimum_coverage or provider_failure:
-            action, _masked, mask_reason = _masked_choice(
-                RepairAction.GLOBAL_REGENERATION, context
-            )
+            action, _masked, mask_reason = _masked_choice(RepairAction.REJECT, context)
             reason = "critic evidence is unknown, low-coverage, or provider-failed"
             if mask_reason:
                 reason = f"{reason}; {mask_reason}"
@@ -179,7 +176,7 @@ class HeuristicDecisionPolicy(CategoryOnlyPolicy):
             return RepairDecision(
                 action=action,
                 confidence=probabilities[action],
-                instruction="Regenerate and obtain stronger independent Critic evidence.",
+                instruction="Reject because Critic evidence is unavailable or insufficient.",
                 action_probabilities=probabilities,
                 per_action_values={item: probabilities[item] for item in ACTION_ORDER},
                 parameters={"coverage": coverage, "provider_failure": provider_failure},

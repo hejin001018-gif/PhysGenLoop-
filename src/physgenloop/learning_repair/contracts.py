@@ -17,7 +17,7 @@ from .base_contracts import (
 )
 
 
-DECISION_SCHEMA_VERSION = "learning-repair-decision/1.0"
+DECISION_SCHEMA_VERSION = "learning-repair-decision/2.0"
 TRIAL_SCHEMA_VERSION = "repair-trial/1.0"
 TARGET_SCHEMA_VERSION = "repair-target/1.0"
 RUN_SCHEMA_VERSION = "learning-repair-run/1.0"
@@ -252,7 +252,6 @@ class ExecutionRequest:
     candidate: Any
     critic_report: Any
     prompt: str
-    physics_plan: Any
     seed: int
     history: tuple[Any, ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -305,12 +304,22 @@ class ExecutionResult:
 class ScoreBundle:
     physics: float
     semantic: float | None = None
+    original_prompt_semantic: float | None = None
     quality: float | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "physics", _score(self.physics, "physics"))
         if self.semantic is not None:
             object.__setattr__(self, "semantic", _score(self.semantic, "semantic"))
+        if self.original_prompt_semantic is not None:
+            object.__setattr__(
+                self,
+                "original_prompt_semantic",
+                _score(
+                    self.original_prompt_semantic,
+                    "original_prompt_semantic",
+                ),
+            )
         if self.quality is not None:
             object.__setattr__(self, "quality", _score(self.quality, "quality"))
 
@@ -318,6 +327,7 @@ class ScoreBundle:
         return {
             "physics": self.physics,
             "semantic": self.semantic,
+            "original_prompt_semantic": self.original_prompt_semantic,
             "quality": self.quality,
         }
 
@@ -326,6 +336,11 @@ class ScoreBundle:
         return cls(
             physics=float(raw["physics"]),
             semantic=None if raw.get("semantic") is None else float(raw["semantic"]),
+            original_prompt_semantic=(
+                None
+                if raw.get("original_prompt_semantic") is None
+                else float(raw["original_prompt_semantic"])
+            ),
             quality=None if raw.get("quality") is None else float(raw["quality"]),
         )
 

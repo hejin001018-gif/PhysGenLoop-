@@ -77,6 +77,7 @@ class PhysicsCritic:
         question_model: StructuredTextModel | None = None,
         physics_planner: PhysicsPlanner | None = None,
         planner_model: StructuredTextModel | None = None,
+        use_physics_plan: bool = True,
         visual_evidence_extractors: Iterable[VisualEvidenceExtractor] = (),
         vlm_verifier: VLMVerifier | None = None,
     ) -> None:
@@ -110,10 +111,13 @@ class PhysicsCritic:
             enabled_rules=self.config.rules.enabled,
         )
         self.visual_evidence_extractors = tuple(visual_evidence_extractors)
+        self.use_physics_plan = bool(use_physics_plan)
         if physics_planner is not None and planner_model is not None:
             raise ValueError("Provide either physics_planner or planner_model, not both")
         # 模型优先级：显式 Planner 实现/专用模型 > 复用 QG 模型 > 确定性模板。
-        if physics_planner is not None:
+        if not self.use_physics_plan:
+            self.physics_plan_resolver = None
+        elif physics_planner is not None:
             self.physics_plan_resolver = PhysicsPlanResolver(physics_planner)
         elif planner_model is not None:
             self.physics_plan_resolver = PhysicsPlanResolver(
@@ -208,30 +212,45 @@ class PhysicsCritic:
 
         provider_failures: list[dict[str, object]] = []
         floor_geometry_calibrated = floor_y is not None
-        with _trace_node(
-            trace,
-            "physics_planner",
-            label="Physics Planner",
-            source_nodes=("request",),
-            inputs=lambda: {
-                "prompt": request.prompt,
-                "partial_plan": summarize_plan(request.physics_plan),
-            },
-        ) as stage:
-            resolution = self.physics_plan_resolver.resolve(request)
-            resolved_request = replace(request, physics_plan=resolution.plan)
-            request = resolved_request
-            if resolution.provider_failure is not None:
-                provider_failures.append(resolution.provider_failure)
-            if stage is not None:
-                outputs = summarize_plan(resolution.plan)
+        # When PhysicsPlan is disabled for the WanPhysics V2 online chain, the
+        # original request is already the resolved request.  Initialising this
+        # before the optional resolver branch keeps CriticArtifacts complete
+        # without invoking the retired planner.
+        resolved_request = request
+        if self.physics_plan_resolver is None:
+            if trace is not None:
+                trace.record_skipped(
+                    "physics_planner",
+                    label="Physics Planner",
+                    source_nodes=("request",),
+                    inputs={"prompt": request.prompt},
+                    reason="disabled_by_wanphysics_v2",
+                )
+        else:
+            with _trace_node(
+                trace,
+                "physics_planner",
+                label="Physics Planner",
+                source_nodes=("request",),
+                inputs=lambda: {
+                    "prompt": request.prompt,
+                    "partial_plan": summarize_plan(request.physics_plan),
+                },
+            ) as stage:
+                resolution = self.physics_plan_resolver.resolve(request)
+                resolved_request = replace(request, physics_plan=resolution.plan)
+                request = resolved_request
                 if resolution.provider_failure is not None:
-                    stage.degrade(
-                        outputs=outputs,
-                        warnings=(_failure_warning(resolution.provider_failure),),
-                    )
-                else:
-                    stage.complete(outputs=outputs)
+                    provider_failures.append(resolution.provider_failure)
+                if stage is not None:
+                    outputs = summarize_plan(resolution.plan)
+                    if resolution.provider_failure is not None:
+                        stage.degrade(
+                            outputs=outputs,
+                            warnings=(_failure_warning(resolution.provider_failure),),
+                        )
+                    else:
+                        stage.complete(outputs=outputs)
 
         if self.config.question_graph.enabled:
             with _trace_node(
@@ -725,14 +744,21 @@ class PhysicsCritic:
             )
 
         diagnostics = dict(report.diagnostics)
-        metadata = request.physics_plan.planner_metadata
-        diagnostics["planner"] = {
-            "source": metadata.source,
-            "confidence": metadata.confidence,
-            "fallback_used": metadata.fallback_used,
-            "model": metadata.model,
-            "resolved_plan": request.physics_plan.to_dict(),
-        }
+        if self.physics_plan_resolver is None:
+            diagnostics["planner"] = {
+                "enabled": False,
+                "reason": "disabled_by_wanphysics_v2",
+            }
+        else:
+            metadata = request.physics_plan.planner_metadata
+            diagnostics["planner"] = {
+                "enabled": True,
+                "source": metadata.source,
+                "confidence": metadata.confidence,
+                "fallback_used": metadata.fallback_used,
+                "model": metadata.model,
+                "resolved_plan": request.physics_plan.to_dict(),
+            }
         if provider_failures:
             diagnostics["provider_failures"] = tuple(provider_failures)
         report = replace(report, diagnostics=diagnostics)

@@ -18,22 +18,21 @@ from pathlib import Path
 from typing import Any
 
 from physgenloop.learning_repair import ExecutorRegistry
+from physgenloop.learning_repair.baselines import HeuristicDecisionPolicy
+from physgenloop.learning_repair.executors import PromptRepairExecutor
+from physgenloop.repairer import InstructionPromptRepairer
 from physgenloop.selector import EvidenceAwareSelector
 
 from ..adapter import WanSubprocessGenerator
-from ..repairer import load_action_value_repairer
 from ..sam2_vlm_critic import Sam2VlmSubprocessCritic
 from .artifacts import RunArtifacts, SampleStatus
 from .critic_backend import V2SubprocessCritic
 from .executors import (
     AuditedRejectExecutor,
-    DecisionPromptRepairExecutor,
     MaskSequenceLocalEditingExecutor,
-    OriginalPromptGlobalRegenerationExecutor,
 )
 from .guardrails import GateThresholds, CpuQualityScorer
 from .mask_manifest import build_local_edit_target, build_manifest, has_valid_masks, verify_manifest
-from .memory_adapter import inspect_memory
 from .preflight import run_preflight
 from .runner import ActionAwareRunnerV2, RunnerConfig, RunnerHooks
 from .scorers_semantic import VlmSemanticScorer
@@ -48,6 +47,26 @@ def _resolve_path(value: str | None, root: Path) -> str | None:
     if path.is_absolute():
         return str(path)
     return str(root / path)
+
+
+class _CoordinatedGenerator:
+    def __init__(self, backend: Any, prepare: Any) -> None:
+        self._backend = backend
+        self._prepare = prepare
+
+    def generate(self, *, prompt: str, seed: int):
+        self._prepare()
+        return self._backend.generate(prompt=prompt, seed=seed)
+
+
+class _CoordinatedEditor:
+    def __init__(self, backend: Any, prepare: Any) -> None:
+        self._backend = backend
+        self._prepare = prepare
+
+    def edit(self, **kwargs):
+        self._prepare()
+        return self._backend.edit(**kwargs)
 
 
 class _V2Critic:
@@ -68,6 +87,7 @@ class _V2Critic:
         dual_gpu: bool,
         quality_scorer: Any = None,
         semantic_scorer: Any = None,
+        original_prompt: str,
     ) -> None:
         self._lifecycle = vllm_lifecycle
         self._dual_gpu = dual_gpu
@@ -84,6 +104,7 @@ class _V2Critic:
         self._mask_manifest_path: dict[str, Path] = {}
         self._quality_scorer = quality_scorer
         self._semantic_scorer = semantic_scorer
+        self._original_prompt = str(original_prompt)
         # shadow 阶段记录的旁路分数，供 runner gate 读取。
         self._scores: dict[str, dict[str, float | None]] = {}
 
@@ -93,7 +114,7 @@ class _V2Critic:
 
     def _score_side_channels(self, candidate: Any, prompt: str) -> dict[str, float | None]:
         """CPU quality + VLM semantic（shadow 记录，不改判）。"""
-        quality = semantic = None
+        quality = semantic = original_semantic = None
         if self._quality_scorer is not None:
             try:
                 q = self._quality_scorer.score(candidate.video_path)
@@ -103,26 +124,47 @@ class _V2Critic:
         if self._semantic_scorer is not None and getattr(self._semantic_scorer, "available", True):
             try:
                 semantic = self._semantic_scorer.score(prompt=prompt, video_path=candidate.video_path)
+                original_semantic = self._semantic_scorer.score(
+                    prompt=self._original_prompt,
+                    video_path=candidate.video_path,
+                )
             except Exception:  # noqa: BLE001
                 semantic = None
-        return {"quality_score": quality, "semantic_score": semantic}
+        return {
+            "quality_score": quality,
+            "semantic_score": semantic,
+            "original_prompt_semantic_score": original_semantic,
+        }
 
     def scores_for(self, candidate: Any) -> dict[str, float | None]:
-        return self._scores.get(str(getattr(candidate, "candidate_id", "")), {"quality_score": None, "semantic_score": None})
+        return self._scores.get(
+            str(getattr(candidate, "candidate_id", "")),
+            {
+                "quality_score": None,
+                "semantic_score": None,
+                "original_prompt_semantic_score": None,
+            },
+        )
 
-    def evaluate(self, candidate: Any, *, prompt: str, physics_plan: Any):
+    def evaluate(self, candidate: Any, *, prompt: str):
         import time as _time
 
         cid = str(candidate.candidate_id)
         gpu_before = self._lifecycle._gpu_memory_used_mb() if hasattr(self._lifecycle, "_gpu_memory_used_mb") else None
         t0 = _time.perf_counter()
-        decoded = self._backend.evaluate(candidate, prompt=prompt, physics_plan=physics_plan)
+        try:
+            decoded = self._backend.evaluate(candidate, prompt=prompt)
+        except Exception as exc:  # noqa: BLE001
+            self._artifacts.write_raw_payload(
+                self._sample_id,
+                cid,
+                {},
+                f"{type(exc).__name__}: {exc}",
+            )
+            self._mask_valid[cid] = False
+            return None
         critic_seconds = _time.perf_counter() - t0
         gpu_after = self._lifecycle._gpu_memory_used_mb() if hasattr(self._lifecycle, "_gpu_memory_used_mb") else None
-        try:
-            plan_dict = physics_plan.to_dict() if hasattr(physics_plan, "to_dict") else {}
-        except Exception:  # noqa: BLE001
-            plan_dict = {}
         # 资源指标（§19）：查不到记 null。
         self._artifacts.append_resource_metrics(
             self._sample_id,
@@ -134,7 +176,9 @@ class _V2Critic:
             },
         )
         doc = decoded.critic_report_document(
-            candidate_id=cid, video_path=candidate.video_path, prompt=prompt, physics_plan=plan_dict
+            candidate_id=cid,
+            video_path=candidate.video_path,
+            prompt=prompt,
         )
         # 旁路 scorer（shadow）：写进 critic_report 供审计。
         side = self._score_side_channels(candidate, prompt)
@@ -199,25 +243,49 @@ class _ArtifactHooks(RunnerHooks):
         self._pending: dict[str, dict] = {}
 
     def on_state(self, sample_id: str, state: str, round_index: int) -> None:
+        if state in {
+            "ACCEPTED",
+            "REJECTED",
+            "MAX_ROUNDS",
+            "EVALUATION_FAILED",
+            "EXECUTION_FAILED",
+            "PREFLIGHT_FAILED",
+        }:
+            # The entrypoint commits terminal status only after loop_result and
+            # Trial artifacts are durable and schema-valid.
+            return
         try:
             self._artifacts.set_status(SampleStatus(sample_id=sample_id, state=state, round_index=round_index))
         except ValueError:
             pass
         # critic 失败也写一条 trace（§12：不静默）。
-        if state in {"CRITIC_FAILED", "MAX_ROUNDS"}:
+        if state in {"EVALUATION_FAILED", "EXECUTION_FAILED", "MAX_ROUNDS"}:
             self._artifacts.append_repair_trace(sample_id, {"round_index": round_index, "event": state})
 
-    def on_decision(self, sample_id, candidate_id, decision, guard) -> None:
+    def on_decision(
+        self,
+        sample_id,
+        candidate_id,
+        decision,
+        guard,
+        round_index,
+        execution_id,
+    ) -> None:
         try:
             payload = {"decision": decision.to_dict() if hasattr(decision, "to_dict") else str(decision), "guard": guard.to_dict()}
             self._artifacts.write_decision(sample_id, candidate_id, payload)
             # 缓存供 on_execution 合并成一条完整 trace。
             self._pending[sample_id] = {
                 "candidate_id": candidate_id,
+                "round_index": round_index,
+                "state": "EXECUTED",
+                "execution_id": execution_id,
                 "policy_action": guard.policy_action,
-                "final_action": guard.final_action,
+                "guard_status": guard.status,
+                "executed_action": guard.final_action,
                 "scope": guard.scope,
-                "override_reason": guard.override_reason,
+                "blocked_reason": guard.blocked_reason,
+                "decision_source": "three_action_policy",
             }
         except Exception:  # noqa: BLE001
             pass
@@ -246,8 +314,7 @@ def build_v2_runner(
     run_dir: str,
     sample_dir: str,
     sample_id: str,
-    allow_proxy_policy: bool,
-    force_action: str | None = None,
+    original_prompt: str,
 ):
     """按 loop_v2.yaml 装配真实 V2 runner。返回 (runner, critic, artifacts, preflight)。"""
 
@@ -257,6 +324,13 @@ def build_v2_runner(
     vllm_cfg = cfg.get("vllm", {})
     accept = cfg.get("acceptance", {})
     local_cfg = cfg.get("local_editing", {})
+    if str(accept.get("mode", "")) != "enforce":
+        raise ValueError("V2 active runtime requires acceptance.mode=enforce")
+    critic_cfg = cfg.get("critic", {}) or {}
+    if not bool(critic_cfg.get("formal_profile_required", False)):
+        raise ValueError("V2 active runtime requires critic.formal_profile_required=true")
+    if str(critic_cfg.get("profile", "")) != "sam2_seeded_rules":
+        raise ValueError("unsupported active critic profile")
 
     gpu_mode = str(runtime.get("gpu_mode", "dual_gpu"))
     dual_gpu = gpu_mode == "dual_gpu"
@@ -324,76 +398,69 @@ def build_v2_runner(
         dual_gpu=dual_gpu,
         quality_scorer=quality_scorer,
         semantic_scorer=semantic_scorer,
+        original_prompt=original_prompt,
+    )
+    coordinated_generator = _CoordinatedGenerator(
+        generator,
+        critic.prepare_for_generation,
     )
 
     max_rounds = loop.get("max_rounds", 2)
-    ckpt_root = paths.get("checkpoints", {}).get("repair_agent") if isinstance(paths.get("checkpoints"), dict) else None
-    ckpt_root = _resolve_path(ckpt_root, project_root)
-    ckpt_root = ckpt_root or str(project_root / "checkpoints" / "repair_agent" / "repair-agent-v3.1-proxy-20260717")
-
-    # G3：memory 格式识别，整轮写一次 memory_status（默认 disabled）。
-    mem_cfg = cfg.get("memory", {}) or {}
-    try:
-        mem_status = inspect_memory(
-            Path(ckpt_root) / "memory/proxy_memory_train.jsonl",
-            enable=bool(mem_cfg.get("enable_proxy", False)),
-        )
-        artifacts.write_memory_status(mem_status.to_dict())
-    except Exception:  # noqa: BLE001
-        pass
-
     # G4：vLLM PID owner（在首次 start_vllm 后写，用 lambda 延迟）。
     _orig_start = vllm_lifecycle.start_vllm
 
     def _start_and_record():
         _orig_start()
         try:
-            import subprocess as _sp
-
-            pid_out = _sp.run(
-                ["pgrep", "-f", "vllm.entrypoints.openai.api_server"], capture_output=True, text=True
-            ).stdout.strip().splitlines()
-            pid = int(pid_out[0]) if pid_out else -1
-            artifacts.write_owner({"run_id": Path(run_dir).name, "pid": pid, "port": vllm_cfg.get("port", 8000)})
+            pid = vllm_lifecycle.owned_pid
+            artifacts.write_owner(
+                {
+                    "run_id": Path(run_dir).name,
+                    "pid": pid,
+                    "owned": pid is not None,
+                    "port": vllm_cfg.get("port", 8000),
+                }
+            )
         except Exception:  # noqa: BLE001
             pass
 
     vllm_lifecycle.start_vllm = _start_and_record  # type: ignore[method-assign]
 
-    # P0-08：checkpoint 分层硬门禁——加载前判定，写 checkpoint_gate.json。
-    from .checkpoint_gate import evaluate_checkpoint_gate, MODE_PROXY_RESEARCH
-    policy_cfg = cfg.get("policy", {}) or {}
-    ckpt_mode = policy_cfg.get("mode", MODE_PROXY_RESEARCH)
-    gate_result = evaluate_checkpoint_gate(
-        ckpt_root, mode=ckpt_mode, allow_proxy_override=bool(allow_proxy_policy),
-    )
-    artifacts.write_json(str(Path(run_dir) / "checkpoint_gate.json"), gate_result.to_dict()) if hasattr(artifacts, "write_json") else None
-    try:
-        from .artifacts import write_json as _wj
-        _wj(Path(run_dir) / "checkpoint_gate.json", gate_result.to_dict())
-    except Exception:  # noqa: BLE001
-        pass
-    if not gate_result.allow_load:
-        raise RuntimeError(
-            f"checkpoint gate blocked load: mode={gate_result.mode} reasons={gate_result.reasons}"
-        )
-
-    repairer = load_action_value_repairer(ckpt_root, max_attempts=max_rounds, local_editor_available=True)
-
-    def _decider(report, evaluation):
-        _prompt, decision = repairer.repair_with_decision(prompt=getattr(evaluation.candidate, "prompt", ""), report=report)
-        return decision
-
     # preflight → capability mask（ProPainter 缺失自动掩掉 local_editing）。
     preflight = run_preflight(
         propainter_repo=_resolve_path(local_cfg.get("propainter_repo"), project_root) or str(project_root / "models" / "ProPainter"),
+        wan_model=_resolve_path(paths.get("models", {}).get("wan"), project_root)
+        or str(project_root / "models" / "wan2.2_ti2v_5b"),
+        vllm_model=_resolve_path(paths.get("models", {}).get("vllm"), project_root)
+        or str(project_root / "models" / "Qwen3-VL-8B-Instruct"),
+        sam2_ckpt=_resolve_path(paths.get("models", {}).get("sam2"), project_root)
+        or str(project_root / "models" / "sam2.1_hiera_base_plus.pt"),
+        env_file=str(project_root / ".env"),
         vllm_host=vllm_cfg.get("host", "127.0.0.1"),
-        vllm_port=vllm_cfg.get("port", 18000),
+        vllm_port=vllm_cfg.get("port", 8000),
         require_local_editing=bool(local_cfg.get("enabled", False)),
     )
     caps = dict(preflight.capability_mask)
     if not bool(local_cfg.get("enabled", False)):
         caps["local_editing"] = False
+    caps = {
+        "prompt_repair": bool(caps.get("prompt_repair", True)),
+        "local_editing": bool(caps.get("local_editing", False)),
+        "reject": True,
+    }
+
+    policy = HeuristicDecisionPolicy(
+        minimum_coverage=float(cfg.get("policy", {}).get("minimum_coverage", 0.25)),
+        compatibility_id="three-action-heuristic/1.0",
+    )
+
+    def _decider(report, evaluation, context):
+        return policy.decide(
+            critic_report=report,
+            candidate=evaluation.candidate,
+            prompt=getattr(evaluation.candidate, "prompt", original_prompt),
+            context=context,
+        )
 
     if bool(local_cfg.get("strict_manifest", True)):
         from .propainter_strict_editor import StrictProPainterLocalEditor
@@ -408,59 +475,34 @@ def build_v2_runner(
         python=python,
         output_root=sample_dir,
     )
+    coordinated_editor = _CoordinatedEditor(editor, critic.prepare_for_generation)
     registry = ExecutorRegistry(
         executors=[
-            DecisionPromptRepairExecutor(generator=generator),
-            OriginalPromptGlobalRegenerationExecutor(generator=generator),
-            MaskSequenceLocalEditingExecutor(editor=editor),
+            PromptRepairExecutor(
+                prompt_rewriter=InstructionPromptRepairer(),
+                generator=coordinated_generator,
+                backend_id="legacy-prompt-rewriter+video-generator",
+            ),
+            MaskSequenceLocalEditingExecutor(editor=coordinated_editor),
             AuditedRejectExecutor(selector=EvidenceAwareSelector()),
         ]
     )
 
-    # P0-04：force_action 时用 forced decider（记录 proposed vs forced）。
-    active_decider = _decider
-    if force_action:
-        from physgenloop.learning_repair.base_contracts import RepairAction
-        from physgenloop.learning_repair.contracts import RepairDecision, LocalEditTarget
-
-        def _forced_decider(report, evaluation, _fa=force_action):
-            proposed = None
-            try:
-                proposed = getattr(_decider(report, evaluation), "action", None)
-            except Exception:  # noqa: BLE001
-                proposed = None
-            lt = None
-            if _fa == "local_editing":
-                lt = critic.local_target(report, evaluation.candidate)
-            probs = {a.value: (1.0 if a.value == _fa else 0.0) for a in RepairAction}
-            tot = sum(probs.values()) or 1.0
-            probs = {k: v / tot for k, v in probs.items()}
-            return RepairDecision(
-                action=RepairAction(_fa), confidence=0.99, instruction=f"forced:{_fa}",
-                action_probabilities=probs,
-                per_action_values={a.value: 0.0 for a in RepairAction},
-                local_target=lt, source="force_action_override",
-                parameters={"proposed_action": (proposed.value if proposed else None), "forced_action": _fa},
-            )
-        active_decider = _forced_decider
-
     runner = ActionAwareRunnerV2(
-        generator=generator,
+        generator=coordinated_generator,
         critic=critic,
-        decider=active_decider,
+        decider=_decider,
         executor_registry=registry,
         selector=EvidenceAwareSelector(),
         config=RunnerConfig(
             max_rounds=max_rounds,
             candidates_per_round=loop.get("candidates_per_round", 1),
             base_seed=loop.get("base_seed", 42),
-            acceptance_mode=accept.get("mode", "shadow"),
+            acceptance_mode=accept.get("mode", "enforce"),
             error_scope_threshold=loop.get("error_scope_threshold", 0.4),
             default_total_frames=num_frames,
             thresholds=GateThresholds.from_mapping(accept),
-            fail_on_degraded_critic=bool(runtime.get("fail_on_degraded_critic", False)),
-            force_action=force_action,
-            require_plan=bool(cfg.get("acceptance", {}).get("require_plan", False)),
+            fail_on_degraded_critic=bool(runtime.get("fail_on_degraded_critic", True)),
         ),
         capability_fn=lambda: caps,
         mask_valid_fn=critic.mask_valid,

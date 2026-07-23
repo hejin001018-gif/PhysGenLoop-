@@ -186,13 +186,13 @@ def _real_trials(args) -> int:
 
 
 def main(argv=None) -> int:
-    args = build_arg_parser().parse_args(argv)
-    if args.dry_run:
-        return _dry_run(args)
-    if not args.enable:
-        print("[V2] trials not enabled; pass --enable (GPU authorization required) or --dry-run. Exiting.")
-        return 0
-    return _real_trials(args)
+    print(
+        "ERROR: run_actual_trials_v2.py is retired. "
+        "Use agents/wanphysics/run_videophy2_loop_v2.py; "
+        "repair actions must come from the three-action Policy.",
+        file=sys.stderr,
+    )
+    return 2
 
 
 if __name__ == "__main__":

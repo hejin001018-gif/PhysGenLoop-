@@ -146,9 +146,9 @@ class ReportFeatureEncoder:
             "context.attempt_fraction",
             "context.remaining_budget",
             "context.semantic_score",
+            "context.original_prompt_semantic_score",
             "context.quality_score",
             "context.prompt_repair_available",
-            "context.global_regeneration_available",
             "context.local_editor_available",
         ]
         names.extend(f"category.{name}" for name in self.config.categories)
@@ -208,9 +208,13 @@ class ReportFeatureEncoder:
             context.attempt_index / context.max_attempts,
             (context.max_attempts - context.attempt_index) / context.max_attempts,
             0.5 if context.semantic_score is None else context.semantic_score,
+            (
+                0.5
+                if context.original_prompt_semantic_score is None
+                else context.original_prompt_semantic_score
+            ),
             0.5 if context.quality_score is None else context.quality_score,
             1.0 if context.prompt_repair_available else 0.0,
-            1.0 if context.global_regeneration_available else 0.0,
             1.0 if context.local_editor_available else 0.0,
         ]
         values.extend(1.0 if name in categories else 0.0 for name in self.config.categories)

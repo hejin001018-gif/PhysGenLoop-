@@ -51,7 +51,6 @@ class ProPainterLocalEditor:
         target: LocalEditTarget,
         instruction: str,
         critic_report,
-        physics_plan,
         seed: int,
     ) -> GeneratedCandidate:
         video_path = Path(candidate.video_path)
@@ -120,20 +119,18 @@ class ProPainterLocalEditor:
             raise RuntimeError(f"无法读取视频首帧：{video_path}")
         h, w = frame.shape[:2]
 
-        # 优先用 mask_uri（SAM2 输出的 mask 图片路径）
-        if target.mask_uri:
-            ref_mask = cv2.imread(str(target.mask_uri), cv2.IMREAD_GRAYSCALE)
-            if ref_mask is None:
-                raise RuntimeError(f"无法读取 mask_uri：{target.mask_uri}")
-        else:
-            # 没有 mask_uri 时退化为全帧白色 mask（让 ProPainter 自行决定区域）
-            ref_mask = np.ones((h, w), dtype=np.uint8) * 255
+        if not target.mask_uri:
+            raise RuntimeError("local editing requires an explicit mask_uri")
+        ref_mask = cv2.imread(str(target.mask_uri), cv2.IMREAD_GRAYSCALE)
+        if ref_mask is None:
+            raise RuntimeError(f"无法读取 mask_uri：{target.mask_uri}")
 
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
         dilated = cv2.dilate(ref_mask, kernel)
 
-        # critical_frames 指定需要修复的帧索引；为空则修复全部帧
-        active_frames: set[int] = set(target.critical_frames) if target.critical_frames else set(range(frame_count))
+        if not target.critical_frames:
+            raise RuntimeError("local editing requires explicit critical_frames")
+        active_frames: set[int] = set(target.critical_frames)
         empty_mask = np.zeros((h, w), dtype=np.uint8)
         for i in range(frame_count):
             mask = dilated if i in active_frames else empty_mask

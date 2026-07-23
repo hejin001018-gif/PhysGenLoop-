@@ -7,14 +7,13 @@ from enum import Enum
 from typing import Any, Mapping
 
 
-REPAIR_SCHEMA_VERSION = "1.0"
+REPAIR_SCHEMA_VERSION = "2.0"
 
 
 class RepairAction(str, Enum):
     """Repair Policy 可以选择的互斥动作。"""
 
     PROMPT_REPAIR = "prompt_repair"
-    GLOBAL_REGENERATION = "global_regeneration"
     LOCAL_EDITING = "local_editing"
     REJECT = "reject"
 
@@ -50,9 +49,9 @@ class RepairContext:
     attempt_index: int = 0
     max_attempts: int = 3
     prompt_repair_available: bool = True
-    global_regeneration_available: bool = True
     local_editor_available: bool = True
     semantic_score: float | None = None
+    original_prompt_semantic_score: float | None = None
     quality_score: float | None = None
     previous_actions: tuple[RepairAction, ...] = ()
 
@@ -64,6 +63,15 @@ class RepairContext:
         if self.semantic_score is not None:
             object.__setattr__(
                 self, "semantic_score", _score(self.semantic_score, "semantic_score")
+            )
+        if self.original_prompt_semantic_score is not None:
+            object.__setattr__(
+                self,
+                "original_prompt_semantic_score",
+                _score(
+                    self.original_prompt_semantic_score,
+                    "original_prompt_semantic_score",
+                ),
             )
         if self.quality_score is not None:
             object.__setattr__(
@@ -78,7 +86,6 @@ class RepairContext:
     def action_available(self, action: RepairAction) -> bool:
         return {
             RepairAction.PROMPT_REPAIR: self.prompt_repair_available,
-            RepairAction.GLOBAL_REGENERATION: self.global_regeneration_available,
             RepairAction.LOCAL_EDITING: self.local_editor_available,
             RepairAction.REJECT: True,
         }[action]
@@ -88,9 +95,9 @@ class RepairContext:
             "attempt_index": self.attempt_index,
             "max_attempts": self.max_attempts,
             "prompt_repair_available": self.prompt_repair_available,
-            "global_regeneration_available": self.global_regeneration_available,
             "local_editor_available": self.local_editor_available,
             "semantic_score": self.semantic_score,
+            "original_prompt_semantic_score": self.original_prompt_semantic_score,
             "quality_score": self.quality_score,
             "previous_actions": [item.value for item in self.previous_actions],
         }
@@ -104,15 +111,16 @@ class RepairContext:
             prompt_repair_available=_boolean(
                 raw.get("prompt_repair_available", True), "prompt_repair_available"
             ),
-            global_regeneration_available=_boolean(
-                raw.get("global_regeneration_available", True),
-                "global_regeneration_available",
-            ),
             local_editor_available=_boolean(
                 raw.get("local_editor_available", True), "local_editor_available"
             ),
             semantic_score=(
                 None if raw.get("semantic_score") is None else float(raw["semantic_score"])
+            ),
+            original_prompt_semantic_score=(
+                None
+                if raw.get("original_prompt_semantic_score") is None
+                else float(raw["original_prompt_semantic_score"])
             ),
             quality_score=(
                 None if raw.get("quality_score") is None else float(raw["quality_score"])

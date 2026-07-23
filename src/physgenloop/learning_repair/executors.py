@@ -57,10 +57,11 @@ class PromptRepairExecutor:
             raise TypeError("prompt_rewriter must be callable or expose repair()")
         rewritten = str(rewritten).strip()
         if not rewritten:
-            raise ValueError("prompt rewriter returned an empty prompt")
+            raise ValueError("empty_rewritten_prompt")
+        if " ".join(rewritten.split()) == " ".join(request.prompt.split()):
+            raise ValueError("no_safe_prompt_change")
         candidate = self.generator.generate(
             prompt=rewritten,
-            physics_plan=request.physics_plan,
             seed=request.seed,
         )
         return ExecutionResult(
@@ -72,13 +73,19 @@ class PromptRepairExecutor:
             cost=_cost(self.cost_provider, request),
             latency_seconds=time.perf_counter() - started,
             artifacts={"repaired_video": str(candidate.video_path)},
+            metadata={
+                "executor": "PromptRepairExecutor",
+                "prompt_rewriter": type(self.prompt_rewriter).__name__,
+                "input_prompt": request.prompt,
+                "rewritten_prompt": rewritten,
+            },
         )
 
 
 class GlobalRegenerationExecutor:
     """Regenerate a complete candidate without changing the original prompt."""
 
-    action = RepairAction.GLOBAL_REGENERATION
+    action = "global_regeneration"
 
     def __init__(
         self,
@@ -95,7 +102,6 @@ class GlobalRegenerationExecutor:
         started = time.perf_counter()
         candidate = self.generator.generate(
             prompt=request.prompt,
-            physics_plan=request.physics_plan,
             seed=request.seed,
         )
         return ExecutionResult(
@@ -136,7 +142,6 @@ class LocalEditingExecutor:
                 target=request.decision.local_target,
                 instruction=request.decision.instruction,
                 critic_report=request.critic_report,
-                physics_plan=request.physics_plan,
                 seed=request.seed,
             )
         elif callable(self.editor):
@@ -239,7 +244,6 @@ class ExecutorRegistry:
             attempt_index=attempt_index,
             max_attempts=max_attempts,
             prompt_repair_available=self.supports(RepairAction.PROMPT_REPAIR),
-            global_regeneration_available=self.supports(RepairAction.GLOBAL_REGENERATION),
             local_editor_available=self.supports(RepairAction.LOCAL_EDITING),
             semantic_score=semantic_score,
             quality_score=quality_score,

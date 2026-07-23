@@ -15,8 +15,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from pavg_critic.schemas import PhysicsPlan
-
 from physgenloop.contracts import GeneratedCandidate
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -47,9 +45,7 @@ class WanPhysicsGenerator:
         self._fps = fps
         self._negative_prompt = negative_prompt
 
-    def generate(
-        self, *, prompt: str, physics_plan: PhysicsPlan, seed: int
-    ) -> GeneratedCandidate:
+    def generate(self, *, prompt: str, seed: int) -> GeneratedCandidate:
         candidate_id = self._candidate_id(prompt, seed)
         candidate_dir = self._output_root / candidate_id
         candidate_dir.mkdir(parents=True, exist_ok=True)
@@ -125,9 +121,7 @@ class WanSubprocessGenerator:
         # 双卡角色分工：把 Wan2.2 子进程固定到某张卡（默认由调用方指定 GPU0）。
         self._gpu_id = gpu_id
 
-    def generate(
-        self, *, prompt: str, physics_plan: PhysicsPlan, seed: int
-    ) -> GeneratedCandidate:
+    def generate(self, *, prompt: str, seed: int) -> GeneratedCandidate:
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             out_json = f.name
 

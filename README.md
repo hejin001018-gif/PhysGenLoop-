@@ -2,7 +2,7 @@
 
 ## 0. 项目概览
 
-构建面向视频生成物理一致性的评估与反馈闭环：视频生成模型产生候选结果，Physics Critic 检测物理问题，Repair Policy 选择修复动作，Executor 执行修复并进入下一轮评估。
+构建面向视频生成物理一致性的严格评估与反馈闭环：Wan 产生候选，Physics Critic 给出完整证据，Strict Enforce Gate 只把 `REJECTED` 交给三动作 Repair Policy，Prompt Repair 或 ProPainter Local Editing 产生的新候选必须 Re-Critic/Re-Gate；`UNAVAILABLE` 作为评价失败收口。
 
 
 ---
@@ -79,7 +79,7 @@ PhysGenLoop-/
 - `schemas/`：V2 JSON Schema。
 - `src/physgenloop/contracts.py`：候选、评估等通用数据结构。
 - `src/physgenloop/learning_repair/contracts.py`：repair decision、execution request/result 等动作契约。
-- `generators/wanphysics/v2/trials.py`：V2 repair trial 结构。
+- `generators/wanphysics/v2/trials.py`：`WanRepairTrialV3` 严格因果与审计结构。
 
 ---
 
@@ -130,5 +130,7 @@ CPU 级入口验证：
 ```bash
 python agents/wanphysics/run_videophy2_loop_v2.py --dry-run
 ```
+
+当前在线运行只有 `agents/wanphysics/run_videophy2_loop_v2.py` 一个入口。动作集合固定为 `prompt_repair`、`local_editing`、`reject`；CLI、配置和 manifest 均不得覆盖 Policy 动作。`run_actual_trials_v2.py` 为历史退役入口，新运行会 fail fast。Memory、Global Regeneration、shadow Gate 和旧四动作 proxy checkpoint 不进入在线链路。
 
 真实链路必须在具备模型、checkpoint、GPU 环境的部署机器上验证。

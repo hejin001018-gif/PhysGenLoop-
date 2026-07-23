@@ -43,7 +43,6 @@ class StrictProPainterLocalEditor(ProPainterLocalEditor):
         target: LocalEditTarget,
         instruction: str,
         critic_report: Any,
-        physics_plan: Any,
         seed: int,
     ) -> GeneratedCandidate:
         edited = super().edit(
@@ -51,14 +50,27 @@ class StrictProPainterLocalEditor(ProPainterLocalEditor):
             target=target,
             instruction=instruction,
             critic_report=critic_report,
-            physics_plan=physics_plan,
             seed=seed,
+        )
+        output_validation = self._validate_output(
+            Path(candidate.video_path),
+            Path(edited.video_path),
         )
         metadata = {
             **dict(getattr(edited, "metadata", {}) or {}),
             "backend": "propainter-strict-local-edit",
             "mask_manifest_uri": target.mask_uri,
             "strict_mask_manifest": True,
+            "editor": "StrictProPainterLocalEditor",
+            "editor_backend": "ProPainter",
+            "repair_mode": "strict-mask-video-inpainting",
+            "propainter": {
+                "repo": str(self._repo.resolve()),
+                "script": str((self._repo / "inference_propainter.py").resolve()),
+                "weights_dir": str((self._repo / "weights").resolve()),
+                "python": str(self._python),
+            },
+            "output_validation": output_validation,
         }
         out_dir = Path(edited.video_path).resolve().parent
         try:
@@ -77,6 +89,47 @@ class StrictProPainterLocalEditor(ProPainterLocalEditor):
             seed=edited.seed,
             metadata=metadata,
         )
+
+    def _validate_output(self, source: Path, output: Path) -> dict[str, Any]:
+        if not output.exists() or output.stat().st_size <= 0:
+            raise RuntimeError(f"ProPainter output missing or empty: {output}")
+
+        def _video_info(path: Path) -> tuple[int, int, int]:
+            capture = cv2.VideoCapture(str(path))
+            if not capture.isOpened():
+                raise RuntimeError(f"cannot decode video: {path}")
+            frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            capture.release()
+            if frames <= 0 or width <= 0 or height <= 0:
+                raise RuntimeError(f"invalid video geometry: {path}")
+            return frames, width, height
+
+        source_frames, source_width, source_height = _video_info(source)
+        frames, width, height = _video_info(output)
+        if frames != source_frames:
+            raise RuntimeError(
+                f"ProPainter frame count mismatch: {frames}!={source_frames}"
+            )
+        if (width, height) != (source_width, source_height):
+            raise RuntimeError(
+                "ProPainter frame size mismatch: "
+                f"{width}x{height}!={source_width}x{source_height}"
+            )
+        return {
+            "exists": True,
+            "decode_ok": True,
+            "frame_count": frames,
+            "source_frame_count": source_frames,
+            "frame_count_match": True,
+            "width": width,
+            "height": height,
+            "source_width": source_width,
+            "source_height": source_height,
+            "size_match": True,
+            "candidate_prefix_ok": output.parent.name.startswith("propainter-"),
+        }
 
     def _build_masks(
         self,

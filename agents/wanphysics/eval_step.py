@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import json
 import os
 import sys
@@ -16,11 +17,11 @@ from dotenv import load_dotenv
 load_dotenv(_ROOT / ".env")
 
 from pavg_critic import OpenAIChatModel, PhysicsCritic, SAM2ObjectDetector, CriticRequest
-from pavg_critic.schemas import CriticReport, PhysicsPlan, Violation
+from pavg_critic.schemas import CriticReport, Violation
 from physgenloop.contracts import GeneratedCandidate
 
 
-def _build_critic(vlm, video_path: str, prompt: str, physics_plan: PhysicsPlan):
+def _build_critic(vlm, video_path: str, prompt: str):
     mask_output_dir = str(Path(video_path).resolve().parent / "sam2_masks")
     try:
         detector = SAM2ObjectDetector(
@@ -32,13 +33,11 @@ def _build_critic(vlm, video_path: str, prompt: str, physics_plan: PhysicsPlan):
             prompt=prompt,
             mask_output_dir=mask_output_dir,
         )
-        return PhysicsCritic(detector=detector), "sam2+vlm", detector
+        return PhysicsCritic(detector=detector, use_physics_plan=False), "sam2+vlm", detector
     except Exception as exc:
-        print(
-            f"  ⚠ SAM2+VLM 不可用（{type(exc).__name__}: {exc}），降级为默认规则 Critic",
-            file=sys.stderr,
-        )
-        return PhysicsCritic(), "rules_fallback", None
+        raise RuntimeError(
+            f"strict SAM2+VLM backend unavailable: {type(exc).__name__}: {exc}"
+        ) from exc
 
 
 def _attach_mask_uris(report: CriticReport, detector: SAM2ObjectDetector | None) -> CriticReport:
@@ -94,6 +93,26 @@ def _attach_mask_uris(report: CriticReport, detector: SAM2ObjectDetector | None)
     )
 
 
+def _attach_detector_diagnostics(
+    report: CriticReport,
+    detector: SAM2ObjectDetector | None,
+    backend: str,
+) -> CriticReport:
+    diagnostics = dict(report.diagnostics or {})
+    diagnostics["detector_backend"] = backend
+    if detector is not None:
+        diagnostics.update(dict(getattr(detector, "diagnostics", {}) or {}))
+    elif backend == "rules_fallback":
+        diagnostics.update(
+            {
+                "degraded": True,
+                "fallback_used": True,
+                "degraded_reasons": ["sam2_backend_unavailable"],
+            }
+        )
+    return replace(report, diagnostics=diagnostics)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidate-json", required=True)
@@ -110,26 +129,20 @@ def main() -> int:
         metadata=raw.get("metadata", {}),
     )
 
-    raw_plan = raw.get("physics_plan", {})
-    try:
-        physics_plan = PhysicsPlan.from_dict(raw_plan) if hasattr(PhysicsPlan, "from_dict") and raw_plan else PhysicsPlan()
-    except Exception:
-        physics_plan = PhysicsPlan()
-
     vlm = OpenAIChatModel(
         api_key=os.environ["API_KEY"],
         model=os.environ["VLM_MODEL"],
         base_url=os.environ["BASE_URL"],
         strict_json_schema=os.environ.get("VLM_STRICT_SCHEMA", "").lower() == "true",
     )
-    critic, backend, detector = _build_critic(vlm, candidate.video_path, candidate.prompt, physics_plan)
+    critic, backend, detector = _build_critic(vlm, candidate.video_path, candidate.prompt)
     report = critic.analyze(
         CriticRequest(
             video_path=candidate.video_path,
             prompt=candidate.prompt,
-            physics_plan=physics_plan,
         )
     )
+    report = _attach_detector_diagnostics(report, detector, backend)
     report = _attach_mask_uris(report, detector)
 
     payload = {

@@ -19,8 +19,12 @@ from typing import Any, Mapping
 
 GUARDRAILS_SCHEMA_VERSION = "acceptance-gate/1.0"
 
-MODE_SHADOW = "shadow"
 MODE_ENFORCE = "enforce"
+MODE_SHADOW = "shadow"  # legacy artifact reader only; active runtime rejects it
+
+STATUS_ACCEPTED = "ACCEPTED"
+STATUS_REJECTED = "REJECTED"
+STATUS_UNAVAILABLE = "UNAVAILABLE"
 
 
 @dataclass(frozen=True)
@@ -29,6 +33,7 @@ class GateThresholds:
     confidence: float = 0.60
     coverage: float = 0.50
     semantic_score: float = 0.85
+    original_prompt_semantic_score: float = 0.85
     quality_score: float = 0.75
 
     @classmethod
@@ -39,6 +44,9 @@ class GateThresholds:
             confidence=float(raw.get("confidence", 0.60)),
             coverage=float(raw.get("coverage", 0.50)),
             semantic_score=float(raw.get("semantic_score", 0.85)),
+            original_prompt_semantic_score=float(
+                raw.get("original_prompt_semantic_score", 0.85)
+            ),
             quality_score=float(raw.get("quality_score", 0.75)),
         )
 
@@ -46,11 +54,13 @@ class GateThresholds:
 @dataclass(frozen=True)
 class GateResult:
     mode: str
+    status: str
     accepted: bool
     physics_score: float | None
     confidence: float | None
     coverage: float | None
     semantic_score: float | None
+    original_prompt_semantic_score: float | None
     quality_score: float | None
     reasons: tuple[str, ...] = ()
     unavailable: tuple[str, ...] = ()
@@ -61,12 +71,14 @@ class GateResult:
         return {
             "schema_version": self.schema_version,
             "mode": self.mode,
+            "status": self.status,
             "accepted": self.accepted,
             "scores": {
                 "physics_score": self.physics_score,
                 "confidence": self.confidence,
                 "coverage": self.coverage,
                 "semantic_score": self.semantic_score,
+                "original_prompt_semantic_score": self.original_prompt_semantic_score,
                 "quality_score": self.quality_score,
             },
             "reasons": list(self.reasons),
@@ -81,11 +93,15 @@ def evaluate_gate(
     mode: str,
     thresholds: GateThresholds,
     semantic_score: float | None = None,
+    original_prompt_semantic_score: float | None = None,
     quality_score: float | None = None,
     critic_degraded: bool = False,
     fail_on_degraded: bool = False,
 ) -> GateResult:
-    """按模式裁决接受。shadow 只用 legacy 条件停机，其余记录；enforce 全门达标。"""
+    """Strict fail-closed three-state acceptance decision."""
+
+    if mode != MODE_ENFORCE:
+        raise ValueError("active V2 runtime requires acceptance.mode=enforce")
 
     decision = getattr(report, "decision", None)
     physics = float(getattr(report, "physics_score", 0.0))
@@ -97,32 +113,18 @@ def evaluate_gate(
     reasons: list[str] = []
     unavailable: list[str] = []
 
-    legacy_ok = decision == "physical" and physics >= thresholds.physics_score
-
-    if mode == MODE_SHADOW:
-        accepted = legacy_ok
-        if not legacy_ok:
-            reasons.append("legacy_not_physical_or_below_physics_threshold")
-        # 记录其余门是否满足，但不改判。
-        for name, value in (("semantic_score", semantic_score), ("quality_score", quality_score)):
-            if value is None:
-                unavailable.append(name)
-        return GateResult(
-            mode=mode,
-            accepted=accepted,
-            physics_score=physics,
-            confidence=confidence,
-            coverage=coverage,
-            semantic_score=semantic_score,
-            quality_score=quality_score,
-            reasons=tuple(reasons),
-            unavailable=tuple(unavailable),
-            critic_degraded=critic_degraded,
-        )
-
-    # enforce 模式
-    if decision != "physical":
+    if decision == "unknown":
+        unavailable.append("critic_decision_unknown")
+    elif decision != "physical":
         reasons.append("decision_not_physical")
+    if any(
+        str(getattr(bundle, "status", "")) == "failed"
+        or (isinstance(bundle, Mapping) and str(bundle.get("status", "")) == "failed")
+        for bundle in tuple(getattr(report, "evidence_bundles", ()) or ())
+    ):
+        unavailable.append("required_evidence_provider_failed")
+    if tuple(getattr(report, "violations", ()) or ()):
+        reasons.append("blocking_violations_present")
     if physics < thresholds.physics_score:
         reasons.append("physics_below_threshold")
     if confidence is None:
@@ -137,21 +139,34 @@ def evaluate_gate(
         unavailable.append("semantic_score")
     elif semantic_score < thresholds.semantic_score:
         reasons.append("semantic_below_threshold")
+    if original_prompt_semantic_score is None:
+        unavailable.append("original_prompt_semantic_score")
+    elif original_prompt_semantic_score < thresholds.original_prompt_semantic_score:
+        reasons.append("original_prompt_semantic_below_threshold")
     if quality_score is None:
         unavailable.append("quality_score")
     elif quality_score < thresholds.quality_score:
         reasons.append("quality_below_threshold")
     if critic_degraded and fail_on_degraded:
-        reasons.append("critic_degraded")
+        unavailable.append("critic_degraded")
 
     accepted = not reasons and not unavailable
+    status = (
+        STATUS_UNAVAILABLE
+        if unavailable
+        else STATUS_ACCEPTED
+        if accepted
+        else STATUS_REJECTED
+    )
     return GateResult(
         mode=mode,
+        status=status,
         accepted=accepted,
         physics_score=physics,
         confidence=confidence,
         coverage=coverage,
         semantic_score=semantic_score,
+        original_prompt_semantic_score=original_prompt_semantic_score,
         quality_score=quality_score,
         reasons=tuple(reasons),
         unavailable=tuple(unavailable),

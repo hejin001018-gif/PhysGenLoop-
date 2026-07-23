@@ -1,9 +1,37 @@
-"""SAM2+VLM 子进程式 CandidateCritic，实现 physgenloop.interfaces.CandidateCritic 协议。"""
+from __future__ import annotations
+
+import sys
+
+import paramiko
+
+HOST = "px-cloud1.matpool.com"
+PORT = 27323
+USER = "root"
+PASSWORD = r"dXm#hEFBUa@@f*N}"
+ROOT = "/root/PhysGenLoop-"
+
+
+def read_file(sftp: paramiko.SFTPClient, path: str) -> str:
+    with sftp.open(path, "r") as handle:
+        return handle.read().decode("utf-8")
+
+
+def write_file(sftp: paramiko.SFTPClient, path: str, content: str) -> None:
+    with sftp.open(path, "w") as handle:
+        handle.write(content.encode("utf-8"))
+
+
+def main() -> int:
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(hostname=HOST, port=PORT, username=USER, password=PASSWORD, timeout=20)
+    sftp = client.open_sftp()
+    try:
+        critic_path = f"{ROOT}/generators/wanphysics/sam2_vlm_critic.py"
+        critic = """\"\"\"SAM2+VLM 子进程式 CandidateCritic，实现 physgenloop.interfaces.CandidateCritic 协议。\"\"\"
 from __future__ import annotations
 
 import json
-import os
-import signal
 import subprocess
 import sys
 import tempfile
@@ -11,12 +39,11 @@ import time
 import urllib.request
 from pathlib import Path
 
-from pavg_critic.schemas import CriticReport
+from pavg_critic.schemas import CriticReport, PhysicsPlan
 
 from physgenloop.contracts import GeneratedCandidate
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_EVAL_STEP = _PROJECT_ROOT / "agents" / "wanphysics" / "eval_step.py"
+_EVAL_STEP = Path(__file__).parent.parent.parent / "agents" / "wanphysics" / "eval_step.py"
 _HEALTH_URL = "http://localhost:8000/health"
 
 
@@ -59,32 +86,19 @@ class Sam2VlmSubprocessCritic:
         self,
         python: str,
         vllm_python: str,
-        vllm_model: str | None = None,
+        vllm_model: str = "/root/PhysGenLoop-/models/Qwen3-VL-8B-Instruct",
         vllm_served_name: str = "qwen3-vl-8b-instruct",
-        vllm_log: str | None = None,
+        vllm_log: str = "/root/PhysGenLoop-/outputs/vllm_qwen3vl_serve.log",
         vllm_gpu_util: float = 0.85,
         vllm_max_model_len: int = 16384,
-        vllm_gpu_id: str | int | None = None,
-        dual_gpu: bool = False,
     ) -> None:
         self._python = python
         self._vllm_python = vllm_python
-        self._vllm_model = vllm_model or str(_PROJECT_ROOT / "models" / "Qwen3-VL-8B-Instruct")
+        self._vllm_model = vllm_model
         self._vllm_served_name = vllm_served_name
-        self._vllm_log = vllm_log or str(_PROJECT_ROOT / "outputs" / "vllm_qwen3vl_serve.log")
+        self._vllm_log = vllm_log
         self._vllm_gpu_util = vllm_gpu_util
         self._vllm_max_model_len = vllm_max_model_len
-        # 双卡角色分工：把 vLLM(Qwen3-VL) 固定到某张卡（如 GPU1），与 Wan(GPU0) 分离。
-        self._vllm_gpu_id = vllm_gpu_id
-        # dual_gpu=True 时，Wan 与 vLLM 各占一卡，无需在生成前杀掉/重启 vLLM，
-        # 省掉每轮 vLLM 冷启动（历史 ~836s）。
-        self._dual_gpu = dual_gpu
-        self._owned_process: subprocess.Popen | None = None
-
-    @property
-    def owned_pid(self) -> int | None:
-        process = self._owned_process
-        return None if process is None else int(process.pid)
 
     def _vllm_healthy(self) -> bool:
         try:
@@ -106,16 +120,11 @@ class Sam2VlmSubprocessCritic:
         )
         if result.returncode != 0:
             return None
-        lines = result.stdout.strip().splitlines()
-        try:
-            gpu_index = int(self._vllm_gpu_id) if self._vllm_gpu_id is not None else 0
-        except (TypeError, ValueError):
-            gpu_index = 0
-        value = lines[gpu_index].strip() if 0 <= gpu_index < len(lines) else ""
-        if not value:
+        first = (result.stdout.strip().splitlines() or [""])[0].strip()
+        if not first:
             return None
         try:
-            return int(float(value))
+            return int(float(first))
         except ValueError:
             return None
 
@@ -136,15 +145,8 @@ class Sam2VlmSubprocessCritic:
         if self._vllm_healthy():
             return
         print("[Sam2VlmCritic] 启动 vLLM ...", file=sys.stderr)
-        vllm_env = None
-        if self._vllm_gpu_id is not None and str(self._vllm_gpu_id) != "":
-            import os as _os
-
-            vllm_env = dict(_os.environ)
-            vllm_env["CUDA_VISIBLE_DEVICES"] = str(self._vllm_gpu_id)
-            print(f"[Sam2VlmCritic] vLLM 绑定 GPU {self._vllm_gpu_id}", file=sys.stderr)
         with open(self._vllm_log, "a", encoding="utf-8") as log_file:
-            self._owned_process = subprocess.Popen(
+            subprocess.Popen(
                 [
                     self._vllm_python,
                     "-m",
@@ -166,7 +168,6 @@ class Sam2VlmSubprocessCritic:
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
                 start_new_session=True,
-                env=vllm_env,
             )
         for _ in range(180):
             if self._vllm_healthy():
@@ -176,19 +177,12 @@ class Sam2VlmSubprocessCritic:
         raise RuntimeError("vLLM 启动超时（360s）")
 
     def stop_vllm(self) -> None:
-        process = self._owned_process
-        if process is None:
-            return
-        if process.poll() is None:
-            try:
-                os.killpg(process.pid, signal.SIGTERM)
-                process.wait(timeout=30)
-            except Exception:  # noqa: BLE001
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-        self._owned_process = None
+        for pattern in (
+            "VLLM::EngineCore",
+            "vllm.entrypoints.openai.api_server",
+            "vllm",
+        ):
+            subprocess.run(["pkill", "-9", "-f", pattern], check=False)
         for _ in range(30):
             if not self._vllm_healthy():
                 break
@@ -197,12 +191,7 @@ class Sam2VlmSubprocessCritic:
         print("[Sam2VlmCritic] vLLM 已停止且显存已释放", file=sys.stderr)
 
     def prepare_for_generation(self) -> None:
-        # 双卡模式：Wan 在 GPU0，vLLM 常驻 GPU1，生成前无需清理 vLLM/显存。
-        if self._dual_gpu:
-            return
         if self._vllm_healthy() or (self._gpu_memory_used_mb() or 0) > 1024:
-            if self._vllm_healthy() and self._owned_process is None:
-                raise RuntimeError("healthy vLLM is not owned by this run")
             print("[Sam2VlmCritic] 生成前清理 vLLM/GPU 显存", file=sys.stderr)
             self.stop_vllm()
         else:
@@ -216,11 +205,16 @@ class Sam2VlmSubprocessCritic:
         candidate: GeneratedCandidate,
         *,
         prompt: str,
+        physics_plan: PhysicsPlan,
     ) -> CriticReport:
         self.start_vllm()
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as cf:
             candidate_json = cf.name
+            try:
+                plan_dict = physics_plan.to_dict() if hasattr(physics_plan, "to_dict") else {}
+            except Exception:
+                plan_dict = {}
             json.dump(
                 {
                     "candidate_id": candidate.candidate_id,
@@ -228,6 +222,7 @@ class Sam2VlmSubprocessCritic:
                     "prompt": candidate.prompt,
                     "seed": candidate.seed,
                     "metadata": candidate.metadata,
+                    "physics_plan": plan_dict,
                 },
                 cf,
                 ensure_ascii=False,
@@ -275,3 +270,42 @@ class Sam2VlmSubprocessCritic:
             critic_path.write_text(json.dumps(critic_result, ensure_ascii=False, indent=2), encoding="utf-8")
 
         return report
+"""
+        write_file(sftp, critic_path, critic)
+
+        for relative in ("agents/wanphysics/run_loop.py", "agents/wanphysics/run_videophy2_loop.py"):
+            path = f"{ROOT}/{relative}"
+            text = read_file(sftp, path)
+            if "def prepare_for_generation" not in text:
+                text = text.replace(
+                    "    def evaluate(self, candidate, *, prompt, physics_plan):\n",
+                    "    def prepare_for_generation(self) -> None:\n        self._inner.prepare_for_generation()\n\n    def evaluate(self, candidate, *, prompt, physics_plan):\n",
+                    1,
+                )
+            write_file(sftp, path, text)
+
+        controller_path = f"{ROOT}/src/physgenloop/controller.py"
+        controller = read_file(sftp, controller_path)
+        old = (
+            "            for offset in range(self.config.candidates_per_round):\n"
+            "                seed = self.config.base_seed + round_index * self.config.candidates_per_round + offset\n"
+            "                candidate = self.generator.generate(\n"
+        )
+        new = (
+            "            for offset in range(self.config.candidates_per_round):\n"
+            "                seed = self.config.base_seed + round_index * self.config.candidates_per_round + offset\n"
+            "                if hasattr(self.critic, \"prepare_for_generation\"):\n"
+            "                    self.critic.prepare_for_generation()\n"
+            "                candidate = self.generator.generate(\n"
+        )
+        if old in controller and "prepare_for_generation" not in controller:
+            controller = controller.replace(old, new, 1)
+            write_file(sftp, controller_path, controller)
+    finally:
+        sftp.close()
+        client.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

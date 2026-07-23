@@ -7,6 +7,7 @@ def test_missing_propainter_masks_local(tmp_path):
     rep = run_preflight(propainter_repo=str(tmp_path / "nope"), vllm_port=59999)
     assert rep.capability_mask["local_editing"] is False
     assert rep.capability_mask["reject"] is True
+    assert "global_regeneration" not in rep.capability_mask
     assert "propainter_repo" in rep.missing or "propainter_script" in rep.missing
 
 
