@@ -30,6 +30,10 @@ videos/
 *.bin
 *.zip
 
+# Local server connection/helpers
+tools/
+e2e_loop_full.py
+
 # 保留少量示例与轻量证据
 !data/samples/example_*/
 !outputs/.gitkeep
